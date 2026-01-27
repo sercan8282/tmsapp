@@ -2,143 +2,92 @@
 
 Een complete web applicatie voor transport management, urenregistratie, weekplanning en facturatie.
 
-## 🚀 Snelle Installatie (Productie)
-
-### Optie 1: Docker (Aanbevolen)
-
-Installeer alles met één command op een verse Ubuntu server:
+## 🚀 Installatie (1 Command)
 
 ```bash
-# Download en run het install script
-curl -sSL https://raw.githubusercontent.com/yourusername/tmsapp/main/install.sh -o install.sh
-chmod +x install.sh
+curl -sSL https://raw.githubusercontent.com/yourusername/tmsapp/main/install.sh | sudo bash
+```
+
+Of handmatig:
+
+```bash
+git clone https://github.com/yourusername/tmsapp.git
+cd tmsapp
 sudo ./install.sh
 ```
 
-Het script vraagt om:
-- Domeinnaam (bijv. `tms.jouwbedrijf.nl`)
-- Database wachtwoord
-- Admin email en wachtwoord
-
-Na installatie draait alles automatisch met SSL!
-
-### Optie 2: Native (Zonder Docker)
-
-Voor servers waar je geen Docker wilt:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/yourusername/tmsapp/main/install-native.sh -o install-native.sh
-chmod +x install-native.sh
-sudo ./install-native.sh
-```
+Het script vraagt interactief naar:
+- ✅ Domeinnaam
+- ✅ Database naam, gebruiker en wachtwoord
+- ✅ Service account naam en wachtwoord
+- ✅ Admin email en wachtwoord
+- ✅ Secret key (kan ook genereren)
 
 ---
 
 ## 📋 Wat wordt geïnstalleerd?
 
-| Component | Docker | Native |
-|-----------|--------|--------|
-| PostgreSQL 16 | Container | Systemd service |
-| Redis 7 | Container | Systemd service |
-| Django Backend | Container | Gunicorn + Supervisor |
-| React Frontend | Container | Static files |
-| Nginx | Container | Native |
-| SSL (Let's Encrypt) | Certbot container | Certbot |
+| Service | Poort | URL | Doel |
+|---------|-------|-----|------|
+| **TMS App** | 443 | https://jouwdomein.nl | Hoofdapplicatie |
+| **Nginx Proxy Manager** | 81 | http://server:81 | SSL & Proxy beheer |
+| **Portainer** | 9443 | https://server:9443 | Container beheer |
+| PostgreSQL | - | intern | Database |
+| Redis | - | intern | Cache |
 
 ---
 
 ## 🔧 Beheer Commands
 
 ```bash
-# Update naar laatste versie
-tms-update
-
-# Maak een backup
-tms-backup
-
-# Docker: Bekijk logs
-docker compose logs -f
-
-# Docker: Herstart
-docker compose restart
-
-# Native: Bekijk logs
-tail -f /var/log/tms/gunicorn.log
-
-# Native: Herstart
-supervisorctl restart tms
+tms-update     # Update naar laatste versie
+tms-backup     # Maak een backup  
+tms-logs       # Bekijk logs
+tms-restart    # Herstart containers
 ```
 
 ---
-
-## 🛠️ Tech Stack
-
-- **Backend**: Django 5.x + Django REST Framework
-- **Frontend**: React 18 + Vite + TypeScript
-- **Styling**: TailwindCSS
-- **Database**: PostgreSQL 16
-- **Cache**: Redis 7
-- **Auth**: JWT + TOTP 2FA
-- **PDF**: WeasyPrint
 
 ## 📁 Project Structuur
 
 ```
 tmsapp/
-├── backend/                 # Django API
-│   ├── apps/
-│   │   ├── accounts/       # Gebruikers & auth
-│   │   ├── companies/      # Bedrijven
-│   │   ├── drivers/        # Chauffeurs
-│   │   ├── fleet/          # Voertuigen
-│   │   ├── timetracking/   # Urenregistratie
-│   │   ├── planning/       # Weekplanning
-│   │   └── invoicing/      # Facturatie
-│   └── tms/settings/       # Django settings
-├── frontend/               # React SPA
-│   ├── src/
-│   │   ├── api/           # API client
-│   │   ├── components/    # UI components
-│   │   ├── pages/         # Page components
-│   │   └── stores/        # Zustand stores
-│   └── package.json
-├── nginx/                  # Nginx config
-├── docker-compose.yml
-├── install.sh             # Docker install
-├── install-native.sh      # Native install
-└── update.sh              # Update script
+├── backend/           # Django API
+│   ├── apps/          # Django apps (accounts, companies, etc.)
+│   └── tms/           # Settings
+├── frontend/          # React + Vite + TypeScript
+├── docs/              # Documentatie
+│   └── INSTALLATIE.md # Uitgebreide handleiding
+├── docker-compose.yml # Container setup
+├── install.sh         # Installatiescript
+└── .env.example       # Config template
 ```
 
-## 📚 API Endpoints
+---
 
-| Module | Endpoint | Beschrijving |
-|--------|----------|--------------|
-| Health | `/api/health/` | Status check |
-| Auth | `/api/auth/login/` | JWT Login |
-| Auth | `/api/auth/users/` | Gebruikersbeheer |
-| Core | `/api/core/settings/` | App instellingen |
-| Companies | `/api/companies/` | Bedrijven CRUD |
-| Drivers | `/api/drivers/` | Chauffeurs CRUD |
-| Fleet | `/api/fleet/` | Voertuigen CRUD |
-| Time | `/api/time-entries/` | Urenregistratie |
-| Planning | `/api/planning/` | Weekplanning |
-| Invoicing | `/api/invoicing/` | Facturen |
+## 📚 Documentatie
 
-API Documentatie: `https://your-domain/api/docs/`
+- 📖 [Uitgebreide Installatie Handleiding](docs/INSTALLATIE.md)
+- 🔧 [Nginx Proxy Manager Setup](docs/INSTALLATIE.md#-nginx-proxy-manager-configuratie)
+- 🔐 [Security & Wachtwoorden](docs/INSTALLATIE.md#-beveiliging)
+- 🐛 [Troubleshooting](docs/INSTALLATIE.md#-troubleshooting)
 
-## 🔐 Rollen
+---
 
-- **Admin**: Volledige toegang
-- **Gebruiker**: Standaard gebruiker
-- **Chauffeur**: Urenregistratie toegang
+## 🛠️ Tech Stack
 
-## 💾 Backups
+| Component | Technologie |
+|-----------|-------------|
+| Backend | Django 5 + DRF |
+| Frontend | React 18 + Vite + TypeScript |
+| Styling | TailwindCSS |
+| Database | PostgreSQL 16 |
+| Cache | Redis 7 |
+| Auth | JWT + TOTP 2FA |
+| Proxy | Nginx Proxy Manager |
+| Containers | Docker + Portainer |
 
-Automatische dagelijkse backups om 02:00.
-
-Handmatig: `tms-backup`
-
-Locatie: `/opt/tms/backups/`
+---
 
 ## 📄 Licentie
 

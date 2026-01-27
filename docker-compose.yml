@@ -1,7 +1,26 @@
 version: '3.8'
 
+# ===========================================
+# TMS - Transport Management System
+# Production Docker Compose
+# ===========================================
+# 
+# Dit bestand wordt automatisch geconfigureerd
+# door install.sh. Handmatig aanpassen kan ook.
+#
+# Services:
+# - db: PostgreSQL database
+# - redis: Cache server  
+# - backend: Django API
+# - frontend: React app
+# - npm: Nginx Proxy Manager (UI op poort 81)
+# - portainer: Container beheer (UI op poort 9443)
+# ===========================================
+
 services:
+  # =========================================
   # PostgreSQL Database
+  # =========================================
   db:
     image: postgres:16-alpine
     container_name: tms_db
@@ -9,7 +28,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-tms_db}
       POSTGRES_USER: ${DB_USER:-tms_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Database password required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Database wachtwoord is verplicht}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,9 +37,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - tms_network
+      - tms_internal
 
+  # =========================================
   # Redis Cache
+  # =========================================
   redis:
     image: redis:7-alpine
     container_name: tms_redis
@@ -33,9 +54,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - tms_network
+      - tms_internal
 
+  # =========================================
   # Django Backend API
+  # =========================================
   backend:
     build:
       context: ./backend
@@ -44,16 +67,18 @@ services:
     restart: always
     environment:
       - DJANGO_SETTINGS_MODULE=tms.settings.production
-      - SECRET_KEY=${SECRET_KEY:?Secret key required}
+      - SECRET_KEY=${SECRET_KEY:?Secret key is verplicht}
       - DB_NAME=${DB_NAME:-tms_db}
       - DB_USER=${DB_USER:-tms_user}
-      - DB_PASSWORD=${DB_PASSWORD:?Database password required}
+      - DB_PASSWORD=${DB_PASSWORD}
       - DB_HOST=db
       - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/1
-      - ALLOWED_HOSTS=${DOMAIN_NAME:-localhost}
-      - CORS_ALLOWED_ORIGINS=https://${DOMAIN_NAME:-localhost}
+      - ALLOWED_HOSTS=${DOMAIN_NAME:-localhost},localhost,backend
+      - CORS_ALLOWED_ORIGINS=https://${DOMAIN_NAME:-localhost},http://localhost
       - SECURE_SSL_REDIRECT=false
+      - SESSION_COOKIE_SECURE=true
+      - CSRF_COOKIE_SECURE=true
     volumes:
       - static_files:/app/staticfiles
       - media_files:/app/media
@@ -64,9 +89,13 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - tms_network
+      - tms_internal
+    expose:
+      - "8000"
 
-  # React Frontend (built and served by nginx)
+  # =========================================
+  # React Frontend
+  # =========================================
   frontend:
     build:
       context: ./frontend
@@ -76,49 +105,84 @@ services:
     container_name: tms_frontend
     restart: always
     networks:
-      - tms_network
+      - tms_internal
+    expose:
+      - "80"
 
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: tms_nginx
+  # =========================================
+  # Nginx Proxy Manager
+  # UI: http://server-ip:81
+  # Beheert SSL en reverse proxy
+  # =========================================
+  npm:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: tms_npm
     restart: always
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'      # HTTP
+      - '443:443'    # HTTPS
+      - '81:81'      # Admin UI
+    environment:
+      - DB_SQLITE_FILE=/data/database.sqlite
+      - DISABLE_IPV6=true
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - static_files:/var/www/static:ro
-      - media_files:/var/www/media:ro
-      - certbot_conf:/etc/letsencrypt:ro
-      - certbot_www:/var/www/certbot:ro
-    depends_on:
-      - backend
-      - frontend
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
     networks:
-      - tms_network
+      - tms_internal
+      - tms_external
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:81/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Certbot for SSL (auto-renew)
-  certbot:
-    image: certbot/certbot
-    container_name: tms_certbot
+  # =========================================
+  # Portainer - Container Management
+  # UI: https://server-ip:9443
+  # =========================================
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: tms_portainer
+    restart: always
+    ports:
+      - '9443:9443'  # HTTPS UI
+      - '8000:8000'  # Edge agent (optioneel)
     volumes:
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
     networks:
-      - tms_network
+      - tms_external
 
+# =========================================
+# Volumes
+# =========================================
 volumes:
   postgres_data:
+    name: tms_postgres_data
   redis_data:
+    name: tms_redis_data
   static_files:
+    name: tms_static_files
   media_files:
+    name: tms_media_files
   logs:
-  certbot_conf:
-  certbot_www:
+    name: tms_logs
+  npm_data:
+    name: tms_npm_data
+  npm_letsencrypt:
+    name: tms_npm_letsencrypt
+  portainer_data:
+    name: tms_portainer_data
 
+# =========================================
+# Networks
+# =========================================
 networks:
-  tms_network:
+  tms_internal:
+    name: tms_internal
+    driver: bridge
+    internal: true  # Geen externe toegang
+  tms_external:
+    name: tms_external
     driver: bridge
