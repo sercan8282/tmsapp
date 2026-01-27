@@ -11,8 +11,17 @@ class PlanningEntrySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = PlanningEntry
-        fields = '__all__'
-        read_only_fields = ['id', 'telefoon', 'adr', 'created_at', 'updated_at']
+        fields = [
+            'id', 'planning', 'vehicle', 'dag', 'chauffeur',
+            'vehicle_kenteken', 'vehicle_type', 'vehicle_ritnummer',
+            'chauffeur_naam', 'dag_display', 'telefoon', 'adr',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'planning', 'vehicle', 'dag',  # Prevent changing assignment
+            'telefoon', 'adr',  # Auto-filled from chauffeur
+            'created_at', 'updated_at'
+        ]
 
 
 class WeekPlanningSerializer(serializers.ModelSerializer):
@@ -21,11 +30,28 @@ class WeekPlanningSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = WeekPlanning
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = [
+            'id', 'bedrijf', 'bedrijf_naam', 'weeknummer', 'jaar',
+            'entries', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'bedrijf', 'created_at', 'updated_at']
 
 
 class WeekPlanningCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = WeekPlanning
         fields = ['bedrijf', 'weeknummer', 'jaar']
+    
+    def validate_weeknummer(self, value):
+        if value < 1 or value > 53:
+            raise serializers.ValidationError("Weeknummer moet tussen 1 en 53 zijn")
+        return value
+    
+    def validate_jaar(self, value):
+        from datetime import date
+        current_year = date.today().year
+        if value < current_year - 1 or value > current_year + 2:
+            raise serializers.ValidationError(
+                f"Jaar moet tussen {current_year - 1} en {current_year + 2} liggen"
+            )
+        return value
