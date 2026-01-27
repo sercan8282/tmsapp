@@ -228,8 +228,8 @@ function DriverForm({
           <option value="">Geen gebruiker</option>
           {users.map(user => (
             <option key={user.id} value={user.id}>
-              {user.first_name && user.last_name 
-                ? `${user.first_name} ${user.last_name}` 
+              {user.voornaam && user.achternaam 
+                ? `${user.voornaam} ${user.achternaam}` 
                 : user.username}
             </option>
           ))}
