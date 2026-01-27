@@ -6,5 +6,8 @@ class VehicleSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Vehicle
-        fields = '__all__'
+        fields = [
+            'id', 'kenteken', 'type_wagen', 'ritnummer',
+            'bedrijf', 'bedrijf_naam', 'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at']

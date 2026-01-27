@@ -7,7 +7,11 @@ class DriverSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Driver
-        fields = '__all__'
+        fields = [
+            'id', 'naam', 'telefoon', 'bedrijf', 'bedrijf_naam',
+            'gekoppelde_gebruiker', 'gekoppelde_gebruiker_naam',
+            'adr', 'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def get_gekoppelde_gebruiker_naam(self, obj):

@@ -10,7 +10,14 @@ class TimeEntrySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TimeEntry
-        fields = '__all__'
+        fields = [
+            'id', 'user', 'user_naam', 'user_email',
+            'weeknummer', 'ritnummer', 'datum', 'kenteken',
+            'km_start', 'km_eind', 'totaal_km',
+            'aanvang', 'eind', 'pauze', 'pauze_display',
+            'totaal_uren', 'totaal_uren_display',
+            'status', 'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'user', 'weeknummer', 'totaal_km', 'totaal_uren', 'created_at', 'updated_at']
     
     def get_totaal_uren_display(self, obj):

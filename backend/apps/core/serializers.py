@@ -44,7 +44,15 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = AppSettings
-        fields = '__all__'
+        fields = [
+            'id', 'app_name', 'logo', 'logo_url', 'favicon', 'favicon_url', 'primary_color',
+            'company_name', 'company_address', 'company_phone', 'company_email',
+            'company_kvk', 'company_btw', 'company_iban',
+            'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password',
+            'smtp_use_tls', 'smtp_from_email',
+            'oauth_enabled', 'oauth_client_id', 'oauth_client_secret', 'oauth_tenant_id',
+            'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at']
         extra_kwargs = {
             'smtp_password': {'write_only': True},
