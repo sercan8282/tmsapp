@@ -153,7 +153,7 @@ function VehicleForm({
       kenteken: formData.kenteken.toUpperCase(),
       type_wagen: formData.type_wagen || undefined,
       ritnummer: formData.ritnummer || undefined,
-      bedrijf: parseInt(formData.bedrijf),
+      bedrijf: formData.bedrijf,
     }
     onSave(saveData)
   }
@@ -312,7 +312,7 @@ export default function FleetPage() {
         ordering: sortDirection === 'asc' ? sortField : `-${sortField}`,
       }
       if (search) filters.search = search
-      if (companyFilter) filters.bedrijf = parseInt(companyFilter)
+      if (companyFilter) filters.bedrijf = companyFilter
       if (typeFilter) filters.type_wagen = typeFilter
       
       const response = await getVehicles(filters)

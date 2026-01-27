@@ -160,8 +160,8 @@ function DriverForm({
     const saveData: DriverCreate | DriverUpdate = {
       naam: formData.naam,
       telefoon: formData.telefoon || undefined,
-      bedrijf: formData.bedrijf ? parseInt(formData.bedrijf) : undefined,
-      gekoppelde_gebruiker: formData.gekoppelde_gebruiker ? parseInt(formData.gekoppelde_gebruiker) : undefined,
+      bedrijf: formData.bedrijf || undefined,
+      gekoppelde_gebruiker: formData.gekoppelde_gebruiker || undefined,
       adr: formData.adr,
     }
     onSave(saveData)
@@ -347,7 +347,7 @@ export default function DriversPage() {
         ordering: sortDirection === 'asc' ? sortField : `-${sortField}`,
       }
       if (search) filters.search = search
-      if (companyFilter) filters.bedrijf = parseInt(companyFilter)
+      if (companyFilter) filters.bedrijf = companyFilter
       if (adrFilter !== 'all') filters.adr = adrFilter === 'yes'
       
       const response = await getDrivers(filters)
