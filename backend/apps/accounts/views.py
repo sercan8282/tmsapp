@@ -1,6 +1,7 @@
 """
 Accounts app views.
 """
+import logging
 import pyotp
 import qrcode
 import qrcode.image.svg
@@ -9,6 +10,7 @@ import base64
 
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.core.cache import cache
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -32,11 +34,81 @@ from .serializers import (
 )
 
 User = get_user_model()
+logger = logging.getLogger('accounts.security')
+
+# Rate limiting settings
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 300  # 5 minutes
+
+
+def get_client_ip(request):
+    """Get client IP address from request."""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
+def check_rate_limit(request, identifier):
+    """Check if rate limit exceeded. Returns (is_blocked, attempts_left)."""
+    cache_key = f'login_attempts:{identifier}'
+    attempts = cache.get(cache_key, 0)
+    
+    if attempts >= MAX_LOGIN_ATTEMPTS:
+        return True, 0
+    return False, MAX_LOGIN_ATTEMPTS - attempts
+
+
+def increment_rate_limit(request, identifier):
+    """Increment failed login attempts."""
+    cache_key = f'login_attempts:{identifier}'
+    attempts = cache.get(cache_key, 0)
+    cache.set(cache_key, attempts + 1, LOGIN_LOCKOUT_SECONDS)
+
+
+def reset_rate_limit(identifier):
+    """Reset rate limit after successful login."""
+    cache_key = f'login_attempts:{identifier}'
+    cache.delete(cache_key)
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
-    """Custom login view that handles 2FA."""
+    """Custom login view that handles 2FA and rate limiting."""
     serializer_class = CustomTokenObtainPairSerializer
+    
+    def post(self, request, *args, **kwargs):
+        email = request.data.get('email', '').lower()
+        client_ip = get_client_ip(request)
+        
+        # Check rate limit by IP and email
+        ip_blocked, _ = check_rate_limit(request, f'ip:{client_ip}')
+        email_blocked, _ = check_rate_limit(request, f'email:{email}')
+        
+        if ip_blocked or email_blocked:
+            logger.warning(
+                f"Rate limit exceeded for login - IP: {client_ip}, Email: {email}"
+            )
+            return Response(
+                {'error': 'Te veel mislukte pogingen. Probeer het over 5 minuten opnieuw.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
+        response = super().post(request, *args, **kwargs)
+        
+        if response.status_code == 200:
+            # Successful login - reset rate limits
+            reset_rate_limit(f'ip:{client_ip}')
+            reset_rate_limit(f'email:{email}')
+            logger.info(f"Successful login for {email} from IP {client_ip}")
+        else:
+            # Failed login - increment rate limits
+            increment_rate_limit(request, f'ip:{client_ip}')
+            increment_rate_limit(request, f'email:{email}')
+            logger.warning(f"Failed login attempt for {email} from IP {client_ip}")
+        
+        return response
 
 
 class MFAVerifyView(APIView):
@@ -276,6 +348,38 @@ class UserViewSet(viewsets.ModelViewSet):
         
         return queryset.order_by('achternaam', 'voornaam')
     
+    def destroy(self, request, *args, **kwargs):
+        """Delete user with security checks."""
+        user = self.get_object()
+        
+        # Prevent self-deletion
+        if user.id == request.user.id:
+            return Response(
+                {'error': 'Je kunt je eigen account niet verwijderen.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Prevent deletion of last admin
+        if user.rol == 'admin' or user.is_superuser:
+            admin_count = User.objects.filter(
+                models.Q(rol='admin') | models.Q(is_superuser=True),
+                is_active=True
+            ).count()
+            if admin_count <= 1:
+                return Response(
+                    {'error': 'Er moet minimaal één actieve admin blijven.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Log the deletion
+        import logging
+        logger = logging.getLogger('accounts.security')
+        logger.warning(
+            f"User deleted: {user.email} (ID: {user.id}) by admin {request.user.email}"
+        )
+        
+        return super().destroy(request, *args, **kwargs)
+    
     @action(detail=True, methods=['post'])
     def reset_password(self, request, pk=None):
         """Reset password for a user (admin only)."""
@@ -288,16 +392,50 @@ class UserViewSet(viewsets.ModelViewSet):
         user.set_password(serializer.validated_data['new_password'])
         user.save()
         
+        # Log password reset
+        import logging
+        logger = logging.getLogger('accounts.security')
+        logger.info(
+            f"Password reset for user {user.email} (ID: {user.id}) by admin {request.user.email}"
+        )
+        
         return Response({'message': f'Wachtwoord voor {user.full_name} succesvol gereset.'})
     
     @action(detail=True, methods=['post'])
     def toggle_active(self, request, pk=None):
         """Toggle user active status (block/unblock)."""
         user = self.get_object()
+        
+        # Prevent self-blocking
+        if user.id == request.user.id:
+            return Response(
+                {'error': 'Je kunt je eigen account niet blokkeren.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Prevent blocking last admin
+        if user.is_active and (user.rol == 'admin' or user.is_superuser):
+            admin_count = User.objects.filter(
+                models.Q(rol='admin') | models.Q(is_superuser=True),
+                is_active=True
+            ).count()
+            if admin_count <= 1:
+                return Response(
+                    {'error': 'Er moet minimaal één actieve admin blijven.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         user.is_active = not user.is_active
         user.save()
         
+        # Log status change
+        import logging
+        logger = logging.getLogger('accounts.security')
         status_text = 'geactiveerd' if user.is_active else 'geblokkeerd'
+        logger.info(
+            f"User {user.email} (ID: {user.id}) {status_text} by admin {request.user.email}"
+        )
+        
         return Response({
             'message': f'Gebruiker {user.full_name} is {status_text}.',
             'is_active': user.is_active,
@@ -307,8 +445,22 @@ class UserViewSet(viewsets.ModelViewSet):
     def disable_mfa(self, request, pk=None):
         """Disable 2FA for a user (admin only)."""
         user = self.get_object()
+        
+        if not user.mfa_enabled:
+            return Response(
+                {'error': '2FA is al uitgeschakeld voor deze gebruiker.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         user.mfa_enabled = False
         user.mfa_secret = ''
         user.save()
+        
+        # Log MFA disable
+        import logging
+        logger = logging.getLogger('accounts.security')
+        logger.warning(
+            f"2FA disabled for user {user.email} (ID: {user.id}) by admin {request.user.email}"
+        )
         
         return Response({'message': f'2FA voor {user.full_name} is uitgeschakeld.'})

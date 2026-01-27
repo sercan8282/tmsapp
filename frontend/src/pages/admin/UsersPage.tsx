@@ -525,6 +525,26 @@ export default function UsersPage() {
   }
 
   // Handle create user
+  // Helper to extract error message from response
+  const getErrorMessage = (err: any, defaultMsg: string): string => {
+    if (err.response?.data) {
+      const data = err.response.data
+      // Handle {error: "message"} format
+      if (data.error) return data.error
+      // Handle {message: "message"} format
+      if (data.message) return data.message
+      // Handle {detail: "message"} format
+      if (data.detail) return data.detail
+      // Handle field errors {field: ["error"]}
+      const firstField = Object.keys(data)[0]
+      if (firstField && Array.isArray(data[firstField])) {
+        return data[firstField][0]
+      }
+    }
+    return defaultMsg
+  }
+
+  // Handle create user
   const handleCreateUser = async (data: UserCreate | UserUpdate) => {
     setIsActionLoading(true)
     try {
@@ -533,7 +553,7 @@ export default function UsersPage() {
       showSuccess('Gebruiker succesvol aangemaakt')
       fetchUsers()
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Fout bij aanmaken gebruiker')
+      setError(getErrorMessage(err, 'Fout bij aanmaken gebruiker'))
     } finally {
       setIsActionLoading(false)
     }
@@ -550,7 +570,7 @@ export default function UsersPage() {
       showSuccess('Gebruiker succesvol bijgewerkt')
       fetchUsers()
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Fout bij bijwerken gebruiker')
+      setError(getErrorMessage(err, 'Fout bij bijwerken gebruiker'))
     } finally {
       setIsActionLoading(false)
     }
@@ -567,7 +587,9 @@ export default function UsersPage() {
       showSuccess('Gebruiker succesvol verwijderd')
       fetchUsers()
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Fout bij verwijderen gebruiker')
+      setError(getErrorMessage(err, 'Fout bij verwijderen gebruiker'))
+      setShowDeleteModal(false)
+      setSelectedUser(null)
     } finally {
       setIsActionLoading(false)
     }
@@ -583,7 +605,7 @@ export default function UsersPage() {
       setSelectedUser(null)
       showSuccess('Wachtwoord succesvol gereset')
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Fout bij resetten wachtwoord')
+      setError(getErrorMessage(err, 'Fout bij resetten wachtwoord'))
     } finally {
       setIsActionLoading(false)
     }
@@ -600,7 +622,9 @@ export default function UsersPage() {
       showSuccess(`Gebruiker succesvol ${selectedUser.is_active ? 'geblokkeerd' : 'geactiveerd'}`)
       fetchUsers()
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Fout bij wijzigen status')
+      setError(getErrorMessage(err, 'Fout bij wijzigen status'))
+      setShowBlockModal(false)
+      setSelectedUser(null)
     } finally {
       setIsActionLoading(false)
     }
@@ -617,7 +641,9 @@ export default function UsersPage() {
       showSuccess('2FA succesvol uitgeschakeld')
       fetchUsers()
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Fout bij uitschakelen 2FA')
+      setError(getErrorMessage(err, 'Fout bij uitschakelen 2FA'))
+      setShowMfaModal(false)
+      setSelectedUser(null)
     } finally {
       setIsActionLoading(false)
     }

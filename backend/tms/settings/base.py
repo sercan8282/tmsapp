@@ -159,6 +159,10 @@ LOGGING = {
             'format': '{levelname} {message}',
             'style': '{',
         },
+        'security': {
+            'format': '{asctime} [{levelname}] {name} - {message}',
+            'style': '{',
+        },
     },
     'handlers': {
         'console': {
@@ -170,6 +174,11 @@ LOGGING = {
             'filename': BASE_DIR / 'logs' / 'django.log',
             'formatter': 'verbose',
         },
+        'security_file': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'security.log',
+            'formatter': 'security',
+        },
     },
     'root': {
         'handlers': ['console'],
@@ -179,6 +188,11 @@ LOGGING = {
         'django': {
             'handlers': ['console', 'file'],
             'level': config('DJANGO_LOG_LEVEL', default='INFO'),
+            'propagate': False,
+        },
+        'accounts.security': {
+            'handlers': ['console', 'security_file'],
+            'level': 'INFO',
             'propagate': False,
         },
     },
