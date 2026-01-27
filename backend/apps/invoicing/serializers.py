@@ -1,19 +1,49 @@
 from rest_framework import serializers
-from .models import InvoiceTemplate, Invoice, InvoiceLine
+from .models import InvoiceTemplate, Invoice, InvoiceLine, InvoiceStatus
 
 
 class InvoiceTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = InvoiceTemplate
-        fields = '__all__'
+        fields = [
+            'id', 'naam', 'beschrijving', 'layout', 'variables',
+            'is_active', 'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 class InvoiceLineSerializer(serializers.ModelSerializer):
     class Meta:
         model = InvoiceLine
-        fields = '__all__'
+        fields = [
+            'id', 'invoice', 'omschrijving', 'aantal', 'eenheid',
+            'prijs_per_eenheid', 'totaal', 'time_entry',
+            'extra_data', 'volgorde', 'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'totaal', 'created_at', 'updated_at']
+    
+    def validate(self, data):
+        # Check if invoice is still editable (concept status)
+        invoice = data.get('invoice') or (self.instance.invoice if self.instance else None)
+        if invoice and invoice.status != InvoiceStatus.CONCEPT:
+            raise serializers.ValidationError(
+                "Factuurregels kunnen alleen worden gewijzigd bij concept facturen"
+            )
+        return data
+    
+    def create(self, validated_data):
+        # Calculate line total
+        validated_data['totaal'] = (
+            validated_data.get('aantal', 1) * validated_data.get('prijs_per_eenheid', 0)
+        )
+        return super().create(validated_data)
+    
+    def update(self, instance, validated_data):
+        # Recalculate total if quantity or price changed
+        aantal = validated_data.get('aantal', instance.aantal)
+        prijs = validated_data.get('prijs_per_eenheid', instance.prijs_per_eenheid)
+        validated_data['totaal'] = aantal * prijs
+        return super().update(instance, validated_data)
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
@@ -21,14 +51,86 @@ class InvoiceSerializer(serializers.ModelSerializer):
     bedrijf_naam = serializers.CharField(source='bedrijf.naam', read_only=True)
     template_naam = serializers.CharField(source='template.naam', read_only=True)
     created_by_naam = serializers.CharField(source='created_by.full_name', read_only=True)
+    type_display = serializers.CharField(source='get_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
     
     class Meta:
         model = Invoice
-        fields = '__all__'
-        read_only_fields = ['id', 'subtotaal', 'btw_bedrag', 'totaal', 'pdf_file', 'sent_at', 'created_at', 'updated_at']
+        fields = [
+            'id', 'factuurnummer', 'type', 'type_display', 'status', 'status_display',
+            'template', 'template_naam', 'bedrijf', 'bedrijf_naam',
+            'factuurdatum', 'vervaldatum',
+            'subtotaal', 'btw_percentage', 'btw_bedrag', 'totaal',
+            'opmerkingen', 'pdf_file',
+            'created_by', 'created_by_naam', 'sent_at',
+            'lines', 'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'factuurnummer', 'subtotaal', 'btw_bedrag', 'totaal',
+            'pdf_file', 'created_by', 'sent_at', 'created_at', 'updated_at'
+        ]
 
 
 class InvoiceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invoice
         fields = ['template', 'bedrijf', 'type', 'factuurdatum', 'vervaldatum', 'btw_percentage', 'opmerkingen']
+    
+    def validate_factuurdatum(self, value):
+        from datetime import date, timedelta
+        # Factuurdatum mag niet te ver in het verleden liggen
+        min_date = date.today() - timedelta(days=365)
+        if value < min_date:
+            raise serializers.ValidationError("Factuurdatum mag niet meer dan 1 jaar in het verleden liggen")
+        return value
+    
+    def validate_vervaldatum(self, value):
+        from datetime import date
+        if value < date.today():
+            raise serializers.ValidationError("Vervaldatum mag niet in het verleden liggen")
+        return value
+    
+    def validate(self, data):
+        if data.get('vervaldatum') and data.get('factuurdatum'):
+            if data['vervaldatum'] < data['factuurdatum']:
+                raise serializers.ValidationError({
+                    'vervaldatum': "Vervaldatum moet na factuurdatum liggen"
+                })
+        return data
+
+
+class InvoiceUpdateSerializer(serializers.ModelSerializer):
+    """Serializer voor het updaten van facturen met status validatie."""
+    
+    class Meta:
+        model = Invoice
+        fields = ['status', 'btw_percentage', 'opmerkingen', 'vervaldatum']
+    
+    def validate_status(self, value):
+        if self.instance:
+            current = self.instance.status
+            # Geldige status transitions
+            valid_transitions = {
+                InvoiceStatus.CONCEPT: [InvoiceStatus.DEFINITIEF],
+                InvoiceStatus.DEFINITIEF: [InvoiceStatus.VERZONDEN, InvoiceStatus.CONCEPT],
+                InvoiceStatus.VERZONDEN: [InvoiceStatus.BETAALD],
+                InvoiceStatus.BETAALD: [],  # Betaald is eindstatus
+            }
+            
+            if value != current and value not in valid_transitions.get(current, []):
+                raise serializers.ValidationError(
+                    f"Ongeldige status overgang van '{current}' naar '{value}'"
+                )
+        return value
+    
+    def validate(self, data):
+        # Concept facturen mogen alles wijzigen
+        if self.instance and self.instance.status != InvoiceStatus.CONCEPT:
+            # Niet-concept facturen mogen alleen status en opmerkingen wijzigen
+            allowed_fields = {'status', 'opmerkingen'}
+            for field in data.keys():
+                if field not in allowed_fields:
+                    raise serializers.ValidationError(
+                        f"Veld '{field}' kan niet worden gewijzigd voor niet-concept facturen"
+                    )
+        return data
