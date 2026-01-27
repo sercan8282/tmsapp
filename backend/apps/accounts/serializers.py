@@ -1,0 +1,161 @@
+"""
+Accounts app serializers.
+"""
+import pyotp
+import qrcode
+import qrcode.image.svg
+from io import BytesIO
+import base64
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+User = get_user_model()
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """Basic user serializer for listings."""
+    full_name = serializers.CharField(read_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'username', 'voornaam', 'achternaam',
+            'full_name', 'telefoon', 'bedrijf', 'rol', 
+            'mfa_enabled', 'is_active', 'date_joined', 'last_login'
+        ]
+        read_only_fields = ['id', 'date_joined', 'last_login']
+
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    """Detailed user serializer for profile."""
+    full_name = serializers.CharField(read_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'username', 'voornaam', 'achternaam',
+            'full_name', 'telefoon', 'bedrijf', 'rol',
+            'mfa_enabled', 'is_active', 'date_joined', 'last_login'
+        ]
+        read_only_fields = ['id', 'email', 'rol', 'is_active', 'date_joined', 'last_login']
+
+
+class UserCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating new users (admin only)."""
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password_confirm = serializers.CharField(write_only=True, required=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'email', 'username', 'password', 'password_confirm',
+            'voornaam', 'achternaam', 'telefoon', 'bedrijf', 'rol', 'is_active'
+        ]
+    
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError({'password_confirm': 'Wachtwoorden komen niet overeen.'})
+        return attrs
+    
+    def create(self, validated_data):
+        validated_data.pop('password_confirm')
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating users (admin only)."""
+    
+    class Meta:
+        model = User
+        fields = [
+            'email', 'username', 'voornaam', 'achternaam',
+            'telefoon', 'bedrijf', 'rol', 'is_active'
+        ]
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """Serializer for changing password."""
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, validators=[validate_password])
+    new_password_confirm = serializers.CharField(required=True)
+    
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['new_password_confirm']:
+            raise serializers.ValidationError({'new_password_confirm': 'Wachtwoorden komen niet overeen.'})
+        return attrs
+
+
+class PasswordResetSerializer(serializers.Serializer):
+    """Serializer for admin password reset."""
+    new_password = serializers.CharField(required=True, validators=[validate_password])
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Custom JWT serializer that includes user data and handles 2FA."""
+    
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        
+        # Check if user has 2FA enabled
+        if self.user.mfa_enabled:
+            # Don't return tokens yet, require 2FA verification
+            data = {
+                'requires_2fa': True,
+                'user_id': str(self.user.id),
+            }
+        else:
+            # Add user info to response
+            data['user'] = UserSerializer(self.user).data
+        
+        return data
+
+
+class MFASetupSerializer(serializers.Serializer):
+    """Serializer for setting up 2FA."""
+    pass  # No input needed
+
+
+class MFAVerifySerializer(serializers.Serializer):
+    """Serializer for verifying 2FA code."""
+    code = serializers.CharField(required=True, min_length=6, max_length=6)
+    user_id = serializers.UUIDField(required=False)  # Only needed during login
+
+
+class MFADisableSerializer(serializers.Serializer):
+    """Serializer for disabling 2FA."""
+    code = serializers.CharField(required=True, min_length=6, max_length=6)
+    password = serializers.CharField(required=True)
+
+
+class RegisterSerializer(serializers.ModelSerializer):
+    """Serializer for user self-registration (if enabled)."""
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password_confirm = serializers.CharField(write_only=True, required=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'email', 'username', 'password', 'password_confirm',
+            'voornaam', 'achternaam', 'telefoon'
+        ]
+    
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError({'password_confirm': 'Wachtwoorden komen niet overeen.'})
+        return attrs
+    
+    def create(self, validated_data):
+        validated_data.pop('password_confirm')
+        password = validated_data.pop('password')
+        # Default role is Gebruiker, set by model default
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user

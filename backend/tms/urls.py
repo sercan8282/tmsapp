@@ -1,0 +1,48 @@
+"""
+URL configuration for TMS project.
+"""
+from django.conf import settings
+from django.conf.urls.static import static
+from django.contrib import admin
+from django.urls import include, path
+from django.http import JsonResponse
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+
+
+def health_check(request):
+    """Simple health check endpoint for Docker/monitoring."""
+    return JsonResponse({'status': 'healthy', 'service': 'tms-api'})
+
+
+urlpatterns = [
+    # Health check (for Docker/load balancers)
+    path('api/health/', health_check, name='health-check'),
+    
+    # Admin (only for developers)
+    path('admin/', admin.site.urls),
+    
+    # API Documentation
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    
+    # API Routes
+    path('api/auth/', include('apps.accounts.urls')),
+    path('api/core/', include('apps.core.urls')),
+    path('api/companies/', include('apps.companies.urls')),
+    path('api/drivers/', include('apps.drivers.urls')),
+    path('api/fleet/', include('apps.fleet.urls')),
+    path('api/time-entries/', include('apps.timetracking.urls')),
+    path('api/planning/', include('apps.planning.urls')),
+    path('api/invoicing/', include('apps.invoicing.urls')),
+]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    
+    # Debug toolbar
+    import debug_toolbar
+    urlpatterns = [
+        path('__debug__/', include(debug_toolbar.urls)),
+    ] + urlpatterns
