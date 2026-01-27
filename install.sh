@@ -673,6 +673,10 @@ main() {
     # ===========================================
     print_step "Configuratie overzicht"
     
+    echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${YELLOW}║  NOTEER DEZE GEGEVENS! Ze worden maar 1x getoond.          ║${NC}"
+    echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
     echo -e "${CYAN}Repository:${NC}"
     echo "  URL:        $REPO_URL"
     echo "  Branch:     $BRANCH"
@@ -684,15 +688,15 @@ main() {
     echo -e "${CYAN}Database:${NC}"
     echo "  Naam:       $DB_NAME"
     echo "  Gebruiker:  $DB_USER"
-    echo "  Wachtwoord: ********"
+    echo -e "  Wachtwoord: ${GREEN}$DB_PASSWORD${NC}"
     echo ""
     echo -e "${CYAN}Service Account:${NC}"
     echo "  Gebruiker:  $SERVICE_USER"
-    echo "  Wachtwoord: ********"
+    echo -e "  Wachtwoord: ${GREEN}$SERVICE_PASSWORD${NC}"
     echo ""
     echo -e "${CYAN}TMS Admin:${NC}"
     echo "  Email:      $ADMIN_EMAIL"
-    echo "  Wachtwoord: ********"
+    echo -e "  Wachtwoord: ${GREEN}$ADMIN_PASSWORD${NC}"
     echo ""
     
     prompt_yes_no "Klopt deze configuratie?" "y" CONFIRM
