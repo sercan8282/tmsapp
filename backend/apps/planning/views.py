@@ -1,9 +1,11 @@
+import logging
 from datetime import date
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.core.permissions import IsAdminOrManager
 from apps.fleet.models import Vehicle
 from .models import WeekPlanning, PlanningEntry, Weekday
 from .serializers import (
@@ -12,12 +14,23 @@ from .serializers import (
     PlanningEntrySerializer
 )
 
+logger = logging.getLogger('accounts.security')
+
 
 class WeekPlanningViewSet(viewsets.ModelViewSet):
-    queryset = WeekPlanning.objects.select_related('bedrijf').prefetch_related('entries').all()
-    permission_classes = [IsAuthenticated]
+    """
+    ViewSet voor weekplanningen.
+    
+    Chauffeurs: alleen lezen
+    Gebruikers/Admins: volledige CRUD
+    """
+    queryset = WeekPlanning.objects.select_related('bedrijf').prefetch_related(
+        'entries__vehicle', 'entries__chauffeur'
+    ).all()
+    permission_classes = [IsAuthenticated, IsAdminOrManager]
     filterset_fields = ['bedrijf', 'weeknummer', 'jaar']
     ordering_fields = ['weeknummer', 'jaar']
+    search_fields = ['bedrijf__naam']
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -41,27 +54,138 @@ class WeekPlanningViewSet(viewsets.ModelViewSet):
                 ))
         
         PlanningEntry.objects.bulk_create(entries)
+        
+        # Audit log
+        logger.info(
+            f"WeekPlanning created: {planning.bedrijf.naam} Week {planning.weeknummer}/{planning.jaar} "
+            f"by user {self.request.user.email}"
+        )
+    
+    def perform_update(self, serializer):
+        planning = serializer.save()
+        logger.info(
+            f"WeekPlanning updated: {planning.bedrijf.naam} Week {planning.weeknummer}/{planning.jaar} "
+            f"by user {self.request.user.email}"
+        )
+    
+    def perform_destroy(self, instance):
+        planning_info = f"{instance.bedrijf.naam} Week {instance.weeknummer}/{instance.jaar}"
+        instance.delete()
+        logger.warning(
+            f"WeekPlanning deleted: {planning_info} by user {self.request.user.email}"
+        )
+    
+    @action(detail=False, methods=['get'])
+    def current_week(self, request):
+        """Get info for current week."""
+        today = date.today()
+        iso = today.isocalendar()
+        return Response({
+            'weeknummer': iso[1],
+            'jaar': iso[0]
+        })
     
     @action(detail=False, methods=['get'])
     def next_week(self, request):
         """Get info for next week."""
         today = date.today()
-        next_week = today.isocalendar()[1] + 1
-        year = today.year
+        iso = today.isocalendar()
+        next_week = iso[1] + 1
+        year = iso[0]
         
-        # Handle year boundary
+        # Handle year boundary (ISO week can be 52 or 53)
         if next_week > 52:
-            next_week = 1
-            year += 1
+            # Check if there's a week 53 this year
+            last_day = date(year, 12, 31)
+            max_week = last_day.isocalendar()[1]
+            if next_week > max_week:
+                next_week = 1
+                year += 1
         
         return Response({
             'weeknummer': next_week,
             'jaar': year
         })
+    
+    @action(detail=True, methods=['post'])
+    def copy_to_next_week(self, request, pk=None):
+        """Copy planning to next week."""
+        source = self.get_object()
+        
+        # Calculate next week
+        next_week = source.weeknummer + 1
+        year = source.jaar
+        if next_week > 52:
+            next_week = 1
+            year += 1
+        
+        # Check if target already exists
+        if WeekPlanning.objects.filter(
+            bedrijf=source.bedrijf, 
+            weeknummer=next_week, 
+            jaar=year
+        ).exists():
+            return Response(
+                {'error': f'Planning voor week {next_week}/{year} bestaat al'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create new planning
+        new_planning = WeekPlanning.objects.create(
+            bedrijf=source.bedrijf,
+            weeknummer=next_week,
+            jaar=year
+        )
+        
+        # Copy entries
+        for entry in source.entries.all():
+            PlanningEntry.objects.create(
+                planning=new_planning,
+                vehicle=entry.vehicle,
+                dag=entry.dag,
+                chauffeur=entry.chauffeur,
+                telefoon=entry.telefoon,
+                adr=entry.adr
+            )
+        
+        logger.info(
+            f"WeekPlanning copied: {source.bedrijf.naam} Week {source.weeknummer}/{source.jaar} -> "
+            f"Week {next_week}/{year} by user {request.user.email}"
+        )
+        
+        serializer = self.get_serializer(new_planning)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class PlanningEntryViewSet(viewsets.ModelViewSet):
-    queryset = PlanningEntry.objects.select_related('planning', 'vehicle', 'chauffeur').all()
+    """
+    ViewSet voor planningsregels.
+    
+    Chauffeurs: alleen lezen
+    Gebruikers/Admins: volledige CRUD
+    """
+    queryset = PlanningEntry.objects.select_related(
+        'planning__bedrijf', 'vehicle', 'chauffeur'
+    ).all()
     serializer_class = PlanningEntrySerializer
-    permission_classes = [IsAuthenticated]
-    filterset_fields = ['planning', 'dag', 'chauffeur']
+    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    filterset_fields = ['planning', 'dag', 'chauffeur', 'vehicle']
+    
+    def perform_update(self, serializer):
+        entry = serializer.save()
+        
+        # Auto-fill telefoon and adr from chauffeur
+        if entry.chauffeur:
+            entry.telefoon = entry.chauffeur.telefoon or ''
+            entry.adr = entry.chauffeur.adr
+            entry.save(update_fields=['telefoon', 'adr'])
+        else:
+            entry.telefoon = ''
+            entry.adr = False
+            entry.save(update_fields=['telefoon', 'adr'])
+        
+        logger.info(
+            f"PlanningEntry updated: {entry.vehicle.kenteken} {entry.get_dag_display()} "
+            f"-> {entry.chauffeur.naam if entry.chauffeur else 'leeg'} "
+            f"by user {self.request.user.email}"
+        )
