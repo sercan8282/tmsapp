@@ -96,7 +96,7 @@ export interface Driver {
   bedrijf: string | null
   bedrijf_naam: string | null
   gekoppelde_gebruiker: string | null
-  gebruiker_naam: string | null
+  gekoppelde_gebruiker_naam: string | null
   adr: boolean
   created_at: string
   updated_at: string
