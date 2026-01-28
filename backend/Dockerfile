@@ -40,9 +40,11 @@ COPY . /app/
 RUN mkdir -p /app/staticfiles /app/media /app/logs \
     && chown -R tms:tms /app
 
-# Copy entrypoint script
+# Copy entrypoint script and fix line endings (Windows -> Linux)
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh && chown tms:tms /app/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh \
+    && chmod +x /app/docker-entrypoint.sh \
+    && chown tms:tms /app/docker-entrypoint.sh
 
 # Switch to non-root user
 USER tms

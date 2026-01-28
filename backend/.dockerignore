@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.env.*
+!.env.example
+.venv
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Local files
+*.sqlite3
+db.sqlite3
+*.log
+logs/
+
+# Media files (will be mounted as volume)
+media/*
+!media/.gitkeep
+
+# Static files (generated at runtime)
+staticfiles/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local development
+*.local
+docker-compose*.local.yml
