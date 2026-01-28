@@ -5,8 +5,6 @@
 import { useState, useEffect, Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
   MagnifyingGlassIcon,
   PencilIcon,
   XMarkIcon,

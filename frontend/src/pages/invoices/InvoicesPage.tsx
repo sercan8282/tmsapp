@@ -18,6 +18,7 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline'
+import toast from 'react-hot-toast'
 import { useAuthStore } from '@/stores/authStore'
 import { Company, Invoice } from '@/types'
 import Pagination, { PageSize } from '@/components/common/Pagination'
@@ -588,7 +589,7 @@ export default function InvoicesPage() {
                               try {
                                 await changeStatus(selectedInvoice.id, newStatus);
                                 setSelectedInvoice({ ...selectedInvoice, status: newStatus });
-                                fetchData();
+                                loadInvoices();
                                 toast.success('Status gewijzigd');
                               } catch (err) {
                                 toast.error('Status wijzigen mislukt');

@@ -197,8 +197,6 @@ function ChauffeurPlanningView() {
 
 // Admin/Manager Planning View
 function AdminPlanningView() {
-  const { user } = useAuthStore()
-  
   // Admins can always edit
   const isReadOnly = false
   
