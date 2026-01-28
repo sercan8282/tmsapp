@@ -861,8 +861,17 @@ configure_firewall() {
 create_maintenance_scripts() {
     print_step "Creating maintenance scripts..."
     
-    # Update script
-    cat > /usr/local/bin/tms-update << EOF
+    # Copy comprehensive update script from repository
+    if [ -f "$INSTALL_DIR/scripts/update-production-docker.sh" ]; then
+        cp "$INSTALL_DIR/scripts/update-production-docker.sh" /usr/local/bin/tms-update
+        chmod +x /usr/local/bin/tms-update
+        
+        # Set environment variables for the update script
+        sed -i "s|INSTALL_DIR=.*|INSTALL_DIR=\"$INSTALL_DIR\"|" /usr/local/bin/tms-update
+        sed -i "s|DOCKER_DIR=.*|DOCKER_DIR=\"$DOCKER_DIR\"|" /usr/local/bin/tms-update
+    else
+        # Fallback simple update script
+        cat > /usr/local/bin/tms-update << EOF
 #!/bin/bash
 set -e
 echo "=== Updating TMS ==="
@@ -887,7 +896,8 @@ docker exec tms-backend python manage.py collectstatic --noinput
 
 echo "=== TMS updated successfully! ==="
 EOF
-    chmod +x /usr/local/bin/tms-update
+        chmod +x /usr/local/bin/tms-update
+    fi
     
     # Backup script
     cat > /usr/local/bin/tms-backup << EOF
@@ -940,10 +950,10 @@ EOF
     (crontab -l 2>/dev/null | grep -v "tms-backup"; echo "0 2 * * * /usr/local/bin/tms-backup >> /var/log/tms-backup.log 2>&1") | crontab -
     
     echo "  ✓ Maintenance scripts created"
-    echo "    tms-update  - Update to latest version"
-    echo "    tms-backup  - Create backup"
-    echo "    tms-status  - Show container status"
-    echo "    tms-logs    - View container logs"
+    echo "    tms-update [cmd]    - Update, rollback, status (run 'tms-update help' for options)"
+    echo "    tms-backup          - Create manual backup"
+    echo "    tms-status          - Show container status"
+    echo "    tms-logs [service]  - View container logs"
 }
 
 # Save credentials
