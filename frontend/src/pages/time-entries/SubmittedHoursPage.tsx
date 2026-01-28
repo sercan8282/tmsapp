@@ -537,18 +537,18 @@ export default function SubmittedHoursPage() {
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-6 shadow-xl transition-all">
+                <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-4 sm:p-6 shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <Dialog.Title className="text-lg font-semibold">
                       Urenregistratie bewerken
                     </Dialog.Title>
-                    <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-500">
+                    <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
                       <XMarkIcon className="h-6 w-6" />
                     </button>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
                         <label className="form-label">Ritnummer</label>
                         <input
@@ -579,37 +579,37 @@ export default function SubmittedHoursPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
                       <div>
-                        <label className="form-label">Aanvang</label>
+                        <label className="form-label text-xs sm:text-sm">Aanvang</label>
                         <input
                           type="time"
                           value={editForm.aanvang}
                           onChange={(e) => setEditForm({ ...editForm, aanvang: e.target.value })}
-                          className="form-input"
+                          className="form-input text-sm"
                         />
                       </div>
                       <div>
-                        <label className="form-label">Eind</label>
+                        <label className="form-label text-xs sm:text-sm">Eind</label>
                         <input
                           type="time"
                           value={editForm.eind}
                           onChange={(e) => setEditForm({ ...editForm, eind: e.target.value })}
-                          className="form-input"
+                          className="form-input text-sm"
                         />
                       </div>
                       <div>
-                        <label className="form-label">Pauze</label>
+                        <label className="form-label text-xs sm:text-sm">Pauze</label>
                         <input
                           type="time"
                           value={editForm.pauze?.substring(0, 5) || '00:00'}
                           onChange={(e) => setEditForm({ ...editForm, pauze: e.target.value + ':00' })}
-                          className="form-input"
+                          className="form-input text-sm"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       <div>
                         <label className="form-label">KM Start</label>
                         <input
@@ -631,17 +631,17 @@ export default function SubmittedHoursPage() {
                     </div>
                   </div>
 
-                  <div className="mt-6 flex justify-end gap-3">
+                  <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-3">
                     <button
                       onClick={() => setShowEditModal(false)}
-                      className="btn-secondary"
+                      className="btn-secondary min-h-[44px]"
                       disabled={saving}
                     >
                       Annuleren
                     </button>
                     <button
                       onClick={handleSaveEdit}
-                      className="btn-primary"
+                      className="btn-primary min-h-[44px]"
                       disabled={saving}
                     >
                       {saving ? 'Opslaan...' : 'Opslaan'}

@@ -688,26 +688,26 @@ export default function InvoicesPage() {
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-lg bg-white p-6 shadow-xl transition-all">
+                <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-lg bg-white p-4 sm:p-6 shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <Dialog.Title className="text-lg font-semibold">
                       Factuur {selectedInvoice?.factuurnummer}
                     </Dialog.Title>
-                    <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-500">
+                    <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
                       <XMarkIcon className="h-6 w-6" />
                     </button>
                   </div>
 
                   {selectedInvoice && (
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                       {/* Header info */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3 sm:gap-4">
                         <div>
-                          <div className="text-sm text-gray-500">Bedrijf</div>
-                          <div className="font-medium">{selectedInvoice.bedrijf_naam}</div>
+                          <div className="text-xs sm:text-sm text-gray-500">Bedrijf</div>
+                          <div className="font-medium text-sm sm:text-base">{selectedInvoice.bedrijf_naam}</div>
                         </div>
                         <div>
-                          <div className="text-sm text-gray-500">Status</div>
+                          <div className="text-xs sm:text-sm text-gray-500">Status</div>
                           <select
                             value={selectedInvoice.status}
                             onChange={async (e) => {
@@ -722,7 +722,7 @@ export default function InvoicesPage() {
                               }
                             }}
                             className={clsx(
-                              'px-2 py-1 text-xs font-medium rounded-full capitalize cursor-pointer border-0',
+                              'px-2 py-1 text-xs font-medium rounded-full capitalize cursor-pointer border-0 min-h-[44px]',
                               STATUS_COLORS[selectedInvoice.status]
                             )}
                           >
@@ -733,14 +733,14 @@ export default function InvoicesPage() {
                           </select>
                         </div>
                         <div>
-                          <div className="text-sm text-gray-500">Factuurdatum</div>
-                          <div className="font-medium">
+                          <div className="text-xs sm:text-sm text-gray-500">Factuurdatum</div>
+                          <div className="font-medium text-sm sm:text-base">
                             {new Date(selectedInvoice.factuurdatum).toLocaleDateString('nl-NL')}
                           </div>
                         </div>
                         <div>
-                          <div className="text-sm text-gray-500">Vervaldatum</div>
-                          <div className="font-medium">
+                          <div className="text-xs sm:text-sm text-gray-500">Vervaldatum</div>
+                          <div className="font-medium text-sm sm:text-base">
                             {new Date(selectedInvoice.vervaldatum).toLocaleDateString('nl-NL')}
                           </div>
                         </div>
@@ -748,28 +748,54 @@ export default function InvoicesPage() {
 
                       {/* Lines */}
                       <div>
-                        <h3 className="font-medium mb-2">Factuurregels</h3>
+                        <h3 className="font-medium mb-2 text-sm sm:text-base">Factuurregels</h3>
                         {selectedInvoice.lines && selectedInvoice.lines.length > 0 ? (
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Omschrijving</th>
-                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Aantal</th>
-                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Prijs</th>
-                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Totaal</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
+                          <>
+                            {/* Desktop Table */}
+                            <div className="hidden sm:block">
+                              <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                  <tr>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Omschrijving</th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Aantal</th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Prijs</th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Totaal</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                  {selectedInvoice.lines.map((line) => (
+                                    <tr key={line.id}>
+                                      <td className="px-4 py-2 text-sm">{line.omschrijving}</td>
+                                      <td className="px-4 py-2 text-sm text-right">{line.aantal} {line.eenheid}</td>
+                                      <td className="px-4 py-2 text-sm text-right">{formatCurrency(line.prijs_per_eenheid)}</td>
+                                      <td className="px-4 py-2 text-sm text-right font-medium">{formatCurrency(line.totaal)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            {/* Mobile Cards */}
+                            <div className="sm:hidden divide-y divide-gray-200 -mx-4">
                               {selectedInvoice.lines.map((line) => (
-                                <tr key={line.id}>
-                                  <td className="px-4 py-2 text-sm">{line.omschrijving}</td>
-                                  <td className="px-4 py-2 text-sm text-right">{line.aantal} {line.eenheid}</td>
-                                  <td className="px-4 py-2 text-sm text-right">{formatCurrency(line.prijs_per_eenheid)}</td>
-                                  <td className="px-4 py-2 text-sm text-right font-medium">{formatCurrency(line.totaal)}</td>
-                                </tr>
+                                <div key={line.id} className="p-3">
+                                  <div className="font-medium text-sm mb-1">{line.omschrijving}</div>
+                                  <div className="grid grid-cols-3 gap-2 text-xs">
+                                    <div>
+                                      <span className="text-gray-500">Aantal: </span>
+                                      <span>{line.aantal} {line.eenheid}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-500">Prijs: </span>
+                                      <span>{formatCurrency(line.prijs_per_eenheid)}</span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="font-bold text-primary-600">{formatCurrency(line.totaal)}</span>
+                                    </div>
+                                  </div>
+                                </div>
                               ))}
-                            </tbody>
-                          </table>
+                            </div>
+                          </>
                         ) : (
                           <p className="text-gray-500 text-sm">Geen factuurregels</p>
                         )}
@@ -778,7 +804,7 @@ export default function InvoicesPage() {
                       {/* Totals */}
                       <div className="border-t pt-4">
                         <div className="flex justify-end">
-                          <div className="w-64 space-y-2">
+                          <div className="w-full sm:w-64 space-y-2">
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-500">Subtotaal:</span>
                               <span>{formatCurrency(selectedInvoice.subtotaal)}</span>
@@ -797,7 +823,7 @@ export default function InvoicesPage() {
 
                       {selectedInvoice.opmerkingen && (
                         <div>
-                          <div className="text-sm text-gray-500">Opmerkingen</div>
+                          <div className="text-xs sm:text-sm text-gray-500">Opmerkingen</div>
                           <div className="text-sm">{selectedInvoice.opmerkingen}</div>
                         </div>
                       )}
@@ -805,7 +831,7 @@ export default function InvoicesPage() {
                   )}
 
                   <div className="mt-6 flex justify-end">
-                    <button onClick={() => setShowDetailModal(false)} className="btn-secondary">
+                    <button onClick={() => setShowDetailModal(false)} className="btn-secondary min-h-[44px]">
                       Sluiten
                     </button>
                   </div>
