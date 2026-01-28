@@ -25,9 +25,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN groupadd -r tms && useradd -r -g tms tms
-
 # Install Python dependencies
 COPY requirements/ /app/requirements/
 RUN pip install --no-cache-dir --upgrade pip \
@@ -36,18 +33,13 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy project files
 COPY . /app/
 
-# Create necessary directories and set permissions
-RUN mkdir -p /app/staticfiles /app/media /app/logs \
-    && chown -R tms:tms /app
+# Create necessary directories
+RUN mkdir -p /app/staticfiles /app/media /app/logs
 
 # Copy entrypoint script and fix line endings (Windows -> Linux)
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN sed -i 's/\r$//' /app/docker-entrypoint.sh \
-    && chmod +x /app/docker-entrypoint.sh \
-    && chown tms:tms /app/docker-entrypoint.sh
-
-# Switch to non-root user
-USER tms
+    && chmod +x /app/docker-entrypoint.sh
 
 # Expose port
 EXPOSE 8000
