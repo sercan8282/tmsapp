@@ -39,10 +39,13 @@ COPY . /app/
 RUN mkdir -p /app/staticfiles /app/media /app/logs \
     && chown -R tms:tms /app
 
+# Set production settings
+ENV DJANGO_SETTINGS_MODULE=tms.settings.production
+
 # Switch to non-root user
 USER tms
 
-# Collect static files
+# Collect static files (use production settings)
 RUN python manage.py collectstatic --noinput --clear
 
 # Expose port
