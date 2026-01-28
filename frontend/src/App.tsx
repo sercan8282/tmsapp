@@ -5,6 +5,9 @@ import { useAuthStore } from '@/stores/authStore'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import AuthLayout from '@/components/layout/AuthLayout'
 
+// PWA Components
+import { PWAUpdatePrompt, PWAInstallPrompt } from '@/components/pwa'
+
 // Auth pages
 import LoginPage from '@/pages/auth/LoginPage'
 import MfaSetupPage from '@/pages/auth/MfaSetupPage'
@@ -76,7 +79,12 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <Routes>
+    <>
+      {/* PWA Components */}
+      <PWAUpdatePrompt />
+      <PWAInstallPrompt />
+      
+      <Routes>
       {/* Auth routes */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
@@ -127,6 +135,7 @@ function App() {
       {/* Catch all - redirect to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }
 

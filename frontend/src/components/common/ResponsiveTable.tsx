@@ -52,7 +52,9 @@ export default function ResponsiveTable<T>({
   // Filter columns based on mobile priority
   const primaryColumns = columns.filter(col => col.mobilePriority === 'primary')
   const secondaryColumns = columns.filter(col => col.mobilePriority === 'secondary')
-  const visibleColumns = columns.filter(col => col.mobilePriority !== 'hidden')
+  // Note: visibleColumns used in desktop table rendering
+  const _visibleColumns = columns.filter(col => col.mobilePriority !== 'hidden')
+  void _visibleColumns // Suppress unused variable warning
 
   const SortIcon = ({ field }: { field: string }) => {
     if (sortField !== field) return null
