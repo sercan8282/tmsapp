@@ -529,30 +529,30 @@ function AdminPlanningView() {
       <div className="page-header">
         <h1 className="page-title">Weekplanning</h1>
         {planning && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={handleExportPDF}
-              className="btn-secondary"
+              className="btn-secondary text-sm px-3 py-2"
             >
-              <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
-              Exporteer PDF
+              <DocumentArrowDownIcon className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Exporteer PDF</span>
             </button>
             {!isReadOnly && (
               <>
                 <button
                   onClick={handleCopyToNextWeek}
                   disabled={saving}
-                  className="btn-secondary"
+                  className="btn-secondary text-sm px-3 py-2"
                 >
-                  <DocumentDuplicateIcon className="h-5 w-5 mr-2" />
-                  Kopieer naar volgende week
+                  <DocumentDuplicateIcon className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Kopieer naar volgende week</span>
                 </button>
                 <button
                   onClick={() => setShowDeleteModal(true)}
-                  className="btn-danger"
+                  className="btn-danger text-sm px-3 py-2"
                 >
-                  <TrashIcon className="h-5 w-5 mr-2" />
-                  Verwijderen
+                  <TrashIcon className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Verwijderen</span>
                 </button>
               </>
             )}
