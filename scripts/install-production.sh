@@ -18,8 +18,14 @@ INSTALL_DIR="/opt/tms"
 SERVICE_USER="tms"
 DOMAIN=""
 REPO_URL=""
+DB_NAME=""
+DB_USER=""
 DB_PASSWORD=""
 SECRET_KEY=""
+ADMIN_EMAIL=""
+ADMIN_PASSWORD=""
+USE_SSL="y"
+AUTO_RENEW_SSL="y"
 
 # Functions
 print_header() {
@@ -118,33 +124,117 @@ generate_password() {
 get_user_input() {
     print_step "Configuration"
     
+    echo ""
+    echo -e "${BLUE}=== Repository ===${NC}"
+    read -p "Git repository URL [https://github.com/sercan8282/tmsapp.git]: " REPO_URL
+    REPO_URL=${REPO_URL:-https://github.com/sercan8282/tmsapp.git}
+    
+    echo ""
+    echo -e "${BLUE}=== Domain & SSL ===${NC}"
     read -p "Domain name (e.g., tms.example.com): " DOMAIN
     if [ -z "$DOMAIN" ]; then
         print_error "Domain is required"
         exit 1
     fi
     
-    read -p "Git repository URL: " REPO_URL
-    if [ -z "$REPO_URL" ]; then
-        print_error "Repository URL is required"
-        exit 1
+    read -p "Use SSL/HTTPS with Let's Encrypt? (y/n) [y]: " USE_SSL
+    USE_SSL=${USE_SSL:-y}
+    
+    if [ "$USE_SSL" = "y" ]; then
+        read -p "Email for SSL certificate notifications: " ADMIN_EMAIL
+        if [ -z "$ADMIN_EMAIL" ]; then
+            print_error "Email is required for SSL certificates"
+            exit 1
+        fi
+        
+        read -p "Auto-renew SSL certificate? (y/n) [y]: " AUTO_RENEW_SSL
+        AUTO_RENEW_SSL=${AUTO_RENEW_SSL:-y}
     fi
     
-    read -p "Admin email for SSL certificates: " ADMIN_EMAIL
-    if [ -z "$ADMIN_EMAIL" ]; then
-        print_error "Admin email is required"
-        exit 1
+    echo ""
+    echo -e "${BLUE}=== Service Account ===${NC}"
+    read -p "Service account name [tms]: " SERVICE_USER
+    SERVICE_USER=${SERVICE_USER:-tms}
+    
+    echo ""
+    echo -e "${BLUE}=== Database ===${NC}"
+    read -p "Database name [tms_db]: " DB_NAME
+    DB_NAME=${DB_NAME:-tms_db}
+    
+    read -p "Database user [tms_user]: " DB_USER
+    DB_USER=${DB_USER:-tms_user}
+    
+    while true; do
+        read -sp "Database password: " DB_PASSWORD
+        echo
+        if [ -z "$DB_PASSWORD" ]; then
+            print_warning "Generating random password..."
+            DB_PASSWORD=$(generate_password)
+            echo "  Generated password (saved in credentials file)"
+            break
+        fi
+        read -sp "Confirm database password: " DB_PASSWORD2
+        echo
+        if [ "$DB_PASSWORD" = "$DB_PASSWORD2" ]; then
+            break
+        else
+            print_error "Passwords do not match. Try again."
+        fi
+    done
+    
+    echo ""
+    echo -e "${BLUE}=== Admin Account ===${NC}"
+    read -p "Admin email: " ADMIN_USER_EMAIL
+    if [ -z "$ADMIN_USER_EMAIL" ]; then
+        ADMIN_USER_EMAIL="admin@${DOMAIN}"
     fi
     
-    # Generate secure passwords
-    DB_PASSWORD=$(generate_password)
+    while true; do
+        read -sp "Admin password: " ADMIN_PASSWORD
+        echo
+        if [ -z "$ADMIN_PASSWORD" ]; then
+            print_error "Admin password is required"
+            continue
+        fi
+        read -sp "Confirm admin password: " ADMIN_PASSWORD2
+        echo
+        if [ "$ADMIN_PASSWORD" = "$ADMIN_PASSWORD2" ]; then
+            break
+        else
+            print_error "Passwords do not match. Try again."
+        fi
+    done
+    
+    # Generate secret key
     SECRET_KEY=$(generate_password)
     
     echo ""
-    echo "Configuration:"
-    echo "  Domain:       $DOMAIN"
-    echo "  Install Dir:  $INSTALL_DIR"
-    echo "  Service User: $SERVICE_USER"
+    echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║                 Configuration Summary                      ║${NC}"
+    echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo "  Repository:      $REPO_URL"
+    echo "  Domain:          $DOMAIN"
+    echo "  SSL/HTTPS:       $( [ "$USE_SSL" = "y" ] && echo "Yes (Let's Encrypt)" || echo "No" )"
+    if [ "$USE_SSL" = "y" ]; then
+    echo "  SSL Email:       $ADMIN_EMAIL"
+    echo "  Auto-renew:      $( [ "$AUTO_RENEW_SSL" = "y" ] && echo "Yes" || echo "No" )"
+    fi
+    echo ""
+    echo "  Service User:    $SERVICE_USER"
+    echo "  Install Dir:     $INSTALL_DIR"
+    echo ""
+    echo "  Database:        $DB_NAME"
+    echo "  DB User:         $DB_USER"
+    echo ""
+    echo "  Admin Email:     $ADMIN_USER_EMAIL"
+    echo ""
+    echo -e "${YELLOW}Directories to be created:${NC}"
+    echo "  $INSTALL_DIR                     - Application"
+    echo "  $INSTALL_DIR/backend/media       - Uploads"
+    echo "  $INSTALL_DIR/backend/staticfiles - Static files"
+    echo "  $INSTALL_DIR/backups             - Database backups"
+    echo "  /var/log/tms                     - Logs"
     echo ""
     read -p "Continue with installation? (y/n): " confirm
     if [ "$confirm" != "y" ]; then
@@ -298,12 +388,12 @@ setup_database() {
     
     # Configure PostgreSQL for security
     sudo -u postgres psql << EOF
-CREATE USER tms_user WITH PASSWORD '$DB_PASSWORD';
-CREATE DATABASE tms_db OWNER tms_user;
-ALTER USER tms_user SET client_encoding TO 'utf8';
-ALTER USER tms_user SET default_transaction_isolation TO 'read committed';
-ALTER USER tms_user SET timezone TO 'Europe/Amsterdam';
-GRANT ALL PRIVILEGES ON DATABASE tms_db TO tms_user;
+CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
+CREATE DATABASE $DB_NAME OWNER $DB_USER;
+ALTER USER $DB_USER SET client_encoding TO 'utf8';
+ALTER USER $DB_USER SET default_transaction_isolation TO 'read committed';
+ALTER USER $DB_USER SET timezone TO 'Europe/Amsterdam';
+GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
 EOF
 
     # Secure PostgreSQL
@@ -324,6 +414,27 @@ setup_application() {
     git clone "$REPO_URL" "$INSTALL_DIR"
     chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
     
+    # Create directories with correct permissions
+    print_step "Creating application directories..."
+    
+    mkdir -p "$INSTALL_DIR/backend/media"
+    mkdir -p "$INSTALL_DIR/backend/staticfiles"
+    mkdir -p "$INSTALL_DIR/backend/logs"
+    mkdir -p "$INSTALL_DIR/backups"
+    mkdir -p /var/log/tms
+    mkdir -p /run/tms
+    
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+    chown -R "$SERVICE_USER:$SERVICE_USER" /var/log/tms
+    chown "$SERVICE_USER:www-data" /run/tms
+    
+    chmod 750 "$INSTALL_DIR/backend/media"
+    chmod 755 "$INSTALL_DIR/backend/staticfiles"
+    chmod 750 "$INSTALL_DIR/backend/logs"
+    chmod 750 "$INSTALL_DIR/backups"
+    chmod 750 /var/log/tms
+    chmod 755 /run/tms
+    
     cd "$INSTALL_DIR"
     
     # Create environment file with secure permissions
@@ -335,8 +446,8 @@ ALLOWED_HOSTS=$DOMAIN,www.$DOMAIN
 DJANGO_SETTINGS_MODULE=tms.settings.production
 
 # Database
-DB_NAME=tms_db
-DB_USER=tms_user
+DB_NAME=$DB_NAME
+DB_USER=$DB_USER
 DB_PASSWORD=$DB_PASSWORD
 DB_HOST=localhost
 DB_PORT=5432
@@ -345,15 +456,15 @@ DB_PORT=5432
 REDIS_URL=redis://localhost:6379/1
 
 # Security
-SECURE_SSL_REDIRECT=True
-SESSION_COOKIE_SECURE=True
-CSRF_COOKIE_SECURE=True
+SECURE_SSL_REDIRECT=$( [ "$USE_SSL" = "y" ] && echo "True" || echo "False" )
+SESSION_COOKIE_SECURE=$( [ "$USE_SSL" = "y" ] && echo "True" || echo "False" )
+CSRF_COOKIE_SECURE=$( [ "$USE_SSL" = "y" ] && echo "True" || echo "False" )
 
 # CORS
-CORS_ALLOWED_ORIGINS=https://$DOMAIN
+CORS_ALLOWED_ORIGINS=$( [ "$USE_SSL" = "y" ] && echo "https://$DOMAIN" || echo "http://$DOMAIN" )
 
 # Logging
-LOG_DIR=/opt/tms/backend/logs
+LOG_DIR=$INSTALL_DIR/backend/logs
 EOF
 
     # Secure the env file
@@ -366,17 +477,33 @@ EOF
     sudo -u "$SERVICE_USER" ./venv/bin/pip install --upgrade pip
     sudo -u "$SERVICE_USER" ./venv/bin/pip install -r requirements/production.txt
     
-    # Create logs directory
-    mkdir -p logs
-    chown "$SERVICE_USER:$SERVICE_USER" logs
-    chmod 755 logs
-    
     # Run migrations
     sudo -u "$SERVICE_USER" ./venv/bin/python manage.py migrate --noinput
     sudo -u "$SERVICE_USER" ./venv/bin/python manage.py collectstatic --noinput
     
+    # Create admin user
+    sudo -u "$SERVICE_USER" ./venv/bin/python manage.py shell << PYTHON_EOF
+from apps.accounts.models import User
+if not User.objects.filter(email='$ADMIN_USER_EMAIL').exists():
+    User.objects.create_superuser(
+        email='$ADMIN_USER_EMAIL',
+        password='$ADMIN_PASSWORD',
+        first_name='Admin',
+        last_name='User'
+    )
+    print('Superuser created!')
+else:
+    print('Superuser already exists.')
+PYTHON_EOF
+    
     # Frontend setup
     cd "$INSTALL_DIR/frontend"
+    
+    # Create frontend env with correct API URL
+    cat > "$INSTALL_DIR/frontend/.env" << EOF
+VITE_API_URL=/api
+EOF
+    
     sudo -u "$SERVICE_USER" npm ci
     sudo -u "$SERVICE_USER" npm run build
 }
@@ -385,7 +512,12 @@ EOF
 configure_nginx() {
     print_step "Configuring Nginx with security headers..."
     
-    cat > /etc/nginx/sites-available/tms << EOF
+    # Create webroot for certbot
+    mkdir -p /var/www/certbot
+    
+    if [ "$USE_SSL" = "y" ]; then
+        # HTTPS configuration
+        cat > /etc/nginx/sites-available/tms << EOF
 # Rate limiting zone
 limit_req_zone \$binary_remote_addr zone=tms_limit:10m rate=10r/s;
 limit_req_zone \$binary_remote_addr zone=api_limit:10m rate=30r/s;
@@ -396,17 +528,18 @@ upstream tms_backend {
     server 127.0.0.1:8000 fail_timeout=0;
 }
 
-# Redirect HTTP to HTTPS
+# HTTP server - only for certbot and redirect
 server {
     listen 80;
     listen [::]:80;
-    server_name $DOMAIN www.$DOMAIN;
+    server_name $DOMAIN;
     
     # Allow certbot challenges
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
     
+    # Redirect all other traffic to HTTPS
     location / {
         return 301 https://\$server_name\$request_uri;
     }
@@ -416,9 +549,9 @@ server {
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name $DOMAIN www.$DOMAIN;
+    server_name $DOMAIN;
     
-    # SSL configuration (will be updated by certbot)
+    # SSL configuration
     ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
     ssl_session_timeout 1d;
@@ -521,13 +654,112 @@ server {
     }
 }
 EOF
+    else
+        # HTTP-only configuration (no SSL)
+        cat > /etc/nginx/sites-available/tms << EOF
+# Rate limiting zone
+limit_req_zone \$binary_remote_addr zone=tms_limit:10m rate=10r/s;
+limit_req_zone \$binary_remote_addr zone=api_limit:10m rate=30r/s;
+limit_conn_zone \$binary_remote_addr zone=conn_limit:10m;
+
+# Upstream for gunicorn
+upstream tms_backend {
+    server 127.0.0.1:8000 fail_timeout=0;
+}
+
+# HTTP server
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $DOMAIN;
+    
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    
+    # Connection limits
+    limit_conn conn_limit 20;
+    
+    # Client body size (for file uploads)
+    client_max_body_size 10M;
+    
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml application/json application/javascript application/rss+xml application/atom+xml image/svg+xml;
+    
+    # Static files (frontend build)
+    location / {
+        root $INSTALL_DIR/frontend/dist;
+        try_files \$uri \$uri/ /index.html;
+        
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+    
+    # API requests
+    location /api {
+        limit_req zone=api_limit burst=50 nodelay;
+        
+        proxy_pass http://tms_backend;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+    
+    # Django admin
+    location /admin {
+        limit_req zone=tms_limit burst=5 nodelay;
+        
+        proxy_pass http://tms_backend;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    
+    # Media files
+    location /media {
+        alias $INSTALL_DIR/backend/media;
+        
+        location ~* \.(php|py|pl|cgi|sh|asp|aspx|jsp)$ {
+            deny all;
+        }
+    }
+    
+    # Static files (Django)
+    location /static {
+        alias $INSTALL_DIR/backend/staticfiles;
+    }
+    
+    # Block common attack patterns
+    location ~* /(\.git|\.env|\.htaccess|\.htpasswd|wp-admin|wp-login|phpmyadmin) {
+        deny all;
+        return 404;
+    }
+}
+EOF
+    fi
 
     # Enable site
     ln -sf /etc/nginx/sites-available/tms /etc/nginx/sites-enabled/
     rm -f /etc/nginx/sites-enabled/default
     
-    # Test configuration
-    nginx -t
+    # Test configuration (only if not using SSL yet - certs don't exist)
+    if [ "$USE_SSL" != "y" ]; then
+        nginx -t
+    fi
 }
 
 # Supervisor configuration
@@ -556,23 +788,51 @@ EOF
 
 # SSL certificate setup
 setup_ssl() {
+    if [ "$USE_SSL" != "y" ]; then
+        print_step "Skipping SSL setup (disabled by user)"
+        return
+    fi
+    
     print_step "Setting up SSL certificate with Let's Encrypt..."
     
     # Create webroot for certbot
     mkdir -p /var/www/certbot
     
-    # Get certificate
-    certbot certonly --webroot -w /var/www/certbot \
-        -d "$DOMAIN" -d "www.$DOMAIN" \
+    # Stop nginx temporarily to get certificate
+    systemctl stop nginx || true
+    
+    # Get certificate using standalone mode (more reliable)
+    certbot certonly --standalone \
+        -d "$DOMAIN" \
         --email "$ADMIN_EMAIL" \
         --agree-tos \
-        --non-interactive
+        --non-interactive \
+        --expand
     
-    # Setup auto-renewal
-    systemctl enable certbot.timer
+    # Setup auto-renewal if requested
+    if [ "$AUTO_RENEW_SSL" = "y" ]; then
+        print_step "Setting up automatic SSL certificate renewal..."
+        
+        # Enable certbot timer
+        systemctl enable certbot.timer
+        systemctl start certbot.timer
+        
+        # Add renewal hook to restart nginx
+        mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+        cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh << 'HOOK_EOF'
+#!/bin/bash
+systemctl reload nginx
+HOOK_EOF
+        chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+        
+        echo "  Auto-renewal configured (runs twice daily)"
+    else
+        print_warning "Auto-renewal disabled. Remember to renew manually!"
+        echo "  Command: certbot renew"
+    fi
     
     # Restart nginx with SSL
-    systemctl restart nginx
+    systemctl start nginx
 }
 
 # Final security hardening
@@ -618,56 +878,141 @@ save_credentials() {
     
     CREDS_FILE="$INSTALL_DIR/CREDENTIALS.txt"
     
+    if [ "$USE_SSL" = "y" ]; then
+        URL_PREFIX="https"
+    else
+        URL_PREFIX="http"
+    fi
+    
     cat > "$CREDS_FILE" << EOF
 ╔════════════════════════════════════════════════════════════╗
 ║               TMS Installation Credentials                 ║
 ║           KEEP THIS FILE SECURE - DELETE AFTER BACKUP      ║
 ╚════════════════════════════════════════════════════════════╝
 
-Domain: https://$DOMAIN
+Application URL: $URL_PREFIX://$DOMAIN
+
+Admin Account:
+  Email:    $ADMIN_USER_EMAIL
+  Password: [as entered during installation]
+
+Service Account:
+  User:     $SERVICE_USER
 
 Database:
-  Name:     tms_db
-  User:     tms_user
+  Name:     $DB_NAME
+  User:     $DB_USER
   Password: $DB_PASSWORD
 
 Django Secret Key: $SECRET_KEY
 
+SSL Certificate:
+  Enabled:      $( [ "$USE_SSL" = "y" ] && echo "Yes" || echo "No" )
+  Auto-renew:   $( [ "$AUTO_RENEW_SSL" = "y" ] && echo "Yes" || echo "No" )
+
 Installation Directory: $INSTALL_DIR
-Service User: $SERVICE_USER
+
+Directory Permissions (owned by $SERVICE_USER):
+  $INSTALL_DIR                     - Application files
+  $INSTALL_DIR/backend/media       - Uploaded files
+  $INSTALL_DIR/backend/staticfiles - Static assets
+  $INSTALL_DIR/backups             - Database backups
+  /var/log/tms                     - Application logs
 
 Next Steps:
-1. Create admin user:
-   sudo -u $SERVICE_USER $INSTALL_DIR/backend/venv/bin/python manage.py createsuperuser
-
-2. Configure SMTP settings in web interface:
+1. Configure SMTP settings in web interface:
    Instellingen → E-mail
 
-3. IMPORTANT: Backup and then DELETE this file!
+2. IMPORTANT: Backup and then DELETE this file!
    cp $CREDS_FILE ~/tms-credentials-backup.txt
    rm $CREDS_FILE
 
-4. Setup regular backups for:
-   - PostgreSQL database: pg_dump tms_db
-   - Media folder: $INSTALL_DIR/backend/media/
-   - Environment file: $INSTALL_DIR/backend/.env
+Commands:
+  tms-update              - Update to latest version
+  tms-backup              - Create a backup
+  supervisorctl status    - Check service status
+  supervisorctl restart tms - Restart backend
+  systemctl status nginx  - Check nginx status
 
-5. Consider setting up:
-   - Monitoring (e.g., Uptime Robot for health endpoint)
-   - Log rotation (logrotate)
-   - Database backups (cron + pg_dump)
+Backups:
+  Automatic daily backup at 02:00 (cron)
+  Backup location: $INSTALL_DIR/backups/
 
 Security Checklist:
-   [ ] Delete this credentials file
-   [ ] Test SSL certificate: https://www.ssllabs.com/ssltest/
-   [ ] Verify firewall: ufw status
-   [ ] Check fail2ban: fail2ban-client status
-   [ ] Test health endpoint: curl https://$DOMAIN/api/health/
+  [ ] Delete this credentials file
+$( [ "$USE_SSL" = "y" ] && echo "  [ ] Test SSL: https://www.ssllabs.com/ssltest/?d=$DOMAIN" )
+  [ ] Verify firewall: ufw status
+  [ ] Check fail2ban: fail2ban-client status
+  [ ] Test health: curl $URL_PREFIX://$DOMAIN/api/health/
 
 EOF
 
     chmod 600 "$CREDS_FILE"
     chown root:root "$CREDS_FILE"
+}
+
+# Create maintenance scripts
+create_maintenance_scripts() {
+    print_step "Creating maintenance scripts..."
+    
+    # Update script
+    cat > /usr/local/bin/tms-update << EOF
+#!/bin/bash
+set -e
+cd $INSTALL_DIR
+
+echo "Updating TMS..."
+
+# Pull latest code
+sudo -u $SERVICE_USER git pull origin main
+
+# Update backend
+cd backend
+sudo -u $SERVICE_USER ./venv/bin/pip install -r requirements/production.txt
+sudo -u $SERVICE_USER ./venv/bin/python manage.py migrate --noinput
+sudo -u $SERVICE_USER ./venv/bin/python manage.py collectstatic --noinput
+
+# Update frontend
+cd ../frontend
+sudo -u $SERVICE_USER npm ci
+sudo -u $SERVICE_USER npm run build
+
+# Restart services
+supervisorctl restart tms
+systemctl reload nginx
+
+echo "TMS updated successfully!"
+EOF
+    chmod +x /usr/local/bin/tms-update
+    
+    # Backup script
+    cat > /usr/local/bin/tms-backup << EOF
+#!/bin/bash
+BACKUP_DIR="$INSTALL_DIR/backups"
+TIMESTAMP=\$(date +%Y%m%d_%H%M%S)
+mkdir -p "\$BACKUP_DIR"
+
+echo "Creating backup..."
+
+# Backup database
+PGPASSWORD=$DB_PASSWORD pg_dump -h localhost -U $DB_USER $DB_NAME > "\$BACKUP_DIR/db_\$TIMESTAMP.sql"
+
+# Backup media
+tar -czf "\$BACKUP_DIR/media_\$TIMESTAMP.tar.gz" -C $INSTALL_DIR/backend media/
+
+# Set correct ownership
+chown $SERVICE_USER:$SERVICE_USER "\$BACKUP_DIR"/*
+
+# Keep only last 7 backups
+find "\$BACKUP_DIR" -type f -mtime +7 -delete
+
+echo "Backup completed: \$BACKUP_DIR"
+ls -la "\$BACKUP_DIR"
+EOF
+    chmod +x /usr/local/bin/tms-backup
+    
+    # Setup daily backups (cron)
+    (crontab -l 2>/dev/null | grep -v "tms-backup"; echo "0 2 * * * /usr/local/bin/tms-backup >> /var/log/tms/backup.log 2>&1") | crontab -
 }
 
 # Main installation
@@ -687,30 +1032,65 @@ main() {
     configure_nginx
     configure_supervisor
     
-    # Start services first (for certbot)
-    systemctl start nginx
+    # For SSL, we need to get cert first, then start nginx
+    if [ "$USE_SSL" = "y" ]; then
+        setup_ssl
+        # Now test and start nginx with SSL config
+        nginx -t
+        systemctl start nginx
+    else
+        systemctl start nginx
+    fi
+    
     supervisorctl start tms
     
-    # Setup SSL
-    setup_ssl
-    
     final_hardening
+    create_maintenance_scripts
     save_credentials
+    
+    # Determine URL
+    if [ "$USE_SSL" = "y" ]; then
+        FINAL_URL="https://$DOMAIN"
+    else
+        FINAL_URL="http://$DOMAIN"
+    fi
     
     echo ""
     echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║           Installation Complete!                           ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo "Your TMS application is now running at: https://$DOMAIN"
+    echo -e "Your TMS is running at: ${BLUE}$FINAL_URL${NC}"
     echo ""
-    echo -e "${YELLOW}IMPORTANT: Read $INSTALL_DIR/CREDENTIALS.txt for login details${NC}"
-    echo -e "${YELLOW}           Then delete it after backing up!${NC}"
+    echo -e "Admin login: ${YELLOW}$ADMIN_USER_EMAIL${NC}"
     echo ""
-    echo "Service management:"
-    echo "  supervisorctl status tms"
-    echo "  supervisorctl restart tms"
-    echo "  systemctl status nginx"
+    echo -e "${YELLOW}Service Account:${NC}"
+    echo "  User:        $SERVICE_USER"
+    echo "  Services:    Gunicorn runs as $SERVICE_USER"
+    echo ""
+    echo -e "${YELLOW}Database:${NC}"
+    echo "  Name:        $DB_NAME"
+    echo "  User:        $DB_USER"
+    echo ""
+    if [ "$USE_SSL" = "y" ]; then
+        echo -e "${YELLOW}SSL Certificate:${NC}"
+        echo "  Status:      Active"
+        echo "  Auto-renew:  $( [ "$AUTO_RENEW_SSL" = "y" ] && echo "Enabled" || echo "Disabled" )"
+        echo ""
+    fi
+    echo -e "${YELLOW}Directories (owned by $SERVICE_USER):${NC}"
+    echo "  $INSTALL_DIR                     - Application"
+    echo "  $INSTALL_DIR/backend/media       - Uploads"
+    echo "  $INSTALL_DIR/backups             - Backups"
+    echo "  /var/log/tms                     - Logs"
+    echo ""
+    echo -e "${YELLOW}Commands:${NC}"
+    echo "  tms-update              - Update to latest version"
+    echo "  tms-backup              - Create a backup"
+    echo "  supervisorctl status    - Check service status"
+    echo ""
+    echo -e "${RED}IMPORTANT: Read and then delete:${NC}"
+    echo "  $INSTALL_DIR/CREDENTIALS.txt"
     echo ""
 }
 
