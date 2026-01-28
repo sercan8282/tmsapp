@@ -7,6 +7,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+ENV DJANGO_SETTINGS_MODULE=tms.settings.production
 
 # Set work directory
 WORKDIR /app
@@ -35,18 +36,16 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy project files
 COPY . /app/
 
-# Create necessary directories
+# Create necessary directories and set permissions
 RUN mkdir -p /app/staticfiles /app/media /app/logs \
     && chown -R tms:tms /app
 
-# Set production settings
-ENV DJANGO_SETTINGS_MODULE=tms.settings.production
+# Copy entrypoint script
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh && chown tms:tms /app/docker-entrypoint.sh
 
 # Switch to non-root user
 USER tms
-
-# Collect static files (use production settings)
-RUN python manage.py collectstatic --noinput --clear
 
 # Expose port
 EXPOSE 8000
@@ -55,5 +54,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health/ || exit 1
 
-# Run gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--threads", "2", "--worker-class", "gthread", "--access-logfile", "-", "--error-logfile", "-", "tms.wsgi:application"]
+# Run entrypoint (collectstatic + gunicorn)
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
