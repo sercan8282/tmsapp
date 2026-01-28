@@ -28,9 +28,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN groupadd -r tms && useradd -r -g tms tms
 
 # Install Python dependencies
-COPY requirements/production.txt /app/requirements.txt
+COPY requirements/ /app/requirements/
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir -r requirements/production.txt
 
 # Copy project files
 COPY . /app/
