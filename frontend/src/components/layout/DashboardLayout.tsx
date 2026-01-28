@@ -21,6 +21,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
+import { useThemeStore } from '@/stores/themeStore'
 import { AppSettings } from '@/types'
 import clsx from '@/utils/clsx'
 
@@ -54,10 +55,16 @@ export default function DashboardLayout() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
   const { settings, sidebarOpen, setSidebarOpen, fetchSettings } = useAppStore()
+  const { currentTheme, applyTheme } = useThemeStore()
   
   useEffect(() => {
     fetchSettings()
   }, [fetchSettings])
+  
+  // Apply theme on mount
+  useEffect(() => {
+    applyTheme(currentTheme)
+  }, [currentTheme, applyTheme])
   
   const handleLogout = () => {
     logout()
@@ -220,7 +227,10 @@ interface SidebarContentProps {
 
 function SidebarContent({ navigation, settings, onNavigate }: SidebarContentProps) {
   return (
-    <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-primary-600 px-6 pb-4">
+    <div 
+      className="flex grow flex-col gap-y-5 overflow-y-auto px-6 pb-4"
+      style={{ backgroundColor: 'var(--color-sidebar)' }}
+    >
       <div className="flex h-16 shrink-0 items-center gap-3">
         {settings?.logo_url && (
           <img className="h-8 w-auto" src={settings.logo_url} alt={settings.app_name} />
@@ -239,12 +249,16 @@ function SidebarContent({ navigation, settings, onNavigate }: SidebarContentProp
                     onClick={onNavigate}
                     className={({ isActive }) =>
                       clsx(
+                        'group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 transition-colors',
                         isActive
-                          ? 'bg-primary-700 text-white'
-                          : 'text-primary-100 hover:text-white hover:bg-primary-700',
-                        'group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6'
+                          ? 'text-white'
+                          : 'hover:text-white'
                       )
                     }
+                    style={({ isActive }) => ({
+                      backgroundColor: isActive ? 'var(--color-sidebar-hover)' : 'transparent',
+                      color: isActive ? 'white' : 'var(--color-sidebar-text)',
+                    })}
                   >
                     <item.icon className="h-6 w-6 shrink-0" />
                     {item.name}

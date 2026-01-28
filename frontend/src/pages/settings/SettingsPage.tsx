@@ -2,6 +2,7 @@
  * Settings Page
  * Admin interface for managing application settings:
  * - Branding (app name, logo, favicon, colors)
+ * - Theme selection
  * - Company info (for invoices)
  * - Email settings (SMTP/OAuth)
  */
@@ -19,14 +20,17 @@ import {
   EyeSlashIcon,
   DocumentTextIcon,
   TrashIcon,
+  SwatchIcon,
 } from '@heroicons/react/24/outline'
 import { settingsApi } from '@/api/settings'
 import { useAppStore } from '@/stores/appStore'
+import ThemeSelector from '@/components/settings/ThemeSelector'
 import type { AppSettingsAdmin } from '@/types'
 
 // Tab configuration
 const tabs = [
   { id: 'branding', name: 'Branding', icon: PhotoIcon },
+  { id: 'theme', name: 'Thema', icon: SwatchIcon },
   { id: 'company', name: 'Bedrijfsgegevens', icon: BuildingOfficeIcon },
   { id: 'invoice', name: 'Factuur', icon: DocumentTextIcon },
   { id: 'email', name: 'E-mail', icon: EnvelopeIcon },
@@ -441,6 +445,11 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Theme Tab */}
+          {activeTab === 'theme' && (
+            <ThemeSelector />
           )}
 
           {/* Company Tab */}

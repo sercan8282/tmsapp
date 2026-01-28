@@ -25,6 +25,7 @@ import Pagination, { PageSize } from '@/components/common/Pagination'
 import {
   getInvoices,
   deleteInvoice,
+  bulkDeleteInvoices,
   markDefinitief,
   markVerzonden,
   markBetaald,
@@ -80,9 +81,11 @@ export default function InvoicesPage() {
   
   // Modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [emailAddress, setEmailAddress] = useState('')
   const [emailSending, setEmailSending] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -161,6 +164,50 @@ export default function InvoicesPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    
+    try {
+      setSaving(true)
+      const result = await bulkDeleteInvoices(Array.from(selectedIds))
+      
+      if (result.deleted > 0) {
+        setSuccessMessage(`${result.deleted} factuur/facturen verwijderd`)
+        setTimeout(() => setSuccessMessage(null), 5000)
+      }
+      
+      if (result.errors.length > 0) {
+        setError(result.errors.join(', '))
+      }
+      
+      setShowBulkDeleteModal(false)
+      setSelectedIds(new Set())
+      loadInvoices()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Kon facturen niet verwijderen')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === invoices.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(invoices.map(inv => inv.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds)
+    if (newSelected.has(id)) {
+      newSelected.delete(id)
+    } else {
+      newSelected.add(id)
+    }
+    setSelectedIds(newSelected)
   }
 
   const handleStatusAction = async (invoice: Invoice, action: 'definitief' | 'verzonden' | 'betaald') => {
@@ -244,12 +291,23 @@ export default function InvoicesPage() {
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Facturen</h1>
-        {!isReadOnly && (
-          <button onClick={() => navigate('/invoices/new')} className="btn-primary">
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Nieuwe factuur
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {!isReadOnly && selectedIds.size > 0 && (
+            <button 
+              onClick={() => setShowBulkDeleteModal(true)} 
+              className="btn-danger flex items-center gap-2"
+            >
+              <TrashIcon className="h-5 w-5" />
+              Verwijder ({selectedIds.size})
+            </button>
+          )}
+          {!isReadOnly && (
+            <button onClick={() => navigate('/invoices/new')} className="btn-primary">
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Nieuwe factuur
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Error message */}
@@ -341,6 +399,16 @@ export default function InvoicesPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                {!isReadOnly && (
+                  <th className="px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={invoices.length > 0 && selectedIds.size === invoices.length}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                  </th>
+                )}
                 <th 
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('factuurnummer')}
@@ -397,19 +465,32 @@ export default function InvoicesPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center">
+                  <td colSpan={!isReadOnly ? 8 : 7} className="px-6 py-8 text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
                   </td>
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={!isReadOnly ? 8 : 7} className="px-6 py-8 text-center text-gray-500">
                     Geen facturen gevonden
                   </td>
                 </tr>
               ) : (
                 invoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-gray-50">
+                  <tr key={invoice.id} className={clsx(
+                    "hover:bg-gray-50",
+                    selectedIds.has(invoice.id) && "bg-primary-50"
+                  )}>
+                    {!isReadOnly && (
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(invoice.id)}
+                          onChange={() => toggleSelect(invoice.id)}
+                          className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-2" />
@@ -530,6 +611,20 @@ export default function InvoicesPage() {
 
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-gray-200">
+          {/* Mobile Select All */}
+          {!isReadOnly && invoices.length > 0 && !loading && (
+            <div className="px-4 py-3 bg-gray-50 flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={invoices.length > 0 && selectedIds.size === invoices.length}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-600">
+                {selectedIds.size > 0 ? `${selectedIds.size} geselecteerd` : 'Alles selecteren'}
+              </span>
+            </div>
+          )}
           {loading ? (
             <div className="px-4 py-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
@@ -540,9 +635,20 @@ export default function InvoicesPage() {
             </div>
           ) : (
             invoices.map((invoice) => (
-              <div key={invoice.id} className="p-4 hover:bg-gray-50">
+              <div key={invoice.id} className={clsx(
+                "p-4 hover:bg-gray-50",
+                selectedIds.has(invoice.id) && "bg-primary-50"
+              )}>
                 {/* Card Header */}
                 <div className="flex items-start justify-between gap-3 mb-3">
+                  {!isReadOnly && (
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(invoice.id)}
+                      onChange={() => toggleSelect(invoice.id)}
+                      className="h-4 w-4 mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500 shrink-0"
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <DocumentTextIcon className="h-5 w-5 text-gray-400 shrink-0" />
@@ -890,6 +996,63 @@ export default function InvoicesPage() {
                     </button>
                     <button onClick={handleDeleteInvoice} disabled={saving} className="btn-danger">
                       {saving ? 'Bezig...' : 'Verwijderen'}
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <Transition appear show={showBulkDeleteModal} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setShowBulkDeleteModal(false)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black bg-opacity-25" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 shadow-xl transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                      <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                    </div>
+                    <div>
+                      <Dialog.Title className="text-lg font-semibold text-gray-900">
+                        {selectedIds.size} facturen verwijderen
+                      </Dialog.Title>
+                      <p className="mt-2 text-sm text-gray-500">
+                        Weet je zeker dat je {selectedIds.size} facturen wilt verwijderen?
+                        Dit kan niet ongedaan worden gemaakt.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button type="button" onClick={() => setShowBulkDeleteModal(false)} className="btn-secondary">
+                      Annuleren
+                    </button>
+                    <button onClick={handleBulkDelete} disabled={saving} className="btn-danger">
+                      {saving ? 'Bezig...' : `${selectedIds.size} verwijderen`}
                     </button>
                   </div>
                 </Dialog.Panel>
