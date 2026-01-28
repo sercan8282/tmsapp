@@ -33,6 +33,75 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Check Ubuntu version
+check_ubuntu_version() {
+    echo -e "${YELLOW}Checking Ubuntu version...${NC}"
+    
+    if [ ! -f /etc/os-release ]; then
+        echo -e "${RED}Error: Cannot detect OS. This script requires Ubuntu.${NC}"
+        exit 1
+    fi
+    
+    . /etc/os-release
+    
+    if [ "$ID" != "ubuntu" ]; then
+        echo -e "${RED}Error: This script requires Ubuntu. Detected: $ID${NC}"
+        exit 1
+    fi
+    
+    VERSION_NUM=$(echo "$VERSION_ID" | cut -d. -f1)
+    
+    case "$VERSION_ID" in
+        "22.04"|"24.04")
+            echo -e "${GREEN}  Ubuntu $VERSION_ID LTS detected ✓${NC}"
+            ;;
+        "20.04")
+            echo -e "${YELLOW}Warning: Ubuntu 20.04 LTS detected. Consider upgrading to 22.04 or 24.04.${NC}"
+            read -p "Continue anyway? (y/n): " continue_old
+            if [ "$continue_old" != "y" ]; then
+                exit 0
+            fi
+            ;;
+        "23.04"|"23.10"|"24.10")
+            echo -e "${RED}"
+            echo "============================================="
+            echo "  ERROR: Ubuntu $VERSION_ID End of Life"
+            echo "============================================="
+            echo -e "${NC}"
+            echo ""
+            echo "  Ubuntu $VERSION_ID is a non-LTS release that has"
+            echo "  reached End of Life. The repositories are offline."
+            echo ""
+            echo "  Solutions:"
+            echo ""
+            echo "  1. Upgrade to Ubuntu 24.04 LTS (recommended):"
+            echo "     sudo do-release-upgrade"
+            echo ""
+            echo "  2. Fresh install with Ubuntu 22.04 LTS or 24.04 LTS"
+            echo ""
+            echo "  LTS releases are supported for 5 years."
+            echo "  Non-LTS releases are only supported for 9 months."
+            echo ""
+            exit 1
+            ;;
+        *)
+            if [ "$VERSION_NUM" -lt 20 ]; then
+                echo -e "${RED}Error: Ubuntu $VERSION_ID is too old. Minimum required: 20.04 LTS${NC}"
+                exit 1
+            else
+                echo -e "${YELLOW}Warning: Ubuntu $VERSION_ID detected. LTS versions (22.04, 24.04) recommended.${NC}"
+                read -p "Continue anyway? (y/n): " continue_unknown
+                if [ "$continue_unknown" != "y" ]; then
+                    exit 0
+                fi
+            fi
+            ;;
+    esac
+}
+
+# Run Ubuntu check first
+check_ubuntu_version
+
 # Function to prompt for input
 prompt_input() {
     local prompt="$1"
@@ -60,7 +129,43 @@ prompt_password() {
     done
 }
 
-echo -e "${YELLOW}Step 1: Installing system packages...${NC}"
+# =============================================
+# Step 1: Get configuration FIRST (before apt)
+# =============================================
+echo -e "${YELLOW}Step 1: Configuration...${NC}"
+echo ""
+prompt_input "Git repository URL" "https://github.com/sercan8282/tmsapp.git" REPO_URL
+prompt_input "Enter your domain name" "localhost" DOMAIN_NAME
+prompt_input "Service account name" "tms" SERVICE_USER
+prompt_input "Database name" "tms_db" DB_NAME
+prompt_input "Database user" "tms_user" DB_USER
+prompt_password "Database password" DB_PASSWORD
+prompt_input "Admin email" "admin@example.com" ADMIN_EMAIL
+prompt_password "Admin password" ADMIN_PASSWORD
+
+# Generate secret key
+SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(64))' 2>/dev/null || openssl rand -base64 48)
+
+echo ""
+echo -e "${BLUE}Configuration Summary:${NC}"
+echo "  Repository:    $REPO_URL"
+echo "  Domain:        $DOMAIN_NAME"
+echo "  Service User:  $SERVICE_USER"
+echo "  Database:      $DB_NAME"
+echo "  DB User:       $DB_USER"
+echo "  Admin Email:   $ADMIN_EMAIL"
+echo "  Install Dir:   $INSTALL_DIR"
+echo ""
+read -p "Continue with installation? (y/n): " confirm
+if [ "$confirm" != "y" ]; then
+    echo "Installation cancelled"
+    exit 0
+fi
+
+# =============================================
+# Step 2: Installing system packages
+# =============================================
+echo -e "${YELLOW}Step 2: Installing system packages...${NC}"
 
 # Update system
 apt-get update
@@ -102,20 +207,9 @@ apt-get install -y nodejs
 
 echo -e "${GREEN}System packages installed!${NC}"
 
-echo -e "${YELLOW}Step 2: Configuring environment...${NC}"
-
-# Get configuration
-echo ""
-prompt_input "Enter your domain name" "localhost" DOMAIN_NAME
-prompt_input "Database name" "tms_db" DB_NAME
-prompt_input "Database user" "tms_user" DB_USER
-prompt_password "Database password" DB_PASSWORD
-prompt_input "Admin email" "admin@example.com" ADMIN_EMAIL
-prompt_password "Admin password" ADMIN_PASSWORD
-
-# Generate secret key
-SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(64))')
-
+# =============================================
+# Step 3: Configuring PostgreSQL
+# =============================================
 echo -e "${YELLOW}Step 3: Configuring PostgreSQL...${NC}"
 
 # Start PostgreSQL
@@ -132,15 +226,21 @@ EOF
 
 echo -e "${GREEN}PostgreSQL configured!${NC}"
 
+# =============================================
+# Step 4: Configuring Redis
+# =============================================
 echo -e "${YELLOW}Step 4: Configuring Redis...${NC}"
 
 systemctl enable redis-server
 systemctl start redis-server
 
+# =============================================
+# Step 5: Cloning repository
+# =============================================
 echo -e "${YELLOW}Step 5: Cloning repository...${NC}"
 
-# Create tms user
-useradd -r -m -s /bin/bash tms || true
+# Create service user
+useradd -r -m -s /bin/bash "$SERVICE_USER" || true
 
 # Clone repository
 if [ -d "$INSTALL_DIR" ]; then
@@ -152,7 +252,7 @@ else
     git clone -b "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
 fi
 
-chown -R tms:tms "$INSTALL_DIR"
+chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
 
 echo -e "${YELLOW}Step 6: Setting up Python environment...${NC}"
 
@@ -181,15 +281,15 @@ CORS_ALLOWED_ORIGINS=https://$DOMAIN_NAME,http://localhost
 EOF
 
 chmod 600 "$INSTALL_DIR/backend/.env"
-chown tms:tms "$INSTALL_DIR/backend/.env"
+chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/backend/.env"
 
 # Run migrations
 cd "$INSTALL_DIR/backend"
-sudo -u tms ./venv/bin/python manage.py migrate --noinput
-sudo -u tms ./venv/bin/python manage.py collectstatic --noinput
+sudo -u "$SERVICE_USER" ./venv/bin/python manage.py migrate --noinput
+sudo -u "$SERVICE_USER" ./venv/bin/python manage.py collectstatic --noinput
 
 # Create superuser
-sudo -u tms ./venv/bin/python manage.py shell << PYTHON_EOF
+sudo -u "$SERVICE_USER" ./venv/bin/python manage.py shell << PYTHON_EOF
 from apps.accounts.models import User
 if not User.objects.filter(email='$ADMIN_EMAIL').exists():
     User.objects.create_superuser(
@@ -215,8 +315,8 @@ VITE_API_URL=/api
 EOF
 
 # Install and build
-sudo -u tms npm ci
-sudo -u tms npm run build
+sudo -u "$SERVICE_USER" npm ci
+sudo -u "$SERVICE_USER" npm run build
 
 echo -e "${GREEN}Frontend built!${NC}"
 
@@ -227,7 +327,7 @@ cat > /etc/supervisor/conf.d/tms.conf << EOF
 [program:tms]
 directory=$INSTALL_DIR/backend
 command=$INSTALL_DIR/backend/venv/bin/gunicorn --workers 4 --threads 2 --bind unix:/run/tms/gunicorn.sock tms.wsgi:application
-user=tms
+user=$SERVICE_USER
 autostart=true
 autorestart=true
 redirect_stderr=true
@@ -237,7 +337,7 @@ EOF
 
 # Create log and run directories
 mkdir -p /var/log/tms /run/tms
-chown -R tms:tms /var/log/tms /run/tms
+chown -R "$SERVICE_USER:$SERVICE_USER" /var/log/tms /run/tms
 
 # Create systemd service for socket directory
 cat > /etc/systemd/system/tms-socket.service << EOF
@@ -247,7 +347,7 @@ Description=Create TMS socket directory
 [Service]
 Type=oneshot
 ExecStart=/bin/mkdir -p /run/tms
-ExecStart=/bin/chown tms:www-data /run/tms
+ExecStart=/bin/chown $SERVICE_USER:www-data /run/tms
 RemainAfterExit=yes
 
 [Install]
