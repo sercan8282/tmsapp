@@ -2,11 +2,26 @@
 Core app URL configuration.
 """
 from django.urls import path
-from .views import PublicSettingsView, AdminSettingsViewSet
+from .views import (
+    PublicSettingsView, 
+    AdminSettingsViewSet, 
+    DashboardStatsView, 
+    ImageUploadView,
+    HealthCheckView
+)
 
 urlpatterns = [
+    # Health check (no auth required)
+    path('health/', HealthCheckView.as_view(), name='health-check'),
+    
     # Public settings (no auth required)
     path('settings/', PublicSettingsView.as_view(), name='public-settings'),
+    
+    # Dashboard stats
+    path('dashboard/stats/', DashboardStatsView.as_view(), name='dashboard-stats'),
+    
+    # Image upload
+    path('upload/image/', ImageUploadView.as_view(), name='upload-image'),
     
     # Admin settings management
     path('admin/settings/', AdminSettingsViewSet.as_view({
@@ -19,6 +34,12 @@ urlpatterns = [
     path('admin/settings/upload-favicon/', AdminSettingsViewSet.as_view({
         'post': 'upload_favicon',
     }), name='admin-settings-upload-favicon'),
+    path('admin/settings/delete-logo/', AdminSettingsViewSet.as_view({
+        'post': 'delete_logo',
+    }), name='admin-settings-delete-logo'),
+    path('admin/settings/delete-favicon/', AdminSettingsViewSet.as_view({
+        'post': 'delete_favicon',
+    }), name='admin-settings-delete-favicon'),
     path('admin/settings/test-email/', AdminSettingsViewSet.as_view({
         'post': 'test_email',
     }), name='admin-settings-test-email'),

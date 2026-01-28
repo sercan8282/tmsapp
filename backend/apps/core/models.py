@@ -122,6 +122,22 @@ class AppSettings(models.Model):
         verbose_name='OAuth Tenant ID'
     )
     
+    # Invoice settings
+    invoice_payment_text = models.TextField(
+        blank=True,
+        default='Wij verzoeken u vriendelijk het totaalbedrag vóór de vervaldatum over te maken op bovenstaand IBAN onder vermelding van het factuurnummer.',
+        verbose_name='Factuur Betalingstekst',
+        help_text='Tekst die onderaan de factuur wordt getoond. Gebruik {bedrag}, {vervaldatum} en {factuurnummer} als variabelen.'
+    )
+    
+    # Email signature
+    email_signature = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='E-mail Handtekening',
+        help_text='Handtekening die onderaan alle uitgaande e-mails wordt toegevoegd.'
+    )
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

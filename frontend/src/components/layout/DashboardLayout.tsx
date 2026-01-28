@@ -11,35 +11,43 @@ import {
   ClockIcon,
   CalendarIcon,
   DocumentTextIcon,
+  DocumentDuplicateIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
   ChevronDownIcon,
+  ClipboardDocumentListIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
+import { AppSettings } from '@/types'
 import clsx from '@/utils/clsx'
 
 interface NavItem {
   name: string
   href: string
   icon: React.ComponentType<{ className?: string }>
-  adminOnly?: boolean
+  roles?: ('admin' | 'gebruiker' | 'chauffeur')[]  // If undefined, all roles can see it
 }
 
+// Navigation items with role-based access
 const navigation: NavItem[] = [
-  { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Bedrijven', href: '/companies', icon: BuildingOfficeIcon },
-  { name: 'Chauffeurs', href: '/drivers', icon: UsersIcon },
-  { name: 'Vloot', href: '/fleet', icon: TruckIcon },
-  { name: 'Urenregistratie', href: '/time-entries', icon: ClockIcon },
-  { name: 'Planning', href: '/planning', icon: CalendarIcon },
-  { name: 'Facturen', href: '/invoices', icon: DocumentTextIcon },
+  { name: 'Dashboard', href: '/', icon: HomeIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'Bedrijven', href: '/companies', icon: BuildingOfficeIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'Chauffeurs', href: '/drivers', icon: UsersIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'Vloot', href: '/fleet', icon: TruckIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'Urenregistratie', href: '/time-entries', icon: ClockIcon },  // All roles
+  { name: 'Mijn Uren', href: '/my-hours', icon: ClipboardDocumentListIcon, roles: ['chauffeur'] },
+  { name: 'Ingediende Uren', href: '/submitted-hours', icon: ClipboardDocumentListIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'Planning', href: '/planning', icon: CalendarIcon },  // All roles (filtered by backend)
+  { name: 'Facturen', href: '/invoices', icon: DocumentTextIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'Factuur Templates', href: '/invoices/templates', icon: DocumentDuplicateIcon, roles: ['admin'] },
 ]
 
 const adminNavigation: NavItem[] = [
-  { name: 'Gebruikers', href: '/admin/users', icon: UsersIcon, adminOnly: true },
-  { name: 'Instellingen', href: '/settings', icon: Cog6ToothIcon, adminOnly: true },
+  { name: 'Gebruikers', href: '/admin/users', icon: UsersIcon, roles: ['admin'] },
+  { name: 'Instellingen', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
 ]
 
 export default function DashboardLayout() {
@@ -56,9 +64,15 @@ export default function DashboardLayout() {
     navigate('/login')
   }
   
-  const isAdmin = user?.rol === 'admin'
+  const userRole = user?.rol || 'chauffeur'
   
-  const allNavigation = isAdmin ? [...navigation, ...adminNavigation] : navigation
+  // Filter navigation items based on user role
+  const filterByRole = (items: NavItem[]) => 
+    items.filter(item => !item.roles || item.roles.includes(userRole))
+  
+  const filteredNavigation = filterByRole(navigation)
+  const filteredAdminNavigation = filterByRole(adminNavigation)
+  const allNavigation = [...filteredNavigation, ...filteredAdminNavigation]
   
   return (
     <div className="h-full flex">
@@ -155,6 +169,20 @@ export default function DashboardLayout() {
                     <Menu.Item>
                       {({ active }) => (
                         <button
+                          onClick={() => navigate('/profile/password')}
+                          className={clsx(
+                            active ? 'bg-gray-50' : '',
+                            'flex w-full items-center px-4 py-2 text-sm text-gray-700'
+                          )}
+                        >
+                          <KeyIcon className="mr-3 h-5 w-5 text-gray-400" />
+                          Wachtwoord wijzigen
+                        </button>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
                           onClick={handleLogout}
                           className={clsx(
                             active ? 'bg-gray-50' : '',
@@ -186,19 +214,18 @@ export default function DashboardLayout() {
 
 interface SidebarContentProps {
   navigation: NavItem[]
-  settings: ReturnType<typeof useAppStore>['settings']
+  settings: AppSettings | null
   onNavigate?: () => void
 }
 
 function SidebarContent({ navigation, settings, onNavigate }: SidebarContentProps) {
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-primary-600 px-6 pb-4">
-      <div className="flex h-16 shrink-0 items-center">
-        {settings?.logo_url ? (
+      <div className="flex h-16 shrink-0 items-center gap-3">
+        {settings?.logo_url && (
           <img className="h-8 w-auto" src={settings.logo_url} alt={settings.app_name} />
-        ) : (
-          <span className="text-xl font-bold text-white">{settings?.app_name || 'TMS'}</span>
         )}
+        <span className="text-xl font-bold text-white">{settings?.app_name || 'TMS'}</span>
       </div>
       
       <nav className="flex flex-1 flex-col">

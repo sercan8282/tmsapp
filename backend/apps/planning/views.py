@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from apps.core.permissions import IsAdminOrManager
 from apps.fleet.models import Vehicle
+from apps.drivers.models import Driver
 from .models import WeekPlanning, PlanningEntry, Weekday
 from .serializers import (
     WeekPlanningSerializer, 
@@ -105,6 +106,61 @@ class WeekPlanningViewSet(viewsets.ModelViewSet):
         return Response({
             'weeknummer': next_week,
             'jaar': year
+        })
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def my_planning(self, request):
+        """Get planning for the current logged-in driver (chauffeur role only)."""
+        user = request.user
+        
+        # Get week and year from query params, default to current week
+        today = date.today()
+        iso = today.isocalendar()
+        weeknummer = int(request.query_params.get('weeknummer', iso[1]))
+        jaar = int(request.query_params.get('jaar', iso[0]))
+        
+        # Find the driver linked to this user
+        try:
+            driver = Driver.objects.get(gekoppelde_gebruiker=user)
+        except Driver.DoesNotExist:
+            return Response({
+                'entries': [],
+                'message': 'Je bent niet gekoppeld aan een chauffeursprofiel'
+            })
+        
+        # Get planning entries for this driver
+        entries = PlanningEntry.objects.filter(
+            chauffeur=driver,
+            planning__weeknummer=weeknummer,
+            planning__jaar=jaar
+        ).select_related('planning__bedrijf', 'vehicle').order_by('dag')
+        
+        # Build response with readable data
+        result = []
+        day_order = {'ma': 1, 'di': 2, 'wo': 3, 'do': 4, 'vr': 5}
+        day_names = {'ma': 'Maandag', 'di': 'Dinsdag', 'wo': 'Woensdag', 'do': 'Donderdag', 'vr': 'Vrijdag'}
+        
+        for entry in entries:
+            result.append({
+                'id': str(entry.id),
+                'dag': entry.dag,
+                'dag_naam': day_names.get(entry.dag, entry.dag),
+                'dag_order': day_order.get(entry.dag, 99),
+                'kenteken': entry.vehicle.kenteken if entry.vehicle else '',
+                'voertuig_type': entry.vehicle.type_wagen if entry.vehicle else '',
+                'bedrijf': entry.planning.bedrijf.naam if entry.planning.bedrijf else '',
+                'weeknummer': entry.planning.weeknummer,
+                'jaar': entry.planning.jaar,
+            })
+        
+        # Sort by day order
+        result.sort(key=lambda x: x['dag_order'])
+        
+        return Response({
+            'weeknummer': weeknummer,
+            'jaar': jaar,
+            'chauffeur': driver.naam,
+            'entries': result
         })
     
     @action(detail=True, methods=['post'])

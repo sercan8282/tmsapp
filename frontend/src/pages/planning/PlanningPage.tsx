@@ -12,7 +12,10 @@ import {
   ExclamationTriangleIcon,
   TruckIcon,
   UserIcon,
+  DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { useAuthStore } from '@/stores/authStore'
 import { Company, Driver, WeekPlanning, PlanningEntry } from '@/types'
 import {
@@ -22,6 +25,8 @@ import {
   getCurrentWeek,
   copyToNextWeek,
   updatePlanningEntry,
+  getMyPlanning,
+  MyPlanningEntry,
 } from '@/api/planning'
 import { getCompanies } from '@/api/companies'
 import { getDrivers } from '@/api/drivers'
@@ -35,9 +40,167 @@ const DAYS = [
   { key: 'vr', label: 'Vr', full: 'Vrijdag' },
 ] as const
 
-export default function PlanningPage() {
+// Get current week number helper
+function getCurrentWeekNumber(): number {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), 0, 1)
+  const diff = now.getTime() - start.getTime()
+  const oneWeek = 604800000
+  return Math.ceil((diff + start.getDay() * 86400000) / oneWeek)
+}
+
+// Chauffeur Planning View Component
+function ChauffeurPlanningView() {
+  const [loading, setLoading] = useState(true)
+  const [currentWeek, setCurrentWeek] = useState<number>(getCurrentWeekNumber())
+  const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear())
+  const [entries, setEntries] = useState<MyPlanningEntry[]>([])
+  const [chauffeurName, setChauffeurName] = useState<string>('')
+  const [message, setMessage] = useState<string>('')
+
+  useEffect(() => {
+    loadMyPlanning()
+  }, [currentWeek, currentYear])
+
+  const loadMyPlanning = async () => {
+    try {
+      setLoading(true)
+      const response = await getMyPlanning(currentWeek, currentYear)
+      setEntries(response.entries)
+      setChauffeurName(response.chauffeur || '')
+      setMessage(response.message || '')
+    } catch (err) {
+      console.error('Failed to load my planning:', err)
+      setEntries([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePreviousWeek = () => {
+    if (currentWeek === 1) {
+      setCurrentWeek(52)
+      setCurrentYear(currentYear - 1)
+    } else {
+      setCurrentWeek(currentWeek - 1)
+    }
+  }
+
+  const handleNextWeek = () => {
+    if (currentWeek === 52) {
+      setCurrentWeek(1)
+      setCurrentYear(currentYear + 1)
+    } else {
+      setCurrentWeek(currentWeek + 1)
+    }
+  }
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Mijn Planning</h1>
+          {chauffeurName && (
+            <p className="text-gray-500 mt-1">Chauffeur: {chauffeurName}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Week selector */}
+      <div className="card mb-6">
+        <div className="p-4">
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={handlePreviousWeek}
+              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            >
+              <ChevronLeftIcon className="h-5 w-5" />
+            </button>
+            
+            <div className="text-center min-w-[200px]">
+              <div className="text-2xl font-bold text-gray-900">
+                Week {currentWeek}
+              </div>
+              <div className="text-sm text-gray-500">{currentYear}</div>
+            </div>
+            
+            <button
+              onClick={handleNextWeek}
+              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            >
+              <ChevronRightIcon className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Planning content */}
+      {loading ? (
+        <div className="card p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+        </div>
+      ) : message ? (
+        <div className="card p-8 text-center">
+          <p className="text-gray-500">{message}</p>
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="card p-8 text-center">
+          <TruckIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">Geen planning voor deze week</p>
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Dag
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Voertuig
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Bedrijf
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {entries.map((entry) => (
+                <tr key={entry.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="font-medium text-gray-900">{entry.dag_naam}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <TruckIcon className="h-5 w-5 text-gray-400 mr-2" />
+                      <span className="font-mono font-medium">{entry.kenteken}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                    {entry.voertuig_type}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                    {entry.bedrijf}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Admin/Manager Planning View
+function AdminPlanningView() {
   const { user } = useAuthStore()
-  const isReadOnly = user?.rol === 'chauffeur'
+  
+  // Admins can always edit
+  const isReadOnly = false
   
   // State
   const [loading, setLoading] = useState(true)
@@ -197,6 +360,104 @@ export default function PlanningPage() {
     }
   }
 
+  // Export planning to PDF
+  const handleExportPDF = () => {
+    if (!planning?.entries || planning.entries.length === 0) {
+      setError('Geen planning data om te exporteren')
+      return
+    }
+
+    const companyName = companies.find(c => c.id === selectedCompany)?.naam || 'Onbekend'
+    
+    // Create PDF in landscape mode for better table fit
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    // Title
+    doc.setFontSize(18)
+    doc.text(`Weekplanning Week ${currentWeek} - ${currentYear}`, 14, 15)
+    
+    doc.setFontSize(12)
+    doc.text(`Bedrijf: ${companyName}`, 14, 23)
+    
+    // Prepare table data
+    // Columns: Weeknummer, Dag, Route, Chauffeur, Telefoonnummer, ADR, Kenteken
+    const tableData: string[][] = []
+    
+    // Sort entries by day order
+    const dayOrder = { ma: 1, di: 2, wo: 3, do: 4, vr: 5 }
+    const sortedEntries = [...planning.entries].sort((a, b) => {
+      const dayDiff = dayOrder[a.dag] - dayOrder[b.dag]
+      if (dayDiff !== 0) return dayDiff
+      // Then sort by kenteken
+      return a.vehicle_kenteken.localeCompare(b.vehicle_kenteken)
+    })
+
+    for (const entry of sortedEntries) {
+      tableData.push([
+        currentWeek.toString(),
+        entry.dag_display || entry.dag.toUpperCase(),
+        entry.vehicle_ritnummer || '-',
+        entry.chauffeur_naam || '-',
+        entry.telefoon || '-',
+        entry.adr ? 'Ja' : 'Nee',
+        entry.vehicle_kenteken || '-'
+      ])
+    }
+
+    // Generate table
+    autoTable(doc, {
+      head: [['Weeknummer', 'Dag', 'Route', 'Chauffeur', 'Telefoonnummer', 'ADR', 'Kenteken']],
+      body: tableData,
+      startY: 30,
+      styles: {
+        fontSize: 10,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [59, 130, 246], // Blue color
+        textColor: 255,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 250],
+      },
+      columnStyles: {
+        0: { cellWidth: 25 }, // Weeknummer
+        1: { cellWidth: 25 }, // Dag
+        2: { cellWidth: 35 }, // Route
+        3: { cellWidth: 50 }, // Chauffeur
+        4: { cellWidth: 40 }, // Telefoonnummer
+        5: { cellWidth: 20 }, // ADR
+        6: { cellWidth: 30 }, // Kenteken
+      },
+    })
+
+    // Footer
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setTextColor(128)
+      doc.text(
+        `Gegenereerd op ${new Date().toLocaleDateString('nl-NL')} om ${new Date().toLocaleTimeString('nl-NL')}`,
+        14,
+        doc.internal.pageSize.height - 10
+      )
+      doc.text(
+        `Pagina ${i} van ${pageCount}`,
+        doc.internal.pageSize.width - 30,
+        doc.internal.pageSize.height - 10
+      )
+    }
+
+    // Download
+    doc.save(`planning-week-${currentWeek}-${currentYear}-${companyName.replace(/\s+/g, '-')}.pdf`)
+  }
+
   // Group entries by vehicle
   const getEntriesByVehicle = useCallback(() => {
     if (!planning?.entries) return []
@@ -244,23 +505,34 @@ export default function PlanningPage() {
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Weekplanning</h1>
-        {!isReadOnly && planning && (
+        {planning && (
           <div className="flex gap-2">
             <button
-              onClick={handleCopyToNextWeek}
-              disabled={saving}
+              onClick={handleExportPDF}
               className="btn-secondary"
             >
-              <DocumentDuplicateIcon className="h-5 w-5 mr-2" />
-              Kopieer naar volgende week
+              <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
+              Exporteer PDF
             </button>
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="btn-danger"
-            >
-              <TrashIcon className="h-5 w-5 mr-2" />
-              Verwijderen
-            </button>
+            {!isReadOnly && (
+              <>
+                <button
+                  onClick={handleCopyToNextWeek}
+                  disabled={saving}
+                  className="btn-secondary"
+                >
+                  <DocumentDuplicateIcon className="h-5 w-5 mr-2" />
+                  Kopieer naar volgende week
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="btn-danger"
+                >
+                  <TrashIcon className="h-5 w-5 mr-2" />
+                  Verwijderen
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -670,4 +942,17 @@ function DriverSelector({ drivers, value, onChange, onCancel }: DriverSelectorPr
       </select>
     </div>
   )
+}
+
+// Main export - shows different view based on user role
+export default function PlanningPage() {
+  const { user } = useAuthStore()
+  
+  // Chauffeurs see their own planning
+  if (user?.rol === 'chauffeur') {
+    return <ChauffeurPlanningView />
+  }
+  
+  // Admins and managers see the full planning management
+  return <AdminPlanningView />
 }

@@ -141,3 +141,7 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# Local scripts
+start-local.ps1
+start-local.bat

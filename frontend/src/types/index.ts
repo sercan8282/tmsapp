@@ -10,6 +10,7 @@ export interface User {
   bedrijf: string
   rol: 'admin' | 'gebruiker' | 'chauffeur'
   mfa_enabled: boolean
+  mfa_required: boolean
   is_active: boolean
   date_joined: string
   last_login: string | null
@@ -39,6 +40,7 @@ export interface LoginResponse {
   refresh: string
   user: User
   requires_2fa?: boolean
+  requires_2fa_setup?: boolean
   user_id?: string
 }
 
@@ -66,11 +68,15 @@ export interface AppSettingsAdmin extends AppSettings {
   smtp_host: string
   smtp_port: number
   smtp_username: string
+  smtp_password?: string // Write-only
   smtp_use_tls: boolean
   smtp_from_email: string
   oauth_enabled: boolean
   oauth_client_id: string
+  oauth_client_secret?: string // Write-only
   oauth_tenant_id: string
+  invoice_payment_text: string
+  email_signature: string
 }
 
 // Company types
@@ -166,11 +172,92 @@ export interface PlanningEntry {
 }
 
 // Invoice types
+
+// Template Field Types
+export type TemplateFieldType = 'text' | 'image' | 'amount' | 'date' | 'variable'
+export type TextAlignment = 'left' | 'center' | 'right'
+
+export interface TemplateFieldStyle {
+  alignment: TextAlignment
+  bold: boolean
+  italic: boolean
+  color: string
+  fontFamily: string
+  fontSize: number
+}
+
+export interface TemplateField {
+  id: string
+  type: TemplateFieldType
+  content: string // tekst of variabele naam
+  style: TemplateFieldStyle
+  imageUrl?: string
+  imageWidth?: number // pixels
+  imageHeight?: number // pixels
+}
+
+// Section with 3 columns (header, subheader, footer)
+export interface TemplateSection {
+  left: TemplateField | null
+  center: TemplateField | null
+  right: TemplateField | null
+}
+
+// Table column types
+export type ColumnType = 'text' | 'aantal' | 'km' | 'uren' | 'prijs' | 'btw' | 'percentage' | 'berekend'
+
+export interface TemplateColumn {
+  id: string  // unieke naam voor berekeningen
+  naam: string // display naam
+  type: ColumnType
+  breedte: number // percentage
+  // Voor berekende kolommen
+  formule?: string // bijv. "kolom_a * kolom_b" of "kolom_c * 0.21"
+}
+
+// Standaard tarieven
+export interface TemplateDefaults {
+  uurtarief: number
+  dotPrijs: number
+  dotIsPercentage: boolean
+  kmTarief: number
+}
+
+// Footer totalen configuratie
+export interface TemplateTotals {
+  showSubtotaal: boolean
+  showBtw: boolean
+  showTotaal: boolean
+  btwPercentage: number
+}
+
+// Tabel styling configuratie
+export interface TemplateTableStyle {
+  headerBackground: string
+  headerTextColor: string
+  headerFont: string
+  evenRowBackground: string
+  oddRowBackground: string
+  rowTextColor: string
+  rowFont: string
+}
+
+// Volledige template layout
+export interface TemplateLayout {
+  header: TemplateSection
+  subheader: TemplateSection
+  columns: TemplateColumn[]
+  footer: TemplateSection
+  defaults: TemplateDefaults
+  totals: TemplateTotals
+  tableStyle?: TemplateTableStyle
+}
+
 export interface InvoiceTemplate {
   id: string
   naam: string
   beschrijving: string
-  layout: Record<string, unknown>
+  layout: TemplateLayout
   variables: Record<string, unknown>
   is_active: boolean
   created_at: string

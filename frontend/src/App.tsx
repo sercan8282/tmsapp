@@ -7,6 +7,7 @@ import AuthLayout from '@/components/layout/AuthLayout'
 
 // Auth pages
 import LoginPage from '@/pages/auth/LoginPage'
+import MfaSetupPage from '@/pages/auth/MfaSetupPage'
 
 // Dashboard pages
 import DashboardPage from '@/pages/dashboard/DashboardPage'
@@ -22,16 +23,25 @@ import FleetPage from '@/pages/fleet/FleetPage'
 
 // Time tracking
 import TimeEntriesPage from '@/pages/time-entries/TimeEntriesPage'
+import MyHoursPage from '@/pages/time-entries/MyHoursPage'
+import SubmittedHoursPage from '@/pages/time-entries/SubmittedHoursPage'
 
 // Planning
 import PlanningPage from '@/pages/planning/PlanningPage'
 
+// Profile
+import PasswordChangePage from '@/pages/profile/PasswordChangePage'
+
 // Invoicing
 import InvoicesPage from '@/pages/invoices/InvoicesPage'
+import InvoiceCreatePage from '@/pages/invoices/InvoiceCreatePage'
+import TemplatesPage from '@/pages/invoices/TemplatesPage'
+import InvoiceEditPage from '@/pages/invoices/InvoiceEditPage'
+import TemplateEditorPage from '@/pages/invoices/TemplateEditorPage'
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuthStore()
+  const { isAuthenticated, isLoading, pendingMfaSetup } = useAuthStore()
   
   if (isLoading) {
     return (
@@ -43,6 +53,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+  
+  // Redirect to MFA setup if required
+  if (pendingMfaSetup) {
+    return <Navigate to="/setup-mfa" replace />
   }
   
   return <>{children}</>
@@ -67,6 +82,9 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
       </Route>
       
+      {/* MFA Setup route - outside of protected route since it has its own protection */}
+      <Route path="/setup-mfa" element={<MfaSetupPage />} />
+      
       {/* Protected dashboard routes */}
       <Route
         element={
@@ -88,12 +106,22 @@ function App() {
         
         {/* Time tracking */}
         <Route path="/time-entries" element={<TimeEntriesPage />} />
+        <Route path="/my-hours" element={<MyHoursPage />} />
+        <Route path="/submitted-hours" element={<SubmittedHoursPage />} />
         
         {/* Planning */}
         <Route path="/planning" element={<PlanningPage />} />
         
+        {/* Profile */}
+        <Route path="/profile/password" element={<PasswordChangePage />} />
+
         {/* Invoicing */}
         <Route path="/invoices" element={<InvoicesPage />} />
+        <Route path="/invoices/new" element={<InvoiceCreatePage />} />
+        <Route path="/invoices/:id/edit" element={<InvoiceEditPage />} />
+        <Route path="/invoices/templates" element={<AdminRoute><TemplatesPage /></AdminRoute>} />
+        <Route path="/invoices/templates/new" element={<AdminRoute><TemplateEditorPage /></AdminRoute>} />
+        <Route path="/invoices/templates/:id/edit" element={<AdminRoute><TemplateEditorPage /></AdminRoute>} />
       </Route>
       
       {/* Catch all - redirect to home */}

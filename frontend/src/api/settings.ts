@@ -1,6 +1,16 @@
 import api from './client'
 import type { AppSettings, AppSettingsAdmin } from '@/types'
 
+export interface DashboardStats {
+  users: number
+  companies: number
+  vehicles: number
+  hours_this_week: number
+  open_invoices: number
+  week_number: number
+  year: number
+}
+
 export const settingsApi = {
   // Public settings (no auth required)
   getPublic: async (): Promise<AppSettings> => {
@@ -37,8 +47,34 @@ export const settingsApi = {
     return response.data
   },
   
+  deleteLogo: async (): Promise<AppSettingsAdmin> => {
+    const response = await api.post('/core/admin/settings/delete-logo/')
+    return response.data
+  },
+  
+  deleteFavicon: async (): Promise<AppSettingsAdmin> => {
+    const response = await api.post('/core/admin/settings/delete-favicon/')
+    return response.data
+  },
+  
   testEmail: async (toEmail: string): Promise<{ message: string }> => {
     const response = await api.post('/core/admin/settings/test-email/', { to_email: toEmail })
+    return response.data
+  },
+  
+  // Dashboard stats
+  getDashboardStats: async (): Promise<DashboardStats> => {
+    const response = await api.get('/core/dashboard/stats/')
+    return response.data
+  },
+  
+  // Image upload
+  uploadImage: async (file: File): Promise<{ url: string; filename: string; size: number }> => {
+    const formData = new FormData()
+    formData.append('image', file)
+    const response = await api.post('/core/upload/image/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
     return response.data
   },
 }

@@ -24,7 +24,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'username', 'voornaam', 'achternaam',
             'full_name', 'telefoon', 'bedrijf', 'rol', 
-            'mfa_enabled', 'is_active', 'date_joined', 'last_login'
+            'mfa_enabled', 'mfa_required', 'is_active', 'date_joined', 'last_login'
         ]
         read_only_fields = ['id', 'date_joined', 'last_login']
 
@@ -38,7 +38,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'username', 'voornaam', 'achternaam',
             'full_name', 'telefoon', 'bedrijf', 'rol',
-            'mfa_enabled', 'is_active', 'date_joined', 'last_login'
+            'mfa_enabled', 'mfa_required', 'is_active', 'date_joined', 'last_login'
         ]
         read_only_fields = ['id', 'email', 'rol', 'is_active', 'date_joined', 'last_login']
 
@@ -76,7 +76,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'email', 'username', 'voornaam', 'achternaam',
-            'telefoon', 'bedrijf', 'rol', 'is_active'
+            'telefoon', 'bedrijf', 'rol', 'is_active', 'mfa_required'
         ]
 
 
@@ -110,6 +110,15 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 'requires_2fa': True,
                 'user_id': str(self.user.id),
             }
+        elif self.user.mfa_required and not self.user.mfa_enabled:
+            # User must set up 2FA first
+            data = {
+                'requires_2fa_setup': True,
+                'user_id': str(self.user.id),
+                'access': data['access'],  # Give temporary access for setup
+                'refresh': data['refresh'],
+                'user': UserSerializer(self.user).data,
+            }
         else:
             # Add user info to response
             data['user'] = UserSerializer(self.user).data
@@ -131,6 +140,11 @@ class MFAVerifySerializer(serializers.Serializer):
 class MFADisableSerializer(serializers.Serializer):
     """Serializer for disabling 2FA."""
     code = serializers.CharField(required=True, min_length=6, max_length=6)
+    password = serializers.CharField(required=True)
+
+
+class MFAResetSerializer(serializers.Serializer):
+    """Serializer for resetting 2FA (user resets their own MFA)."""
     password = serializers.CharField(required=True)
 
 

@@ -23,11 +23,14 @@ class InvoiceLineSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'totaal', 'created_at', 'updated_at']
     
     def validate(self, data):
-        # Check if invoice is still editable (concept status)
+        # Log warning if modifying non-concept invoice lines
         invoice = data.get('invoice') or (self.instance.invoice if self.instance else None)
         if invoice and invoice.status != InvoiceStatus.CONCEPT:
-            raise serializers.ValidationError(
-                "Factuurregels kunnen alleen worden gewijzigd bij concept facturen"
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"Modifying invoice line for non-concept invoice: {invoice.factuurnummer} "
+                f"(status: {invoice.status})"
             )
         return data
     

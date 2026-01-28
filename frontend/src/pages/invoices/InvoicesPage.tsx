@@ -1,12 +1,10 @@
 import { useState, useEffect, Fragment } from 'react'
-import { Dialog, Transition, Listbox } from '@headlessui/react'
+import { useNavigate } from 'react-router-dom'
+import { Dialog, Transition } from '@headlessui/react'
 import {
   PlusIcon,
-  PencilIcon,
   TrashIcon,
   XMarkIcon,
-  CheckIcon,
-  ChevronUpDownIcon,
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
   DocumentTextIcon,
@@ -14,20 +12,24 @@ import {
   PaperAirplaneIcon,
   CurrencyEuroIcon,
   EyeIcon,
+  EnvelopeIcon,
+  ArrowDownTrayIcon,
+  PencilSquareIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
-import { Company, Invoice, InvoiceTemplate } from '@/types'
+import { Company, Invoice } from '@/types'
 import {
   getInvoices,
-  createInvoice,
-  updateInvoice,
   deleteInvoice,
-  getTemplates,
   markDefinitief,
   markVerzonden,
   markBetaald,
+  sendInvoiceEmail,
+  generatePdf,
+  changeStatus,
   InvoiceFilters,
-  InvoiceCreate,
 } from '@/api/invoices'
 import { getCompanies } from '@/api/companies'
 import clsx from '@/utils/clsx'
@@ -55,13 +57,13 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function InvoicesPage() {
+  const navigate = useNavigate()
   const { user } = useAuthStore()
   const isReadOnly = user?.rol === 'chauffeur'
   
   // Data state
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
-  const [templates, setTemplates] = useState<InvoiceTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   
@@ -74,23 +76,15 @@ export default function InvoicesPage() {
   const [searchInput, setSearchInput] = useState('')
   
   // Modal state
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [emailAddress, setEmailAddress] = useState('')
+  const [emailSending, setEmailSending] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
-  // Form state
-  const [formData, setFormData] = useState<InvoiceCreate>({
-    template: '',
-    bedrijf: '',
-    type: 'verkoop',
-    factuurdatum: new Date().toISOString().split('T')[0],
-    vervaldatum: '',
-    btw_percentage: 21,
-    opmerkingen: '',
-  })
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     loadInitialData()
@@ -102,17 +96,8 @@ export default function InvoicesPage() {
 
   const loadInitialData = async () => {
     try {
-      const [companiesRes, templatesRes] = await Promise.all([
-        getCompanies({ page_size: 100 }),
-        getTemplates(true),
-      ])
+      const companiesRes = await getCompanies({ page_size: 100 })
       setCompanies(companiesRes.results)
-      setTemplates(templatesRes.results)
-      
-      // Set default template
-      if (templatesRes.results.length > 0) {
-        setFormData(prev => ({ ...prev, template: templatesRes.results[0].id }))
-      }
     } catch (err) {
       console.error('Failed to load initial data:', err)
     }
@@ -136,29 +121,27 @@ export default function InvoicesPage() {
     setFilters(prev => ({ ...prev, search: searchInput, page: 1 }))
   }
 
+  const handleSort = (field: string) => {
+    setFilters(prev => {
+      const currentOrdering = prev.ordering || ''
+      // If already sorting by this field, toggle direction
+      if (currentOrdering === field) {
+        return { ...prev, ordering: `-${field}`, page: 1 }
+      } else if (currentOrdering === `-${field}`) {
+        return { ...prev, ordering: field, page: 1 }
+      } else {
+        // New field, default to ascending
+        return { ...prev, ordering: field, page: 1 }
+      }
+    })
+  }
+
   const handleFilterChange = (key: keyof InvoiceFilters, value: string) => {
     setFilters(prev => ({ 
       ...prev, 
       [key]: value || undefined,
       page: 1 
     }))
-  }
-
-  const handleCreateInvoice = async () => {
-    try {
-      setSaving(true)
-      setError(null)
-      
-      await createInvoice(formData)
-      
-      setShowCreateModal(false)
-      resetForm()
-      loadInvoices()
-    } catch (err: any) {
-      setError(err.response?.data?.detail || Object.values(err.response?.data || {}).flat().join(', ') || 'Kon factuur niet aanmaken')
-    } finally {
-      setSaving(false)
-    }
   }
 
   const handleDeleteInvoice = async () => {
@@ -198,20 +181,45 @@ export default function InvoicesPage() {
     }
   }
 
-  const resetForm = () => {
-    const defaultDate = new Date()
-    const dueDate = new Date()
-    dueDate.setDate(dueDate.getDate() + 30)
+  const handleSendEmail = async () => {
+    if (!selectedInvoice || !emailAddress) return
     
-    setFormData({
-      template: templates.length > 0 ? templates[0].id : '',
-      bedrijf: '',
-      type: 'verkoop',
-      factuurdatum: defaultDate.toISOString().split('T')[0],
-      vervaldatum: dueDate.toISOString().split('T')[0],
-      btw_percentage: 21,
-      opmerkingen: '',
-    })
+    try {
+      setEmailSending(true)
+      setError(null)
+      
+      const result = await sendInvoiceEmail(selectedInvoice.id, emailAddress)
+      
+      setShowEmailModal(false)
+      setEmailAddress('')
+      setSuccessMessage(result.message || 'Factuur succesvol verzonden!')
+      loadInvoices()
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000)
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Kon e-mail niet versturen')
+    } finally {
+      setEmailSending(false)
+    }
+  }
+
+  const openEmailModal = (invoice: Invoice) => {
+    setSelectedInvoice(invoice)
+    setEmailAddress('')
+    setShowEmailModal(true)
+  }
+
+  const handleDownloadPdf = async (invoice: Invoice) => {
+    try {
+      setSaving(true)
+      setError(null)
+      await generatePdf(invoice.id)
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Kon PDF niet genereren')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const formatCurrency = (amount: number) => {
@@ -229,7 +237,7 @@ export default function InvoicesPage() {
       <div className="page-header">
         <h1 className="page-title">Facturen</h1>
         {!isReadOnly && (
-          <button onClick={() => { resetForm(); setShowCreateModal(true) }} className="btn-primary">
+          <button onClick={() => navigate('/invoices/new')} className="btn-primary">
             <PlusIcon className="h-5 w-5 mr-2" />
             Nieuwe factuur
           </button>
@@ -241,6 +249,16 @@ export default function InvoicesPage() {
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between">
           <span>{error}</span>
           <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
+      {/* Success message */}
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center justify-between">
+          <span>{successMessage}</span>
+          <button onClick={() => setSuccessMessage(null)} className="text-green-500 hover:text-green-700">
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
@@ -312,17 +330,47 @@ export default function InvoicesPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Factuurnummer
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('factuurnummer')}
+                >
+                  <div className="flex items-center gap-1">
+                    Factuurnummer
+                    {filters.ordering?.includes('factuurnummer') && (
+                      filters.ordering.startsWith('-') 
+                        ? <ChevronDownIcon className="h-4 w-4" />
+                        : <ChevronUpIcon className="h-4 w-4" />
+                    )}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Bedrijf
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('bedrijf__naam')}
+                >
+                  <div className="flex items-center gap-1">
+                    Bedrijf
+                    {filters.ordering?.includes('bedrijf__naam') && (
+                      filters.ordering.startsWith('-') 
+                        ? <ChevronDownIcon className="h-4 w-4" />
+                        : <ChevronUpIcon className="h-4 w-4" />
+                    )}
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Datum
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('factuurdatum')}
+                >
+                  <div className="flex items-center gap-1">
+                    Datum
+                    {filters.ordering?.includes('factuurdatum') && (
+                      filters.ordering.startsWith('-') 
+                        ? <ChevronDownIcon className="h-4 w-4" />
+                        : <ChevronUpIcon className="h-4 w-4" />
+                    )}
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Totaal
@@ -387,23 +435,47 @@ export default function InvoicesPage() {
                           <EyeIcon className="h-5 w-5" />
                         </button>
                         
+                        {/* PDF Download - available for all statuses */}
+                        <button
+                          onClick={() => handleDownloadPdf(invoice)}
+                          disabled={saving}
+                          className="text-indigo-600 hover:text-indigo-900 disabled:opacity-50"
+                          title="Download PDF"
+                        >
+                          <ArrowDownTrayIcon className="h-5 w-5" />
+                        </button>
+                        
+                        {/* Edit button - available for all statuses */}
+                        {!isReadOnly && (
+                          <button
+                            onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
+                            className="text-orange-600 hover:text-orange-900"
+                            title="Bewerken"
+                          >
+                            <PencilSquareIcon className="h-5 w-5" />
+                          </button>
+                        )}
+                        
+                        {/* Email button - available for definitief and verzonden */}
+                        {!isReadOnly && (invoice.status === 'definitief' || invoice.status === 'verzonden') && (
+                          <button
+                            onClick={() => openEmailModal(invoice)}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="Verstuur via e-mail"
+                          >
+                            <EnvelopeIcon className="h-5 w-5" />
+                          </button>
+                        )}
+                        
+                        {/* Status actions based on current status */}
                         {!isReadOnly && invoice.status === 'concept' && (
-                          <>
-                            <button
-                              onClick={() => handleStatusAction(invoice, 'definitief')}
-                              className="text-blue-600 hover:text-blue-900"
-                              title="Definitief maken"
-                            >
-                              <CheckCircleIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => { setSelectedInvoice(invoice); setShowDeleteModal(true) }}
-                              className="text-red-600 hover:text-red-900"
-                              title="Verwijderen"
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleStatusAction(invoice, 'definitief')}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Definitief maken"
+                          >
+                            <CheckCircleIcon className="h-5 w-5" />
+                          </button>
                         )}
                         
                         {!isReadOnly && invoice.status === 'definitief' && (
@@ -423,6 +495,17 @@ export default function InvoicesPage() {
                             title="Markeer als betaald"
                           >
                             <CurrencyEuroIcon className="h-5 w-5" />
+                          </button>
+                        )}
+                        
+                        {/* Delete button - available for all statuses */}
+                        {!isReadOnly && (
+                          <button
+                            onClick={() => { setSelectedInvoice(invoice); setShowDeleteModal(true) }}
+                            className="text-red-600 hover:text-red-900"
+                            title="Verwijderen"
+                          >
+                            <TrashIcon className="h-5 w-5" />
                           </button>
                         )}
                       </div>
@@ -462,172 +545,6 @@ export default function InvoicesPage() {
           </div>
         )}
       </div>
-
-      {/* Create Modal */}
-      <Transition appear show={showCreateModal} as={Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={() => setShowCreateModal(false)}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black bg-opacity-25" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-6 shadow-xl transition-all">
-                  <div className="flex items-center justify-between mb-4">
-                    <Dialog.Title className="text-lg font-semibold">
-                      Nieuwe factuur
-                    </Dialog.Title>
-                    <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-500">
-                      <XMarkIcon className="h-6 w-6" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {/* Template */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Template *
-                      </label>
-                      <select
-                        value={formData.template}
-                        onChange={(e) => setFormData(prev => ({ ...prev, template: e.target.value }))}
-                        className="input-field w-full"
-                        required
-                      >
-                        <option value="">Selecteer template...</option>
-                        {templates.map(template => (
-                          <option key={template.id} value={template.id}>{template.naam}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Bedrijf */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Bedrijf *
-                      </label>
-                      <select
-                        value={formData.bedrijf}
-                        onChange={(e) => setFormData(prev => ({ ...prev, bedrijf: e.target.value }))}
-                        className="input-field w-full"
-                        required
-                      >
-                        <option value="">Selecteer bedrijf...</option>
-                        {companies.map(company => (
-                          <option key={company.id} value={company.id}>{company.naam}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Type */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Type *
-                      </label>
-                      <select
-                        value={formData.type}
-                        onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as any }))}
-                        className="input-field w-full"
-                      >
-                        <option value="verkoop">Verkoop</option>
-                        <option value="inkoop">Inkoop</option>
-                        <option value="credit">Credit</option>
-                      </select>
-                    </div>
-
-                    {/* Dates */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Factuurdatum *
-                        </label>
-                        <input
-                          type="date"
-                          value={formData.factuurdatum}
-                          onChange={(e) => setFormData(prev => ({ ...prev, factuurdatum: e.target.value }))}
-                          className="input-field w-full"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Vervaldatum *
-                        </label>
-                        <input
-                          type="date"
-                          value={formData.vervaldatum}
-                          onChange={(e) => setFormData(prev => ({ ...prev, vervaldatum: e.target.value }))}
-                          className="input-field w-full"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {/* BTW */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        BTW %
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        value={formData.btw_percentage}
-                        onChange={(e) => setFormData(prev => ({ ...prev, btw_percentage: parseFloat(e.target.value) }))}
-                        className="input-field w-full"
-                      />
-                    </div>
-
-                    {/* Opmerkingen */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Opmerkingen
-                      </label>
-                      <textarea
-                        value={formData.opmerkingen}
-                        onChange={(e) => setFormData(prev => ({ ...prev, opmerkingen: e.target.value }))}
-                        rows={3}
-                        className="input-field w-full"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex justify-end gap-3">
-                    <button type="button" onClick={() => setShowCreateModal(false)} className="btn-secondary">
-                      Annuleren
-                    </button>
-                    <button
-                      onClick={handleCreateInvoice}
-                      disabled={saving || !formData.template || !formData.bedrijf || !formData.vervaldatum}
-                      className="btn-primary disabled:opacity-50"
-                    >
-                      {saving ? 'Bezig...' : 'Aanmaken'}
-                    </button>
-                  </div>
-                </Dialog.Panel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
 
       {/* Detail Modal */}
       <Transition appear show={showDetailModal} as={Fragment}>
@@ -675,12 +592,29 @@ export default function InvoicesPage() {
                         </div>
                         <div>
                           <div className="text-sm text-gray-500">Status</div>
-                          <span className={clsx(
-                            'px-2 py-1 text-xs font-medium rounded-full capitalize',
-                            STATUS_COLORS[selectedInvoice.status]
-                          )}>
-                            {selectedInvoice.status}
-                          </span>
+                          <select
+                            value={selectedInvoice.status}
+                            onChange={async (e) => {
+                              const newStatus = e.target.value as Invoice['status'];
+                              try {
+                                await changeStatus(selectedInvoice.id, newStatus);
+                                setSelectedInvoice({ ...selectedInvoice, status: newStatus });
+                                fetchData();
+                                toast.success('Status gewijzigd');
+                              } catch (err) {
+                                toast.error('Status wijzigen mislukt');
+                              }
+                            }}
+                            className={clsx(
+                              'px-2 py-1 text-xs font-medium rounded-full capitalize cursor-pointer border-0',
+                              STATUS_COLORS[selectedInvoice.status]
+                            )}
+                          >
+                            <option value="concept">Concept</option>
+                            <option value="definitief">Definitief</option>
+                            <option value="verzonden">Verzonden</option>
+                            <option value="betaald">Betaald</option>
+                          </select>
                         </div>
                         <div>
                           <div className="text-sm text-gray-500">Factuurdatum</div>
@@ -814,6 +748,98 @@ export default function InvoicesPage() {
                     </button>
                     <button onClick={handleDeleteInvoice} disabled={saving} className="btn-danger">
                       {saving ? 'Bezig...' : 'Verwijderen'}
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* Email Modal */}
+      <Transition appear show={showEmailModal} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setShowEmailModal(false)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black bg-opacity-25" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 shadow-xl transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-purple-100">
+                      <EnvelopeIcon className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <Dialog.Title className="text-lg font-semibold text-gray-900">
+                        Factuur versturen
+                      </Dialog.Title>
+                      <p className="mt-2 text-sm text-gray-500">
+                        Verstuur factuur {selectedInvoice?.factuurnummer} naar onderstaand e-mailadres.
+                      </p>
+                      
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          E-mailadres
+                        </label>
+                        <input
+                          type="email"
+                          value={emailAddress}
+                          onChange={(e) => setEmailAddress(e.target.value)}
+                          placeholder="voorbeeld@bedrijf.nl"
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                        />
+                      </div>
+                      
+                      <p className="mt-3 text-xs text-gray-500">
+                        Zorg ervoor dat de SMTP instellingen geconfigureerd zijn in Instellingen → E-mail.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button 
+                      type="button" 
+                      onClick={() => setShowEmailModal(false)} 
+                      className="btn-secondary"
+                      disabled={emailSending}
+                    >
+                      Annuleren
+                    </button>
+                    <button 
+                      onClick={handleSendEmail} 
+                      disabled={emailSending || !emailAddress}
+                      className="btn-primary flex items-center gap-2"
+                    >
+                      {emailSending ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                          Versturen...
+                        </>
+                      ) : (
+                        <>
+                          <EnvelopeIcon className="h-4 w-4" />
+                          Versturen
+                        </>
+                      )}
                     </button>
                   </div>
                 </Dialog.Panel>

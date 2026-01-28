@@ -38,7 +38,11 @@ logger = logging.getLogger('accounts.security')
 
 # Rate limiting settings
 MAX_LOGIN_ATTEMPTS = 5
+MAX_MFA_ATTEMPTS = 5
+MAX_PASSWORD_ATTEMPTS = 3
 LOGIN_LOCKOUT_SECONDS = 300  # 5 minutes
+MFA_LOCKOUT_SECONDS = 300    # 5 minutes
+PASSWORD_LOCKOUT_SECONDS = 600  # 10 minutes
 
 
 def get_client_ip(request):
@@ -51,26 +55,26 @@ def get_client_ip(request):
     return ip
 
 
-def check_rate_limit(request, identifier):
+def check_rate_limit(request, identifier, max_attempts=MAX_LOGIN_ATTEMPTS, lockout_seconds=LOGIN_LOCKOUT_SECONDS):
     """Check if rate limit exceeded. Returns (is_blocked, attempts_left)."""
-    cache_key = f'login_attempts:{identifier}'
+    cache_key = f'rate_limit:{identifier}'
     attempts = cache.get(cache_key, 0)
     
-    if attempts >= MAX_LOGIN_ATTEMPTS:
+    if attempts >= max_attempts:
         return True, 0
-    return False, MAX_LOGIN_ATTEMPTS - attempts
+    return False, max_attempts - attempts
 
 
-def increment_rate_limit(request, identifier):
-    """Increment failed login attempts."""
-    cache_key = f'login_attempts:{identifier}'
+def increment_rate_limit(request, identifier, lockout_seconds=LOGIN_LOCKOUT_SECONDS):
+    """Increment failed attempts."""
+    cache_key = f'rate_limit:{identifier}'
     attempts = cache.get(cache_key, 0)
-    cache.set(cache_key, attempts + 1, LOGIN_LOCKOUT_SECONDS)
+    cache.set(cache_key, attempts + 1, lockout_seconds)
 
 
 def reset_rate_limit(identifier):
-    """Reset rate limit after successful login."""
-    cache_key = f'login_attempts:{identifier}'
+    """Reset rate limit after successful action."""
+    cache_key = f'rate_limit:{identifier}'
     cache.delete(cache_key)
 
 
@@ -83,8 +87,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         client_ip = get_client_ip(request)
         
         # Check rate limit by IP and email
-        ip_blocked, _ = check_rate_limit(request, f'ip:{client_ip}')
-        email_blocked, _ = check_rate_limit(request, f'email:{email}')
+        ip_blocked, _ = check_rate_limit(request, f'login:ip:{client_ip}')
+        email_blocked, _ = check_rate_limit(request, f'login:email:{email}')
         
         if ip_blocked or email_blocked:
             logger.warning(
@@ -99,13 +103,13 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         
         if response.status_code == 200:
             # Successful login - reset rate limits
-            reset_rate_limit(f'ip:{client_ip}')
-            reset_rate_limit(f'email:{email}')
+            reset_rate_limit(f'login:ip:{client_ip}')
+            reset_rate_limit(f'login:email:{email}')
             logger.info(f"Successful login for {email} from IP {client_ip}")
         else:
             # Failed login - increment rate limits
-            increment_rate_limit(request, f'ip:{client_ip}')
-            increment_rate_limit(request, f'email:{email}')
+            increment_rate_limit(request, f'login:ip:{client_ip}')
+            increment_rate_limit(request, f'login:email:{email}')
             logger.warning(f"Failed login attempt for {email} from IP {client_ip}")
         
         return response
@@ -116,6 +120,24 @@ class MFAVerifyView(APIView):
     permission_classes = [AllowAny]
     
     def post(self, request):
+        client_ip = get_client_ip(request)
+        user_id = request.data.get('user_id', 'unknown')
+        rate_limit_key = f'mfa_verify:{client_ip}:{user_id}'
+        
+        # Check rate limit for MFA verification (prevents brute force on 6-digit codes)
+        is_blocked, remaining_time = check_rate_limit(
+            request, rate_limit_key, 
+            max_attempts=MAX_MFA_ATTEMPTS, 
+            lockout_seconds=MFA_LOCKOUT_SECONDS
+        )
+        
+        if is_blocked:
+            logger.warning(f"Rate limit exceeded for MFA verify - IP: {client_ip}, User: {user_id}")
+            return Response(
+                {'error': f'Te veel mislukte pogingen. Probeer het over {remaining_time // 60} minuten opnieuw.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
         serializer = MFAVerifySerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -126,24 +148,34 @@ class MFAVerifyView(APIView):
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
+            # Don't reveal if user exists - use generic error
+            increment_rate_limit(request, rate_limit_key, MFA_LOCKOUT_SECONDS)
             return Response(
-                {'error': 'Gebruiker niet gevonden.'}, 
+                {'error': 'Verificatie mislukt.'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         if not user.mfa_enabled or not user.mfa_secret:
+            # Don't reveal MFA status
+            increment_rate_limit(request, rate_limit_key, MFA_LOCKOUT_SECONDS)
             return Response(
-                {'error': '2FA is niet ingeschakeld voor deze gebruiker.'}, 
+                {'error': 'Verificatie mislukt.'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         # Verify TOTP code
         totp = pyotp.TOTP(user.mfa_secret)
         if not totp.verify(code):
+            increment_rate_limit(request, rate_limit_key, MFA_LOCKOUT_SECONDS)
+            logger.warning(f"Failed MFA verification for user {user.email} from IP {client_ip}")
             return Response(
                 {'error': 'Ongeldige verificatiecode.'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # Reset rate limit on success
+        reset_rate_limit(rate_limit_key)
+        logger.info(f"Successful MFA verification for user {user.email} from IP {client_ip}")
         
         # Generate tokens
         refresh = RefreshToken.for_user(user)
@@ -193,18 +225,42 @@ class PasswordChangeView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
+        client_ip = get_client_ip(request)
+        user = request.user
+        rate_limit_key = f'password_change:{user.id}'
+        
+        # Check rate limit for password changes (prevents brute force on old password)
+        is_blocked, remaining_time = check_rate_limit(
+            request, rate_limit_key,
+            max_attempts=MAX_PASSWORD_ATTEMPTS,
+            lockout_seconds=PASSWORD_LOCKOUT_SECONDS
+        )
+        
+        if is_blocked:
+            logger.warning(f"Rate limit exceeded for password change - User: {user.email}, IP: {client_ip}")
+            return Response(
+                {'error': f'Te veel mislukte pogingen. Probeer het over {remaining_time // 60} minuten opnieuw.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
         serializer = PasswordChangeSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        if not request.user.check_password(serializer.validated_data['old_password']):
+        if not user.check_password(serializer.validated_data['old_password']):
+            increment_rate_limit(request, rate_limit_key, PASSWORD_LOCKOUT_SECONDS)
+            logger.warning(f"Failed password change for user {user.email} from IP {client_ip} - incorrect old password")
             return Response(
                 {'old_password': 'Huidig wachtwoord is incorrect.'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        request.user.set_password(serializer.validated_data['new_password'])
-        request.user.save()
+        user.set_password(serializer.validated_data['new_password'])
+        user.save()
+        
+        # Reset rate limit on success
+        reset_rate_limit(rate_limit_key)
+        logger.info(f"Password changed successfully for user {user.email} from IP {client_ip}")
         
         return Response({'message': 'Wachtwoord succesvol gewijzigd.'})
 
@@ -248,11 +304,28 @@ class MFASetupView(APIView):
     
     def post(self, request):
         """Verify and enable 2FA."""
+        client_ip = get_client_ip(request)
+        user = request.user
+        rate_limit_key = f'mfa_setup:{user.id}'
+        
+        # Check rate limit for MFA setup verification
+        is_blocked, remaining_time = check_rate_limit(
+            request, rate_limit_key,
+            max_attempts=MAX_MFA_ATTEMPTS,
+            lockout_seconds=MFA_LOCKOUT_SECONDS
+        )
+        
+        if is_blocked:
+            logger.warning(f"Rate limit exceeded for MFA setup - User: {user.email}, IP: {client_ip}")
+            return Response(
+                {'error': f'Te veel mislukte pogingen. Probeer het over {remaining_time // 60} minuten opnieuw.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
         serializer = MFAVerifySerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        user = request.user
         code = serializer.validated_data['code']
         
         if not user.mfa_secret:
@@ -263,6 +336,8 @@ class MFASetupView(APIView):
         
         totp = pyotp.TOTP(user.mfa_secret)
         if not totp.verify(code):
+            increment_rate_limit(request, rate_limit_key, MFA_LOCKOUT_SECONDS)
+            logger.warning(f"Failed MFA setup verification for user {user.email} from IP {client_ip}")
             return Response(
                 {'error': 'Ongeldige verificatiecode.'}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -270,6 +345,10 @@ class MFASetupView(APIView):
         
         user.mfa_enabled = True
         user.save()
+        
+        # Reset rate limit on success
+        reset_rate_limit(rate_limit_key)
+        logger.info(f"MFA enabled successfully for user {user.email} from IP {client_ip}")
         
         return Response({'message': '2FA succesvol ingeschakeld.'})
 
@@ -279,14 +358,32 @@ class MFADisableView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
+        client_ip = get_client_ip(request)
+        user = request.user
+        rate_limit_key = f'mfa_disable:{user.id}'
+        
+        # Check rate limit for MFA disable (requires password + code)
+        is_blocked, remaining_time = check_rate_limit(
+            request, rate_limit_key,
+            max_attempts=MAX_PASSWORD_ATTEMPTS,
+            lockout_seconds=PASSWORD_LOCKOUT_SECONDS
+        )
+        
+        if is_blocked:
+            logger.warning(f"Rate limit exceeded for MFA disable - User: {user.email}, IP: {client_ip}")
+            return Response(
+                {'error': f'Te veel mislukte pogingen. Probeer het over {remaining_time // 60} minuten opnieuw.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
         serializer = MFADisableSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        user = request.user
-        
         # Verify password
         if not user.check_password(serializer.validated_data['password']):
+            increment_rate_limit(request, rate_limit_key, PASSWORD_LOCKOUT_SECONDS)
+            logger.warning(f"Failed MFA disable for user {user.email} from IP {client_ip} - incorrect password")
             return Response(
                 {'password': 'Wachtwoord is incorrect.'}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -296,6 +393,8 @@ class MFADisableView(APIView):
         if user.mfa_enabled and user.mfa_secret:
             totp = pyotp.TOTP(user.mfa_secret)
             if not totp.verify(serializer.validated_data['code']):
+                increment_rate_limit(request, rate_limit_key, PASSWORD_LOCKOUT_SECONDS)
+                logger.warning(f"Failed MFA disable for user {user.email} from IP {client_ip} - incorrect code")
                 return Response(
                     {'code': 'Ongeldige verificatiecode.'}, 
                     status=status.HTTP_400_BAD_REQUEST
@@ -304,6 +403,10 @@ class MFADisableView(APIView):
         user.mfa_enabled = False
         user.mfa_secret = ''
         user.save()
+        
+        # Reset rate limit on success
+        reset_rate_limit(rate_limit_key)
+        logger.info(f"MFA disabled for user {user.email} from IP {client_ip}")
         
         return Response({'message': '2FA succesvol uitgeschakeld.'})
 

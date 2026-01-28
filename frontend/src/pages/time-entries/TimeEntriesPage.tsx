@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { 
-  MagnifyingGlassIcon, 
   PlusIcon, 
   PencilSquareIcon, 
   TrashIcon,
@@ -33,7 +32,7 @@ import {
 } from '@/api/timetracking'
 import { getAllVehicles } from '@/api/fleet'
 import { Vehicle } from '@/types'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuthStore } from '@/stores/authStore'
 
 // Modal component
 function Modal({ 
@@ -475,7 +474,7 @@ function WeekSummaryCard({
 
 // Main TimeEntriesPage component
 export default function TimeEntriesPage() {
-  const { user } = useAuth()
+  const { user } = useAuthStore()
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [totalCount, setTotalCount] = useState(0)

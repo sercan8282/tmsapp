@@ -65,6 +65,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     # 2FA/MFA
     mfa_enabled = models.BooleanField(default=False, verbose_name='2FA Ingeschakeld')
+    mfa_required = models.BooleanField(default=False, verbose_name='2FA Verplicht')
     mfa_secret = models.CharField(max_length=32, blank=True, verbose_name='2FA Secret')
     
     # Status

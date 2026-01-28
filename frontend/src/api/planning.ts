@@ -122,3 +122,33 @@ export async function getPlanningEntries(planningId: string): Promise<PlanningEn
   const response = await api.get(`/planning/entries/?planning=${planningId}`)
   return response.data.results || response.data
 }
+
+// Chauffeur-specific API
+
+export interface MyPlanningEntry {
+  id: string
+  dag: string
+  dag_naam: string
+  dag_order: number
+  kenteken: string
+  voertuig_type: string
+  bedrijf: string
+  weeknummer: number
+  jaar: number
+}
+
+export interface MyPlanningResponse {
+  weeknummer: number
+  jaar: number
+  chauffeur: string
+  entries: MyPlanningEntry[]
+  message?: string
+}
+
+/**
+ * Get the logged-in chauffeur's planning for a specific week
+ */
+export async function getMyPlanning(weeknummer: number, jaar: number): Promise<MyPlanningResponse> {
+  const response = await api.get(`/planning/weeks/my_planning/?weeknummer=${weeknummer}&jaar=${jaar}`)
+  return response.data
+}

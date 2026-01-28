@@ -24,6 +24,7 @@ export interface VehiclesResponse {
 export interface VehicleFilters {
   search?: string
   bedrijf?: string
+  type_wagen?: string
   page?: number
   page_size?: number
   ordering?: string
@@ -35,6 +36,7 @@ export async function getVehicles(filters?: VehicleFilters): Promise<VehiclesRes
   
   if (filters?.search) params.append('search', filters.search)
   if (filters?.bedrijf) params.append('bedrijf', filters.bedrijf)
+  if (filters?.type_wagen) params.append('type_wagen', filters.type_wagen)
   if (filters?.page) params.append('page', filters.page.toString())
   if (filters?.page_size) params.append('page_size', filters.page_size.toString())
   if (filters?.ordering) params.append('ordering', filters.ordering)

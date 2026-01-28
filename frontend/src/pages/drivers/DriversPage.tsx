@@ -348,7 +348,7 @@ export default function DriversPage() {
       }
       if (search) filters.search = search
       if (companyFilter) filters.bedrijf = companyFilter
-      if (adrFilter !== 'all') filters.adr = adrFilter === 'yes'
+      if (adrFilter !== 'all') filters.adr = adrFilter === 'yes' ? 'true' : 'false'
       
       const response = await getDrivers(filters)
       setDrivers(response.results || [])

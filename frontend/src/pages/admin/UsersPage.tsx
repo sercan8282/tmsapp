@@ -148,6 +148,7 @@ function UserForm({
     bedrijf: user?.bedrijf || '',
     rol: user?.rol || 'gebruiker',
     is_active: user?.is_active ?? true,
+    mfa_required: user?.mfa_required ?? false,
     password: '',
     password_confirm: '',
   })
@@ -341,6 +342,18 @@ function UserForm({
               className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
             />
             <span className="ml-2 text-sm text-gray-700">Actief</span>
+          </label>
+        </div>
+        <div className="flex items-center pt-6">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              name="mfa_required"
+              checked={formData.mfa_required}
+              onChange={handleChange}
+              className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+            />
+            <span className="ml-2 text-sm text-gray-700">2FA Verplicht</span>
           </label>
         </div>
       </div>
@@ -857,6 +870,11 @@ export default function UsersPage() {
                         <span className="flex items-center text-green-600">
                           <ShieldCheckIcon className="w-4 h-4 mr-1" />
                           Aan
+                        </span>
+                      ) : user.mfa_required ? (
+                        <span className="flex items-center text-orange-600">
+                          <ShieldCheckIcon className="w-4 h-4 mr-1" />
+                          Verplicht
                         </span>
                       ) : (
                         <span className="text-gray-400">Uit</span>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import toast from 'react-hot-toast'
 
@@ -13,6 +14,7 @@ interface TwoFactorForm {
 }
 
 export default function LoginPage() {
+  const navigate = useNavigate()
   const [requires2FA, setRequires2FA] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -31,8 +33,13 @@ export default function LoginPage() {
         setRequires2FA(true)
         setUserId(result.userId || null)
         toast.success('Voer je 2FA code in')
+      } else if (result.requires2FASetup) {
+        // Redirect to MFA setup page
+        toast.success('Je moet eerst 2FA instellen om door te gaan')
+        navigate('/setup-mfa')
       } else {
         toast.success('Succesvol ingelogd!')
+        navigate('/')
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } }
@@ -49,6 +56,7 @@ export default function LoginPage() {
     try {
       await verify2FA(userId, data.code)
       toast.success('Succesvol ingelogd!')
+      navigate('/')
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } }
       toast.error(err.response?.data?.error || '2FA verificatie mislukt')

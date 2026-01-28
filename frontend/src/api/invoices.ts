@@ -76,6 +76,80 @@ export async function getTemplate(id: string): Promise<InvoiceTemplate> {
   return response.data
 }
 
+export interface TemplateCreate {
+  naam: string
+  beschrijving?: string
+  layout?: Record<string, unknown>
+  variables?: Record<string, unknown>
+  is_active?: boolean
+}
+
+export interface TemplateUpdate {
+  naam?: string
+  beschrijving?: string
+  layout?: Record<string, unknown>
+  variables?: Record<string, unknown>
+  is_active?: boolean
+}
+
+export async function createTemplate(data: TemplateCreate): Promise<InvoiceTemplate> {
+  const response = await api.post('/invoicing/templates/', data)
+  return response.data
+}
+
+export async function updateTemplate(id: string, data: TemplateUpdate): Promise<InvoiceTemplate> {
+  const response = await api.patch(`/invoicing/templates/${id}/`, data)
+  return response.data
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  await api.delete(`/invoicing/templates/${id}/`)
+}
+
+export async function copyTemplate(id: string, naam?: string, beschrijving?: string): Promise<InvoiceTemplate> {
+  const data: { naam?: string; beschrijving?: string } = {}
+  if (naam) data.naam = naam
+  if (beschrijving) data.beschrijving = beschrijving
+  const response = await api.post(`/invoicing/templates/${id}/copy/`, data)
+  return response.data
+}
+
+export async function exportTemplate(id: string): Promise<void> {
+  const response = await api.get(`/invoicing/templates/${id}/export/`, {
+    responseType: 'blob',
+  })
+  
+  // Get filename from content-disposition header or use default
+  const contentDisposition = response.headers['content-disposition']
+  let filename = 'template.json'
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename="(.+)"/)
+    if (match) filename = match[1]
+  }
+  
+  // Download the file
+  const blob = new Blob([response.data], { type: 'application/json' })
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
+export async function importTemplate(file: File): Promise<InvoiceTemplate> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await api.post('/invoicing/templates/import_template/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data
+}
+
 // Invoices API
 
 export async function getInvoices(filters?: InvoiceFilters): Promise<InvoicesResponse> {
@@ -124,6 +198,11 @@ export async function markDefinitief(id: string): Promise<Invoice> {
   return response.data
 }
 
+export async function changeStatus(id: string, status: 'concept' | 'definitief' | 'verzonden' | 'betaald'): Promise<Invoice> {
+  const response = await api.post(`/invoicing/invoices/${id}/change_status/`, { status })
+  return response.data
+}
+
 export async function markVerzonden(id: string): Promise<Invoice> {
   const response = await api.post(`/invoicing/invoices/${id}/mark_verzonden/`)
   return response.data
@@ -134,13 +213,49 @@ export async function markBetaald(id: string): Promise<Invoice> {
   return response.data
 }
 
-export async function generatePdf(id: string): Promise<{ message: string }> {
-  const response = await api.post(`/invoicing/invoices/${id}/generate_pdf/`)
+export async function generatePdf(id: string, download = true): Promise<void> {
+  const url = `/invoicing/invoices/${id}/generate_pdf/?download=${download}`
+  const response = await api.get(url, { responseType: 'blob' })
+  
+  // Get filename from Content-Disposition header or use default
+  const contentDisposition = response.headers['content-disposition']
+  let filename = `factuur_${id}.pdf`
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename="?([^";\n]+)"?/)
+    if (match) filename = match[1]
+  }
+  
+  // Create download link
+  const blob = new Blob([response.data], { type: 'application/pdf' })
+  const link = document.createElement('a')
+  link.href = window.URL.createObjectURL(blob)
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(link.href)
+}
+
+export async function openPdfInNewTab(id: string): Promise<void> {
+  const url = `/invoicing/invoices/${id}/generate_pdf/`
+  const response = await api.get(url, { responseType: 'blob' })
+  
+  const blob = new Blob([response.data], { type: 'application/pdf' })
+  const pdfUrl = window.URL.createObjectURL(blob)
+  window.open(pdfUrl, '_blank')
+}
+
+export async function sendInvoiceEmail(id: string, email?: string): Promise<{ message: string }> {
+  const response = await api.post(`/invoicing/invoices/${id}/send_email/`, email ? { email } : {})
   return response.data
 }
 
-export async function sendInvoiceEmail(id: string): Promise<{ message: string }> {
-  const response = await api.post(`/invoicing/invoices/${id}/send_email/`)
+export async function getNextInvoiceNumber(type: 'verkoop' | 'inkoop' | 'credit'): Promise<{
+  factuurnummer: string
+  type: string
+  jaar: number
+}> {
+  const response = await api.get(`/invoicing/invoices/next_number/?type=${type}`)
   return response.data
 }
 

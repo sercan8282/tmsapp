@@ -51,6 +51,7 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
             'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password',
             'smtp_use_tls', 'smtp_from_email',
             'oauth_enabled', 'oauth_client_id', 'oauth_client_secret', 'oauth_tenant_id',
+            'invoice_payment_text', 'email_signature',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
