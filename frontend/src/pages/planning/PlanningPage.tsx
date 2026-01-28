@@ -220,6 +220,9 @@ function ChauffeurPlanningView() {
     </div>
   )
 }
+
+// Admin/Manager Planning View
+function AdminPlanningView() {
   const isReadOnly = false
   
   // State
