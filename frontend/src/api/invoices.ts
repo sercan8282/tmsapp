@@ -186,6 +186,11 @@ export async function deleteInvoice(id: string): Promise<void> {
   await api.delete(`/invoicing/invoices/${id}/`)
 }
 
+export async function bulkDeleteInvoices(ids: string[]): Promise<{ deleted: number; errors: string[] }> {
+  const response = await api.post('/invoicing/invoices/bulk_delete/', { ids })
+  return response.data
+}
+
 // Invoice actions
 
 export async function recalculateInvoice(id: string): Promise<Invoice> {

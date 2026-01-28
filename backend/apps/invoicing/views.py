@@ -293,6 +293,51 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             f"Invoice deleted: {invoice_nr} by user {self.request.user.email}"
         )
     
+    @action(detail=False, methods=['post'])
+    def bulk_delete(self, request):
+        """Delete multiple invoices at once."""
+        ids = request.data.get('ids', [])
+        
+        if not ids:
+            return Response(
+                {'error': 'Geen facturen geselecteerd'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        deleted_count = 0
+        errors = []
+        
+        for invoice_id in ids:
+            try:
+                invoice = Invoice.objects.get(id=invoice_id)
+                invoice_nr = invoice.factuurnummer
+                invoice_status = invoice.status
+                invoice.delete()
+                deleted_count += 1
+                
+                if invoice_status != InvoiceStatus.CONCEPT:
+                    logger.warning(
+                        f"Non-concept invoice bulk deleted: {invoice_nr} "
+                        f"(status: {invoice_status}) by user {request.user.email}"
+                    )
+                else:
+                    logger.info(
+                        f"Invoice bulk deleted: {invoice_nr} by user {request.user.email}"
+                    )
+            except Invoice.DoesNotExist:
+                errors.append(f"Factuur {invoice_id} niet gevonden")
+            except Exception as e:
+                errors.append(f"Fout bij verwijderen: {str(e)}")
+        
+        logger.info(
+            f"Bulk delete completed: {deleted_count} invoices deleted by user {request.user.email}"
+        )
+        
+        return Response({
+            'deleted': deleted_count,
+            'errors': errors
+        })
+    
     @action(detail=True, methods=['post'])
     def recalculate(self, request, pk=None):
         """Recalculate invoice totals."""
