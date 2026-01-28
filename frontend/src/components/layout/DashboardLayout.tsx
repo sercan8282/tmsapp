@@ -127,10 +127,10 @@ export default function DashboardLayout() {
       {/* Main content */}
       <div className="lg:pl-64 flex flex-col flex-1">
         {/* Top bar */}
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-2 sm:gap-x-4 border-b border-gray-200 bg-white px-3 sm:px-4 shadow-sm lg:gap-x-6 lg:px-8">
           <button
             type="button"
-            className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+            className="p-2.5 text-gray-700 lg:hidden touch-target"
             onClick={() => setSidebarOpen(true)}
           >
             <Bars3Icon className="h-6 w-6" />
@@ -140,9 +140,9 @@ export default function DashboardLayout() {
             <div className="flex flex-1" />
             
             {/* Profile dropdown */}
-            <div className="flex items-center gap-x-4 lg:gap-x-6">
+            <div className="flex items-center gap-x-2 sm:gap-x-4 lg:gap-x-6">
               <Menu as="div" className="relative">
-                <Menu.Button className="-m-1.5 flex items-center p-1.5 hover:bg-gray-50 rounded-lg">
+                <Menu.Button className="flex items-center p-1.5 hover:bg-gray-50 rounded-lg touch-target">
                   <UserCircleIcon className="h-8 w-8 text-gray-400" />
                   <span className="hidden lg:flex lg:items-center">
                     <span className="ml-4 text-sm font-semibold text-gray-900">

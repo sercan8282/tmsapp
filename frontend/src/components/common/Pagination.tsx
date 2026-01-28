@@ -28,22 +28,22 @@ export default function Pagination({
   const endItem = Math.min(currentPage * pageSize, totalCount)
 
   return (
-    <div className="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
       {/* Left: Count info */}
-      <div className="text-sm text-gray-500 flex items-center gap-4">
-        <span>
-          {startItem}-{endItem} van {totalCount} items
+      <div className="text-sm text-gray-500 flex flex-col xs:flex-row items-center gap-2 xs:gap-4 w-full sm:w-auto justify-center sm:justify-start">
+        <span className="whitespace-nowrap">
+          {startItem}-{endItem} van {totalCount}
         </span>
         
         {showPageSizeSelector && (
           <div className="flex items-center gap-2">
-            <span className="text-gray-400">|</span>
-            <label htmlFor="pageSize" className="text-gray-500">Toon:</label>
+            <span className="text-gray-400 hidden xs:inline">|</span>
+            <label htmlFor="pageSize" className="text-gray-500 hidden sm:inline">Toon:</label>
             <select
               id="pageSize"
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value) as PageSize)}
-              className="text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 py-1 pl-2 pr-8"
+              className="text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 py-2 pl-3 pr-8 min-h-[44px]"
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
@@ -57,11 +57,11 @@ export default function Pagination({
 
       {/* Right: Pagination controls */}
       {totalPages > 1 && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <button
             onClick={() => onPageChange(1)}
             disabled={currentPage === 1}
-            className="px-2 py-1 text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed"
+            className="p-2 min-w-[44px] min-h-[44px] text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed rounded hover:bg-gray-100"
             title="Eerste pagina"
           >
             ««
@@ -69,14 +69,19 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="p-1 text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed rounded hover:bg-gray-100"
+            className="p-2 min-w-[44px] min-h-[44px] text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed rounded hover:bg-gray-100"
             title="Vorige pagina"
           >
             <ChevronLeftIcon className="h-5 w-5" />
           </button>
           
-          <div className="flex items-center gap-1">
-            {/* Page numbers */}
+          {/* Mobile: Simple page indicator */}
+          <span className="xs:hidden px-3 py-2 text-sm text-gray-600">
+            {currentPage} / {totalPages}
+          </span>
+          
+          {/* Desktop: Page numbers */}
+          <div className="hidden xs:flex items-center gap-1">
             {generatePageNumbers(currentPage, totalPages).map((pageNum, idx) => (
               pageNum === '...' ? (
                 <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">...</span>
@@ -84,7 +89,7 @@ export default function Pagination({
                 <button
                   key={pageNum}
                   onClick={() => onPageChange(pageNum as number)}
-                  className={`px-3 py-1 text-sm rounded ${
+                  className={`min-w-[44px] min-h-[44px] px-3 py-2 text-sm rounded ${
                     pageNum === currentPage
                       ? 'bg-primary-600 text-white'
                       : 'text-gray-600 hover:bg-gray-100'
@@ -99,7 +104,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="p-1 text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed rounded hover:bg-gray-100"
+            className="p-2 min-w-[44px] min-h-[44px] text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed rounded hover:bg-gray-100"
             title="Volgende pagina"
           >
             <ChevronRightIcon className="h-5 w-5" />
@@ -107,7 +112,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(totalPages)}
             disabled={currentPage === totalPages}
-            className="px-2 py-1 text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed"
+            className="p-2 min-w-[44px] min-h-[44px] text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed rounded hover:bg-gray-100"
             title="Laatste pagina"
           >
             »»

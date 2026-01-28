@@ -454,9 +454,9 @@ export default function FleetPage() {
       {/* Filters */}
       <div className="card mb-6">
         <div className="p-4">
-          <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
             {/* Search */}
-            <div className="flex-1 min-w-64">
+            <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Zoeken
               </label>
@@ -467,55 +467,58 @@ export default function FleetPage() {
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                   placeholder="Zoek op kenteken, type, ritnummer..."
-                  className="input pl-10"
+                  className="input pl-10 min-h-[44px]"
                 />
               </div>
             </div>
 
-            {/* Company filter */}
-            <div className="w-48">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Bedrijf
-              </label>
-              <select
-                value={companyFilter}
-                onChange={(e) => { setCompanyFilter(e.target.value); setPage(1) }}
-                className="input"
-              >
-                <option value="">Alle bedrijven</option>
-                {companies.map(company => (
-                  <option key={company.id} value={company.id}>
-                    {company.naam}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Type filter */}
-            {vehicleTypes.length > 0 && (
-              <div className="w-48">
+            {/* Filter row */}
+            <div className="flex flex-col xs:flex-row gap-3 w-full sm:w-auto">
+              {/* Company filter */}
+              <div className="flex-1 xs:w-40">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type
+                  Bedrijf
                 </label>
                 <select
-                  value={typeFilter}
-                  onChange={(e) => { setTypeFilter(e.target.value); setPage(1) }}
-                  className="input"
+                  value={companyFilter}
+                  onChange={(e) => { setCompanyFilter(e.target.value); setPage(1) }}
+                  className="input min-h-[44px]"
                 >
-                  <option value="">Alle types</option>
-                  {vehicleTypes.map(type => (
-                    <option key={type} value={type}>
-                      {type}
+                  <option value="">Alle bedrijven</option>
+                  {companies.map(company => (
+                    <option key={company.id} value={company.id}>
+                      {company.naam}
                     </option>
                   ))}
                 </select>
               </div>
-            )}
+
+              {/* Type filter */}
+              {vehicleTypes.length > 0 && (
+                <div className="flex-1 xs:w-40">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Type
+                  </label>
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => { setTypeFilter(e.target.value); setPage(1) }}
+                    className="input min-h-[44px]"
+                  >
+                    <option value="">Alle types</option>
+                    {vehicleTypes.map(type => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
 
             {/* Refresh button */}
             <button
               onClick={() => fetchVehicles()}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+              className="p-2 min-w-[44px] min-h-[44px] text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg self-end"
               title="Vernieuwen"
             >
               <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -526,7 +529,8 @@ export default function FleetPage() {
 
       {/* Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
@@ -591,17 +595,17 @@ export default function FleetPage() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => { setSelectedVehicle(vehicle); setShowEditModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
                           title="Bewerken"
                         >
-                          <PencilSquareIcon className="w-4 h-4" />
+                          <PencilSquareIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => { setSelectedVehicle(vehicle); setShowDeleteModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
                           title="Verwijderen"
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <TrashIcon className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
@@ -610,6 +614,73 @@ export default function FleetPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y">
+          {isLoading ? (
+            <div className="px-4 py-12 text-center text-gray-500">
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                <span className="ml-3">Laden...</span>
+              </div>
+            </div>
+          ) : vehicles.length === 0 ? (
+            <div className="px-4 py-12 text-center text-gray-500">
+              <TruckIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+              <p>Geen voertuigen gevonden</p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-2 text-primary-600 hover:text-primary-700"
+              >
+                Voeg je eerste voertuig toe
+              </button>
+            </div>
+          ) : (
+            vehicles.map(vehicle => (
+              <div key={vehicle.id} className="p-4 hover:bg-gray-50">
+                {/* Card Header */}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 font-mono truncate">{vehicle.kenteken}</h3>
+                    {vehicle.type_wagen && (
+                      <p className="text-sm text-gray-500">{vehicle.type_wagen}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => { setSelectedVehicle(vehicle); setShowEditModal(true) }}
+                      className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg"
+                      title="Bewerken"
+                    >
+                      <PencilSquareIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => { setSelectedVehicle(vehicle); setShowDeleteModal(true) }}
+                      className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-lg"
+                      title="Verwijderen"
+                    >
+                      <TrashIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Card Details */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {vehicle.ritnummer && (
+                    <div>
+                      <span className="text-gray-500">Ritnr: </span>
+                      <span className="text-gray-700">{vehicle.ritnummer}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-gray-500">Bedrijf: </span>
+                    <span className="text-gray-700">{getCompanyName(vehicle)}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Pagination */}

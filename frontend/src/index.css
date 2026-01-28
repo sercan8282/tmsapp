@@ -73,6 +73,37 @@
   .page-title {
     @apply text-2xl font-bold text-gray-900;
   }
+  
+  /* Responsive utilities */
+  .touch-target {
+    @apply min-w-[44px] min-h-[44px];
+  }
+  
+  .mobile-card {
+    @apply sm:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-4;
+  }
+  
+  .desktop-table {
+    @apply hidden sm:block overflow-x-auto;
+  }
+  
+  .mobile-only {
+    @apply sm:hidden;
+  }
+  
+  .desktop-only {
+    @apply hidden sm:block;
+  }
+  
+  /* Better touch targets for inputs */
+  .input, .input-field, .btn {
+    @apply min-h-[44px];
+  }
+  
+  /* Responsive page header */
+  .page-header {
+    @apply flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6;
+  }
 }
 
 /* Scrollbar styling */

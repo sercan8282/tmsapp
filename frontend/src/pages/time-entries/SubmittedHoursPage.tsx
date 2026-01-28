@@ -234,63 +234,103 @@ export default function SubmittedHoursPage() {
           </div>
         ) : (
           <>
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Week
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Jaar
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Chauffeur
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ritten
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Totaal KM
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acties
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedWeeks.map((week) => (
-                  <tr key={`${week.user_id}-${week.jaar}-${week.weeknummer}`} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary-100 text-primary-700 font-bold">
-                        {week.weeknummer}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {week.jaar}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {week.user__voornaam} {week.user__achternaam}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                      {week.ingediend_count}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
-                      {week.totaal_km} km
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <button
-                        onClick={() => handleViewWeek(week)}
-                        className="btn-secondary text-sm"
-                      >
-                        Bekijken / Bewerken
-                      </button>
-                    </td>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Week
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Jaar
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Chauffeur
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ritten
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Totaal KM
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acties
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {paginatedWeeks.map((week) => (
+                    <tr key={`${week.user_id}-${week.jaar}-${week.weeknummer}`} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary-100 text-primary-700 font-bold">
+                          {week.weeknummer}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {week.jaar}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {week.user__voornaam} {week.user__achternaam}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                        {week.ingediend_count}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
+                        {week.totaal_km} km
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <button
+                          onClick={() => handleViewWeek(week)}
+                          className="btn-secondary text-sm"
+                        >
+                          Bekijken / Bewerken
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-gray-200">
+              {paginatedWeeks.map((week) => (
+                <div key={`${week.user_id}-${week.jaar}-${week.weeknummer}`} className="p-3 hover:bg-gray-50">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary-100 text-primary-700 font-bold">
+                      {week.weeknummer}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 text-sm truncate">
+                        {week.user__voornaam} {week.user__achternaam}
+                      </p>
+                      <p className="text-xs text-gray-500">{week.jaar}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-x-4 text-xs mb-2 ml-13">
+                    <div>
+                      <span className="text-gray-500">Ritten: </span>
+                      <span className="font-medium">{week.ingediend_count}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">KM: </span>
+                      <span className="font-medium">{week.totaal_km}</span>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => handleViewWeek(week)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100 min-h-[44px] text-sm mt-2"
+                  >
+                    Bekijken / Bewerken
+                  </button>
+                </div>
+              ))}
+            </div>
 
             {/* Pagination */}
             <Pagination
@@ -332,7 +372,7 @@ export default function SubmittedHoursPage() {
                 leaveTo="opacity-0 scale-95"
               >
                 <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-lg bg-white shadow-xl transition-all">
-                  <div className="flex items-center justify-between p-6 border-b">
+                  <div className="flex items-center justify-between p-4 sm:p-6 border-b">
                     <div>
                       <Dialog.Title className="text-lg font-semibold">
                         Week {selectedWeek?.weeknummer} - {selectedWeek?.jaar}
@@ -341,12 +381,12 @@ export default function SubmittedHoursPage() {
                         {selectedWeek?.user__voornaam} {selectedWeek?.user__achternaam}
                       </p>
                     </div>
-                    <button onClick={() => setShowWeekModal(false)} className="text-gray-400 hover:text-gray-500">
+                    <button onClick={() => setShowWeekModal(false)} className="text-gray-400 hover:text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
                       <XMarkIcon className="h-6 w-6" />
                     </button>
                   </div>
 
-                  <div className="p-6">
+                  <div className="p-4 sm:p-6">
                     {loadingEntries ? (
                       <div className="text-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
@@ -354,71 +394,113 @@ export default function SubmittedHoursPage() {
                     ) : weekEntries.length === 0 ? (
                       <p className="text-gray-500 text-center py-8">Geen uren gevonden</p>
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Datum
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Ritnr
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Kenteken
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Tijden
-                              </th>
-                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                                Uren
-                              </th>
-                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                                KM
-                              </th>
-                              <th className="px-4 py-3"></th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {weekEntries.map(entry => (
-                              <tr key={entry.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 text-sm">
-                                  {formatDate(entry.datum)}
-                                </td>
-                                <td className="px-4 py-3 text-sm font-medium">
-                                  {entry.ritnummer}
-                                </td>
-                                <td className="px-4 py-3 text-sm font-mono">
-                                  {entry.kenteken}
-                                </td>
-                                <td className="px-4 py-3 text-sm">
-                                  {entry.aanvang} - {entry.eind}
-                                </td>
-                                <td className="px-4 py-3 text-sm text-right">
-                                  {formatDuration(entry.totaal_uren)}
-                                </td>
-                                <td className="px-4 py-3 text-sm text-right font-medium">
-                                  {entry.totaal_km}
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <button
-                                    onClick={() => handleEditEntry(entry)}
-                                    className="text-primary-600 hover:text-primary-900 p-1"
-                                    title="Bewerken"
-                                  >
-                                    <PencilIcon className="h-5 w-5" />
-                                  </button>
-                                </td>
+                      <>
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Datum
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Ritnr
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Kenteken
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Tijden
+                                </th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                  Uren
+                                </th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                  KM
+                                </th>
+                                <th className="px-4 py-3"></th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {weekEntries.map(entry => (
+                                <tr key={entry.id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3 text-sm">
+                                    {formatDate(entry.datum)}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-medium">
+                                    {entry.ritnummer}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-mono">
+                                    {entry.kenteken}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm">
+                                    {entry.aanvang} - {entry.eind}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-right">
+                                    {formatDuration(entry.totaal_uren)}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-right font-medium">
+                                    {entry.totaal_km}
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <button
+                                      onClick={() => handleEditEntry(entry)}
+                                      className="text-primary-600 hover:text-primary-900 p-1"
+                                      title="Bewerken"
+                                    >
+                                      <PencilIcon className="h-5 w-5" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Mobile Card View */}
+                        <div className="md:hidden divide-y divide-gray-200 -mx-4">
+                          {weekEntries.map(entry => (
+                            <div key={entry.id} className="p-3 hover:bg-gray-50">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <h4 className="font-semibold text-gray-900 text-sm">{formatDate(entry.datum)}</h4>
+                                  <p className="text-xs text-gray-500 font-mono">{entry.ritnummer}</p>
+                                </div>
+                                <button
+                                  onClick={() => handleEditEntry(entry)}
+                                  className="text-primary-600 hover:text-primary-900 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                >
+                                  <PencilIcon className="h-5 w-5" />
+                                </button>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                <div>
+                                  <span className="text-gray-500">Kenteken: </span>
+                                  <span className="font-mono font-medium">{entry.kenteken}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Tijd: </span>
+                                  <span className="font-medium">{entry.aanvang}-{entry.eind}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Uren: </span>
+                                  <span className="font-bold text-primary-600">{formatDuration(entry.totaal_uren)}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">KM: </span>
+                                  <span className="font-medium">{entry.totaal_km}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
                     )}
                   </div>
 
-                  <div className="px-6 py-4 border-t flex justify-end">
-                    <button onClick={() => setShowWeekModal(false)} className="btn-secondary">
+                  <div className="px-4 sm:px-6 py-4 border-t flex justify-end">
+                    <button onClick={() => setShowWeekModal(false)} className="btn-secondary min-h-[44px]">
                       Sluiten
                     </button>
                   </div>
@@ -455,18 +537,18 @@ export default function SubmittedHoursPage() {
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-6 shadow-xl transition-all">
+                <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-4 sm:p-6 shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <Dialog.Title className="text-lg font-semibold">
                       Urenregistratie bewerken
                     </Dialog.Title>
-                    <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-500">
+                    <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
                       <XMarkIcon className="h-6 w-6" />
                     </button>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
                         <label className="form-label">Ritnummer</label>
                         <input
@@ -497,37 +579,37 @@ export default function SubmittedHoursPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
                       <div>
-                        <label className="form-label">Aanvang</label>
+                        <label className="form-label text-xs sm:text-sm">Aanvang</label>
                         <input
                           type="time"
                           value={editForm.aanvang}
                           onChange={(e) => setEditForm({ ...editForm, aanvang: e.target.value })}
-                          className="form-input"
+                          className="form-input text-sm"
                         />
                       </div>
                       <div>
-                        <label className="form-label">Eind</label>
+                        <label className="form-label text-xs sm:text-sm">Eind</label>
                         <input
                           type="time"
                           value={editForm.eind}
                           onChange={(e) => setEditForm({ ...editForm, eind: e.target.value })}
-                          className="form-input"
+                          className="form-input text-sm"
                         />
                       </div>
                       <div>
-                        <label className="form-label">Pauze</label>
+                        <label className="form-label text-xs sm:text-sm">Pauze</label>
                         <input
                           type="time"
                           value={editForm.pauze?.substring(0, 5) || '00:00'}
                           onChange={(e) => setEditForm({ ...editForm, pauze: e.target.value + ':00' })}
-                          className="form-input"
+                          className="form-input text-sm"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       <div>
                         <label className="form-label">KM Start</label>
                         <input
@@ -549,17 +631,17 @@ export default function SubmittedHoursPage() {
                     </div>
                   </div>
 
-                  <div className="mt-6 flex justify-end gap-3">
+                  <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-3">
                     <button
                       onClick={() => setShowEditModal(false)}
-                      className="btn-secondary"
+                      className="btn-secondary min-h-[44px]"
                       disabled={saving}
                     >
                       Annuleren
                     </button>
                     <button
                       onClick={handleSaveEdit}
-                      className="btn-primary"
+                      className="btn-primary min-h-[44px]"
                       disabled={saving}
                     >
                       {saving ? 'Opslaan...' : 'Opslaan'}

@@ -202,7 +202,7 @@ function UserForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Voornaam *
@@ -212,7 +212,7 @@ function UserForm({
             name="voornaam"
             value={formData.voornaam}
             onChange={handleChange}
-            className={`input ${errors.voornaam ? 'border-red-500' : ''}`}
+            className={`input min-h-[44px] ${errors.voornaam ? 'border-red-500' : ''}`}
           />
           {errors.voornaam && <p className="text-red-500 text-xs mt-1">{errors.voornaam}</p>}
         </div>
@@ -225,7 +225,7 @@ function UserForm({
             name="achternaam"
             value={formData.achternaam}
             onChange={handleChange}
-            className={`input ${errors.achternaam ? 'border-red-500' : ''}`}
+            className={`input min-h-[44px] ${errors.achternaam ? 'border-red-500' : ''}`}
           />
           {errors.achternaam && <p className="text-red-500 text-xs mt-1">{errors.achternaam}</p>}
         </div>
@@ -240,7 +240,7 @@ function UserForm({
           name="email"
           value={formData.email}
           onChange={handleChange}
-          className={`input ${errors.email ? 'border-red-500' : ''}`}
+          className={`input min-h-[44px] ${errors.email ? 'border-red-500' : ''}`}
         />
         {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
       </div>
@@ -254,13 +254,13 @@ function UserForm({
           name="username"
           value={formData.username}
           onChange={handleChange}
-          className={`input ${errors.username ? 'border-red-500' : ''}`}
+          className={`input min-h-[44px] ${errors.username ? 'border-red-500' : ''}`}
         />
         {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
       </div>
 
       {!user && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Wachtwoord *
@@ -270,7 +270,7 @@ function UserForm({
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className={`input ${errors.password ? 'border-red-500' : ''}`}
+              className={`input min-h-[44px] ${errors.password ? 'border-red-500' : ''}`}
             />
             {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
           </div>
@@ -283,14 +283,14 @@ function UserForm({
               name="password_confirm"
               value={formData.password_confirm}
               onChange={handleChange}
-              className={`input ${errors.password_confirm ? 'border-red-500' : ''}`}
+              className={`input min-h-[44px] ${errors.password_confirm ? 'border-red-500' : ''}`}
             />
             {errors.password_confirm && <p className="text-red-500 text-xs mt-1">{errors.password_confirm}</p>}
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Telefoon
@@ -300,7 +300,7 @@ function UserForm({
             name="telefoon"
             value={formData.telefoon}
             onChange={handleChange}
-            className="input"
+            className="input min-h-[44px]"
           />
         </div>
         <div>
@@ -312,12 +312,12 @@ function UserForm({
             name="bedrijf"
             value={formData.bedrijf}
             onChange={handleChange}
-            className="input"
+            className="input min-h-[44px]"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Rol
@@ -326,33 +326,33 @@ function UserForm({
             name="rol"
             value={formData.rol}
             onChange={handleChange}
-            className="input"
+            className="input min-h-[44px]"
           >
             <option value="gebruiker">Gebruiker</option>
             <option value="chauffeur">Chauffeur</option>
             <option value="admin">Admin</option>
           </select>
         </div>
-        <div className="flex items-center pt-6">
-          <label className="flex items-center cursor-pointer">
+        <div className="flex items-center pt-0 sm:pt-6">
+          <label className="flex items-center cursor-pointer min-h-[44px]">
             <input
               type="checkbox"
               name="is_active"
               checked={formData.is_active}
               onChange={handleChange}
-              className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+              className="w-5 h-5 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
             />
             <span className="ml-2 text-sm text-gray-700">Actief</span>
           </label>
         </div>
-        <div className="flex items-center pt-6">
-          <label className="flex items-center cursor-pointer">
+        <div className="flex items-center sm:pt-0">
+          <label className="flex items-center cursor-pointer min-h-[44px]">
             <input
               type="checkbox"
               name="mfa_required"
               checked={formData.mfa_required}
               onChange={handleChange}
-              className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+              className="w-5 h-5 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
             />
             <span className="ml-2 text-sm text-gray-700">2FA Verplicht</span>
           </label>
@@ -721,9 +721,9 @@ export default function UsersPage() {
       {/* Filters */}
       <div className="card mb-6">
         <div className="p-4">
-          <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
             {/* Search */}
-            <div className="flex-1 min-w-64">
+            <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Zoeken
               </label>
@@ -734,48 +734,51 @@ export default function UsersPage() {
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1) }}
                   placeholder="Zoek op naam, e-mail..."
-                  className="input pl-10"
+                  className="input pl-10 min-h-[44px]"
                 />
               </div>
             </div>
 
-            {/* Role filter */}
-            <div className="w-40">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rol
-              </label>
-              <select
-                value={roleFilter}
-                onChange={(e) => { setRoleFilter(e.target.value); setPage(1) }}
-                className="input"
-              >
-                <option value="">Alle rollen</option>
-                <option value="admin">Admin</option>
-                <option value="gebruiker">Gebruiker</option>
-                <option value="chauffeur">Chauffeur</option>
-              </select>
-            </div>
+            {/* Filter row */}
+            <div className="flex flex-col xs:flex-row gap-3 w-full sm:w-auto">
+              {/* Role filter */}
+              <div className="flex-1 xs:w-36">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Rol
+                </label>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => { setRoleFilter(e.target.value); setPage(1) }}
+                  className="input min-h-[44px]"
+                >
+                  <option value="">Alle rollen</option>
+                  <option value="admin">Admin</option>
+                  <option value="gebruiker">Gebruiker</option>
+                  <option value="chauffeur">Chauffeur</option>
+                </select>
+              </div>
 
-            {/* Status filter */}
-            <div className="w-40">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-                className="input"
-              >
-                <option value="">Alle statussen</option>
-                <option value="true">Actief</option>
-                <option value="false">Geblokkeerd</option>
-              </select>
+              {/* Status filter */}
+              <div className="flex-1 xs:w-36">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+                  className="input min-h-[44px]"
+                >
+                  <option value="">Alle statussen</option>
+                  <option value="true">Actief</option>
+                  <option value="false">Geblokkeerd</option>
+                </select>
+              </div>
             </div>
 
             {/* Refresh button */}
             <button
               onClick={() => fetchUsers()}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+              className="p-2 min-w-[44px] min-h-[44px] text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg self-end"
               title="Vernieuwen"
             >
               <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -786,7 +789,8 @@ export default function UsersPage() {
 
       {/* Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
@@ -888,40 +892,40 @@ export default function UsersPage() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => { setSelectedUser(user); setShowEditModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
                           title="Bewerken"
                         >
-                          <PencilSquareIcon className="w-4 h-4" />
+                          <PencilSquareIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => { setSelectedUser(user); setShowPasswordModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-yellow-600 hover:bg-gray-100 rounded"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-yellow-600 hover:bg-gray-100 rounded"
                           title="Wachtwoord resetten"
                         >
-                          <KeyIcon className="w-4 h-4" />
+                          <KeyIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => { setSelectedUser(user); setShowBlockModal(true) }}
-                          className={`p-1.5 hover:bg-gray-100 rounded ${user.is_active ? 'text-gray-500 hover:text-orange-600' : 'text-gray-500 hover:text-green-600'}`}
+                          className={`p-2 min-w-[40px] min-h-[40px] hover:bg-gray-100 rounded ${user.is_active ? 'text-gray-500 hover:text-orange-600' : 'text-gray-500 hover:text-green-600'}`}
                           title={user.is_active ? 'Blokkeren' : 'Activeren'}
                         >
-                          {user.is_active ? <NoSymbolIcon className="w-4 h-4" /> : <CheckCircleIcon className="w-4 h-4" />}
+                          {user.is_active ? <NoSymbolIcon className="w-5 h-5" /> : <CheckCircleIcon className="w-5 h-5" />}
                         </button>
                         {user.mfa_enabled && (
                           <button
                             onClick={() => { setSelectedUser(user); setShowMfaModal(true) }}
-                            className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded"
+                            className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded"
                             title="2FA uitschakelen"
                           >
-                            <ShieldCheckIcon className="w-4 h-4" />
+                            <ShieldCheckIcon className="w-5 h-5" />
                           </button>
                         )}
                         <button
                           onClick={() => { setSelectedUser(user); setShowDeleteModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
                           title="Verwijderen"
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <TrashIcon className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
@@ -930,6 +934,112 @@ export default function UsersPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="lg:hidden divide-y">
+          {isLoading ? (
+            <div className="px-4 py-12 text-center text-gray-500">
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                <span className="ml-3">Laden...</span>
+              </div>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="px-4 py-12 text-center text-gray-500">
+              Geen gebruikers gevonden
+            </div>
+          ) : (
+            users.map(user => (
+              <div key={user.id} className="p-4 hover:bg-gray-50">
+                {/* Card Header */}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="font-semibold text-gray-900 truncate">{user.full_name}</h3>
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${roleLabels[user.rol]?.color}`}>
+                        {roleLabels[user.rol]?.label}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500">@{user.username}</p>
+                    <p className="text-sm text-gray-600 truncate">{user.email}</p>
+                  </div>
+                </div>
+
+                {/* Card Status */}
+                <div className="flex flex-wrap gap-3 text-sm mb-3">
+                  {user.is_active ? (
+                    <span className="flex items-center text-green-600">
+                      <CheckCircleIcon className="w-4 h-4 mr-1" />
+                      Actief
+                    </span>
+                  ) : (
+                    <span className="flex items-center text-red-600">
+                      <NoSymbolIcon className="w-4 h-4 mr-1" />
+                      Geblokkeerd
+                    </span>
+                  )}
+                  {user.mfa_enabled ? (
+                    <span className="flex items-center text-green-600">
+                      <ShieldCheckIcon className="w-4 h-4 mr-1" />
+                      2FA aan
+                    </span>
+                  ) : user.mfa_required ? (
+                    <span className="flex items-center text-orange-600">
+                      <ShieldCheckIcon className="w-4 h-4 mr-1" />
+                      2FA verplicht
+                    </span>
+                  ) : null}
+                  {user.last_login && (
+                    <span className="text-gray-500">
+                      Laatste login: {formatDate(user.last_login)}
+                    </span>
+                  )}
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
+                  <button
+                    onClick={() => { setSelectedUser(user); setShowEditModal(true) }}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg min-h-[44px]"
+                  >
+                    <PencilSquareIcon className="w-4 h-4" />
+                    <span>Bewerken</span>
+                  </button>
+                  <button
+                    onClick={() => { setSelectedUser(user); setShowPasswordModal(true) }}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-yellow-600 bg-yellow-50 hover:bg-yellow-100 rounded-lg min-h-[44px]"
+                  >
+                    <KeyIcon className="w-4 h-4" />
+                    <span>Wachtwoord</span>
+                  </button>
+                  <button
+                    onClick={() => { setSelectedUser(user); setShowBlockModal(true) }}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg min-h-[44px] ${user.is_active ? 'text-orange-600 bg-orange-50 hover:bg-orange-100' : 'text-green-600 bg-green-50 hover:bg-green-100'}`}
+                  >
+                    {user.is_active ? <NoSymbolIcon className="w-4 h-4" /> : <CheckCircleIcon className="w-4 h-4" />}
+                    <span>{user.is_active ? 'Blokkeren' : 'Activeren'}</span>
+                  </button>
+                  {user.mfa_enabled && (
+                    <button
+                      onClick={() => { setSelectedUser(user); setShowMfaModal(true) }}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg min-h-[44px]"
+                    >
+                      <ShieldCheckIcon className="w-4 h-4" />
+                      <span>2FA uit</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setSelectedUser(user); setShowDeleteModal(true) }}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg min-h-[44px]"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                    <span>Verwijder</span>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Pagination */}

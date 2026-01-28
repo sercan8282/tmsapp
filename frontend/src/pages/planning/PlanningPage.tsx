@@ -150,45 +150,71 @@ function ChauffeurPlanningView() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Dag
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Voertuig
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Bedrijf
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {entries.map((entry) => (
-                <tr key={entry.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="font-medium text-gray-900">{entry.dag_naam}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <TruckIcon className="h-5 w-5 text-gray-400 mr-2" />
-                      <span className="font-mono font-medium">{entry.kenteken}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                    {entry.voertuig_type}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                    {entry.bedrijf}
-                  </td>
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Dag
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Voertuig
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Bedrijf
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {entries.map((entry) => (
+                  <tr key={entry.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="font-medium text-gray-900">{entry.dag_naam}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <TruckIcon className="h-5 w-5 text-gray-400 mr-2" />
+                        <span className="font-mono font-medium">{entry.kenteken}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {entry.voertuig_type}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {entry.bedrijf}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-gray-200">
+            {entries.map((entry) => (
+              <div key={entry.id} className="p-4 hover:bg-gray-50">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{entry.dag_naam}</h3>
+                    <p className="text-sm text-gray-500">{entry.bedrijf}</p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                    <TruckIcon className="h-4 w-4 text-gray-500" />
+                    {entry.kenteken}
+                  </span>
+                </div>
+                
+                <div className="text-sm text-gray-600">
+                  <span className="text-gray-500">Type:</span>{' '}
+                  <span className="font-medium">{entry.voertuig_type}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -197,7 +223,6 @@ function ChauffeurPlanningView() {
 
 // Admin/Manager Planning View
 function AdminPlanningView() {
-  // Admins can always edit
   const isReadOnly = false
   
   // State
@@ -504,30 +529,30 @@ function AdminPlanningView() {
       <div className="page-header">
         <h1 className="page-title">Weekplanning</h1>
         {planning && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={handleExportPDF}
-              className="btn-secondary"
+              className="btn-secondary text-sm px-3 py-2"
             >
-              <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
-              Exporteer PDF
+              <DocumentArrowDownIcon className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Exporteer PDF</span>
             </button>
             {!isReadOnly && (
               <>
                 <button
                   onClick={handleCopyToNextWeek}
                   disabled={saving}
-                  className="btn-secondary"
+                  className="btn-secondary text-sm px-3 py-2"
                 >
-                  <DocumentDuplicateIcon className="h-5 w-5 mr-2" />
-                  Kopieer naar volgende week
+                  <DocumentDuplicateIcon className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Kopieer naar volgende week</span>
                 </button>
                 <button
                   onClick={() => setShowDeleteModal(true)}
-                  className="btn-danger"
+                  className="btn-danger text-sm px-3 py-2"
                 >
-                  <TrashIcon className="h-5 w-5 mr-2" />
-                  Verwijderen
+                  <TrashIcon className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Verwijderen</span>
                 </button>
               </>
             )}
@@ -631,7 +656,8 @@ function AdminPlanningView() {
       {/* Planning Grid */}
       {planning ? (
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -718,6 +744,69 @@ function AdminPlanningView() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="lg:hidden divide-y divide-gray-200">
+            {getEntriesByVehicle().map((vehicle) => (
+              <div key={vehicle.vehicleId} className="p-3">
+                {/* Vehicle header */}
+                <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+                  <TruckIcon className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <div className="font-mono font-bold text-gray-900">{vehicle.kenteken}</div>
+                    <div className="text-xs text-gray-500">{vehicle.ritnummer} • {vehicle.type}</div>
+                  </div>
+                </div>
+                
+                {/* Days grid */}
+                <div className="grid grid-cols-5 gap-1">
+                  {DAYS.map((day) => {
+                    const entry = vehicle.entries.get(day.key)
+                    
+                    return (
+                      <div key={day.key} className="text-center">
+                        <div className="text-xs font-medium text-gray-500 mb-1">{day.label}</div>
+                        {entry ? (
+                          <div
+                            onClick={() => !isReadOnly && setEditingEntry(entry.id)}
+                            className={clsx(
+                              'rounded p-1 min-h-[40px] text-xs transition-colors',
+                              entry.chauffeur
+                                ? 'bg-primary-50 border border-primary-200'
+                                : 'bg-gray-50 border border-gray-200 border-dashed',
+                              !isReadOnly && 'cursor-pointer active:bg-primary-100'
+                            )}
+                          >
+                            {editingEntry === entry.id && !isReadOnly ? (
+                              <DriverSelector
+                                drivers={companyDrivers}
+                                value={entry.chauffeur}
+                                onChange={(driverId) => handleUpdateEntry(entry.id, driverId)}
+                                onCancel={() => setEditingEntry(null)}
+                              />
+                            ) : entry.chauffeur ? (
+                              <div>
+                                <div className="font-medium text-gray-900 truncate text-[10px]">
+                                  {entry.chauffeur_naam?.split(' ')[0]}
+                                </div>
+                                {entry.adr && (
+                                  <span className="text-[8px] font-medium text-yellow-800">ADR</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="rounded p-1 min-h-[40px] bg-gray-100 text-gray-400 text-[10px]">-</div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
           
           {getEntriesByVehicle().length === 0 && (
