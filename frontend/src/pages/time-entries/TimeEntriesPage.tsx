@@ -910,64 +910,62 @@ export default function TimeEntriesPage() {
             {/* Mobile Card View */}
             <div className="md:hidden divide-y divide-gray-200">
               {entries.map(entry => (
-                <div key={entry.id} className="p-4 hover:bg-gray-50">
-                  <div className="flex justify-between items-start mb-3">
+                <div key={entry.id} className="p-3 hover:bg-gray-50">
+                  <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-semibold text-gray-900 text-sm">
                         {new Date(entry.datum).toLocaleDateString('nl-NL', { 
                           weekday: 'short', 
                           day: 'numeric', 
                           month: 'short' 
                         })}
                       </h3>
-                      <p className="text-sm text-gray-500 font-mono">{entry.ritnummer}</p>
+                      <p className="text-xs text-gray-500 font-mono">{entry.ritnummer}</p>
                     </div>
-                    <div className="text-right">
-                      {entry.status === 'concept' ? (
-                        <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                          Concept
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                          Ingediend
-                        </span>
-                      )}
-                    </div>
+                    {entry.status === 'concept' ? (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                        Concept
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                        Ingediend
+                      </span>
+                    )}
                   </div>
                   
-                  <div className="space-y-2 text-sm mb-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Kenteken:</span>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
+                    <div>
+                      <span className="text-gray-500">Kenteken: </span>
                       <span className="font-mono font-medium">{entry.kenteken}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Tijd:</span>
-                      <span className="font-medium">{entry.aanvang} - {entry.eind}</span>
+                    <div>
+                      <span className="text-gray-500">Tijd: </span>
+                      <span className="font-medium">{entry.aanvang}-{entry.eind}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Uren:</span>
+                    <div>
+                      <span className="text-gray-500">Uren: </span>
                       <span className="font-bold text-primary-600">{entry.totaal_uren_display}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">KM:</span>
+                    <div>
+                      <span className="text-gray-500">KM: </span>
                       <span className="font-medium">{entry.totaal_km.toLocaleString()}</span>
                     </div>
                   </div>
                   
                   {canEditEntry(entry) && (
-                    <div className="flex gap-2 pt-3 border-t">
+                    <div className="flex gap-2 pt-2 border-t">
                       <button
                         onClick={() => { setSelectedEntry(entry); setShowEditModal(true) }}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100 min-h-[44px]"
+                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100 min-h-[44px] text-sm"
                       >
-                        <PencilSquareIcon className="h-5 w-5" />
+                        <PencilSquareIcon className="h-4 w-4" />
                         Bewerken
                       </button>
                       <button
                         onClick={() => { setSelectedEntry(entry); setShowDeleteModal(true) }}
-                        className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 min-h-[44px]"
+                        className="flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 min-h-[44px]"
                       >
-                        <TrashIcon className="h-5 w-5" />
+                        <TrashIcon className="h-4 w-4" />
                       </button>
                     </div>
                   )}
