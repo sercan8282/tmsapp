@@ -372,7 +372,7 @@ export default function SubmittedHoursPage() {
                 leaveTo="opacity-0 scale-95"
               >
                 <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-lg bg-white shadow-xl transition-all">
-                  <div className="flex items-center justify-between p-6 border-b">
+                  <div className="flex items-center justify-between p-4 sm:p-6 border-b">
                     <div>
                       <Dialog.Title className="text-lg font-semibold">
                         Week {selectedWeek?.weeknummer} - {selectedWeek?.jaar}
@@ -381,12 +381,12 @@ export default function SubmittedHoursPage() {
                         {selectedWeek?.user__voornaam} {selectedWeek?.user__achternaam}
                       </p>
                     </div>
-                    <button onClick={() => setShowWeekModal(false)} className="text-gray-400 hover:text-gray-500">
+                    <button onClick={() => setShowWeekModal(false)} className="text-gray-400 hover:text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
                       <XMarkIcon className="h-6 w-6" />
                     </button>
                   </div>
 
-                  <div className="p-6">
+                  <div className="p-4 sm:p-6">
                     {loadingEntries ? (
                       <div className="text-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
@@ -394,71 +394,113 @@ export default function SubmittedHoursPage() {
                     ) : weekEntries.length === 0 ? (
                       <p className="text-gray-500 text-center py-8">Geen uren gevonden</p>
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Datum
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Ritnr
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Kenteken
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Tijden
-                              </th>
-                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                                Uren
-                              </th>
-                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                                KM
-                              </th>
-                              <th className="px-4 py-3"></th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {weekEntries.map(entry => (
-                              <tr key={entry.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 text-sm">
-                                  {formatDate(entry.datum)}
-                                </td>
-                                <td className="px-4 py-3 text-sm font-medium">
-                                  {entry.ritnummer}
-                                </td>
-                                <td className="px-4 py-3 text-sm font-mono">
-                                  {entry.kenteken}
-                                </td>
-                                <td className="px-4 py-3 text-sm">
-                                  {entry.aanvang} - {entry.eind}
-                                </td>
-                                <td className="px-4 py-3 text-sm text-right">
-                                  {formatDuration(entry.totaal_uren)}
-                                </td>
-                                <td className="px-4 py-3 text-sm text-right font-medium">
-                                  {entry.totaal_km}
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <button
-                                    onClick={() => handleEditEntry(entry)}
-                                    className="text-primary-600 hover:text-primary-900 p-1"
-                                    title="Bewerken"
-                                  >
-                                    <PencilIcon className="h-5 w-5" />
-                                  </button>
-                                </td>
+                      <>
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Datum
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Ritnr
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Kenteken
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Tijden
+                                </th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                  Uren
+                                </th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                  KM
+                                </th>
+                                <th className="px-4 py-3"></th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {weekEntries.map(entry => (
+                                <tr key={entry.id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3 text-sm">
+                                    {formatDate(entry.datum)}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-medium">
+                                    {entry.ritnummer}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-mono">
+                                    {entry.kenteken}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm">
+                                    {entry.aanvang} - {entry.eind}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-right">
+                                    {formatDuration(entry.totaal_uren)}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-right font-medium">
+                                    {entry.totaal_km}
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <button
+                                      onClick={() => handleEditEntry(entry)}
+                                      className="text-primary-600 hover:text-primary-900 p-1"
+                                      title="Bewerken"
+                                    >
+                                      <PencilIcon className="h-5 w-5" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Mobile Card View */}
+                        <div className="md:hidden divide-y divide-gray-200 -mx-4">
+                          {weekEntries.map(entry => (
+                            <div key={entry.id} className="p-3 hover:bg-gray-50">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <h4 className="font-semibold text-gray-900 text-sm">{formatDate(entry.datum)}</h4>
+                                  <p className="text-xs text-gray-500 font-mono">{entry.ritnummer}</p>
+                                </div>
+                                <button
+                                  onClick={() => handleEditEntry(entry)}
+                                  className="text-primary-600 hover:text-primary-900 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                >
+                                  <PencilIcon className="h-5 w-5" />
+                                </button>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                <div>
+                                  <span className="text-gray-500">Kenteken: </span>
+                                  <span className="font-mono font-medium">{entry.kenteken}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Tijd: </span>
+                                  <span className="font-medium">{entry.aanvang}-{entry.eind}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Uren: </span>
+                                  <span className="font-bold text-primary-600">{formatDuration(entry.totaal_uren)}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">KM: </span>
+                                  <span className="font-medium">{entry.totaal_km}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
                     )}
                   </div>
 
-                  <div className="px-6 py-4 border-t flex justify-end">
-                    <button onClick={() => setShowWeekModal(false)} className="btn-secondary">
+                  <div className="px-4 sm:px-6 py-4 border-t flex justify-end">
+                    <button onClick={() => setShowWeekModal(false)} className="btn-secondary min-h-[44px]">
                       Sluiten
                     </button>
                   </div>
