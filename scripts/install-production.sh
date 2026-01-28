@@ -50,6 +50,66 @@ check_root() {
     fi
 }
 
+check_ubuntu_version() {
+    print_step "Checking Ubuntu version..."
+    
+    if [ ! -f /etc/os-release ]; then
+        print_error "Cannot detect OS. This script requires Ubuntu."
+        exit 1
+    fi
+    
+    . /etc/os-release
+    
+    if [ "$ID" != "ubuntu" ]; then
+        print_error "This script requires Ubuntu. Detected: $ID"
+        exit 1
+    fi
+    
+    # Get version number
+    VERSION_NUM=$(echo "$VERSION_ID" | cut -d. -f1)
+    
+    # List of supported LTS versions
+    case "$VERSION_ID" in
+        "22.04"|"24.04")
+            echo "  Ubuntu $VERSION_ID LTS detected ✓"
+            ;;
+        "20.04")
+            print_warning "Ubuntu 20.04 LTS detected. Consider upgrading to 22.04 or 24.04."
+            read -p "Continue anyway? (y/n): " continue_old
+            if [ "$continue_old" != "y" ]; then
+                exit 0
+            fi
+            ;;
+        "23.04"|"23.10"|"24.10")
+            print_error "Ubuntu $VERSION_ID is a non-LTS release and has reached End of Life."
+            echo ""
+            echo "  Non-LTS releases are only supported for 9 months."
+            echo "  Your repositories are no longer available."
+            echo ""
+            echo "  Options:"
+            echo "  1. Upgrade to Ubuntu 24.04 LTS (recommended)"
+            echo "     sudo do-release-upgrade -d"
+            echo ""
+            echo "  2. Fresh install with Ubuntu 22.04 LTS or 24.04 LTS"
+            echo ""
+            echo "  LTS releases are supported for 5 years."
+            exit 1
+            ;;
+        *)
+            if [ "$VERSION_NUM" -lt 20 ]; then
+                print_error "Ubuntu $VERSION_ID is too old. Minimum required: 20.04 LTS"
+                exit 1
+            else
+                print_warning "Ubuntu $VERSION_ID detected. LTS versions (22.04, 24.04) are recommended."
+                read -p "Continue anyway? (y/n): " continue_unknown
+                if [ "$continue_unknown" != "y" ]; then
+                    exit 0
+                fi
+            fi
+            ;;
+    esac
+}
+
 generate_password() {
     openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32
 }
@@ -614,6 +674,7 @@ EOF
 main() {
     print_header
     check_root
+    check_ubuntu_version
     get_user_input
     
     install_dependencies
