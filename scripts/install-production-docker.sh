@@ -1,7 +1,8 @@
 #!/bin/bash
 # ===========================================
-# TMS Native Install Script (zonder Docker)
-# Voor Ubuntu 22.04/24.04 LTS
+# TMS Docker Production Install Script
+# With Portainer & Nginx Proxy Manager
+# For Ubuntu 22.04/24.04 LTS
 # ===========================================
 
 set -e
@@ -11,41 +12,56 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Configuration
-REPO_URL="${REPO_URL:-https://github.com/yourusername/tmsapp.git}"
-INSTALL_DIR="${INSTALL_DIR:-/opt/tms}"
-BRANCH="${BRANCH:-main}"
-PYTHON_VERSION="3.12"
+# Configuration defaults
+INSTALL_DIR="/opt/tms"
+DOCKER_DIR="/opt/docker"
 
-echo -e "${BLUE}"
-echo "============================================="
-echo "   TMS - Transport Management System"
-echo "   Native Production Install Script"
-echo "   (Ubuntu without Docker)"
-echo "============================================="
-echo -e "${NC}"
+print_header() {
+    echo -e "${BLUE}"
+    echo "╔════════════════════════════════════════════════════════════╗"
+    echo "║     TMS - Docker Production Install Script                 ║"
+    echo "║     With Portainer & Nginx Proxy Manager                   ║"
+    echo "║     Version: 2.0                                           ║"
+    echo "╚════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+}
+
+print_step() {
+    echo -e "\n${GREEN}▶ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}✖ $1${NC}"
+}
 
 # Check if running as root
-if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}Error: This script must be run as root${NC}"
-    exit 1
-fi
+check_root() {
+    if [ "$EUID" -ne 0 ]; then
+        print_error "This script must be run as root"
+        exit 1
+    fi
+}
 
 # Check Ubuntu version
 check_ubuntu_version() {
-    echo -e "${YELLOW}Checking Ubuntu version...${NC}"
+    print_step "Checking Ubuntu version..."
     
     if [ ! -f /etc/os-release ]; then
-        echo -e "${RED}Error: Cannot detect OS. This script requires Ubuntu.${NC}"
+        print_error "Cannot detect OS. This script requires Ubuntu."
         exit 1
     fi
     
     . /etc/os-release
     
     if [ "$ID" != "ubuntu" ]; then
-        echo -e "${RED}Error: This script requires Ubuntu. Detected: $ID${NC}"
+        print_error "This script requires Ubuntu. Detected: $ID"
         exit 1
     fi
     
@@ -53,272 +69,551 @@ check_ubuntu_version() {
     
     case "$VERSION_ID" in
         "22.04"|"24.04")
-            echo -e "${GREEN}  Ubuntu $VERSION_ID LTS detected ✓${NC}"
+            echo "  Ubuntu $VERSION_ID LTS detected ✓"
             ;;
         "20.04")
-            echo -e "${YELLOW}Warning: Ubuntu 20.04 LTS detected. Consider upgrading to 22.04 or 24.04.${NC}"
+            print_warning "Ubuntu 20.04 LTS detected. Consider upgrading to 22.04 or 24.04."
             read -p "Continue anyway? (y/n): " continue_old
             if [ "$continue_old" != "y" ]; then
                 exit 0
             fi
             ;;
         "23.04"|"23.10"|"24.10")
-            echo -e "${RED}"
-            echo "============================================="
-            echo "  ERROR: Ubuntu $VERSION_ID End of Life"
-            echo "============================================="
-            echo -e "${NC}"
-            echo ""
-            echo "  Ubuntu $VERSION_ID is a non-LTS release that has"
-            echo "  reached End of Life. The repositories are offline."
+            print_error "Ubuntu $VERSION_ID is a non-LTS release and has reached End of Life."
             echo ""
             echo "  Solutions:"
-            echo ""
-            echo "  1. Upgrade to Ubuntu 24.04 LTS (recommended):"
-            echo "     sudo do-release-upgrade"
-            echo ""
+            echo "  1. Upgrade to Ubuntu 24.04 LTS: sudo do-release-upgrade"
             echo "  2. Fresh install with Ubuntu 22.04 LTS or 24.04 LTS"
-            echo ""
-            echo "  LTS releases are supported for 5 years."
-            echo "  Non-LTS releases are only supported for 9 months."
-            echo ""
             exit 1
             ;;
         *)
             if [ "$VERSION_NUM" -lt 20 ]; then
-                echo -e "${RED}Error: Ubuntu $VERSION_ID is too old. Minimum required: 20.04 LTS${NC}"
+                print_error "Ubuntu $VERSION_ID is too old. Minimum required: 20.04 LTS"
                 exit 1
-            else
-                echo -e "${YELLOW}Warning: Ubuntu $VERSION_ID detected. LTS versions (22.04, 24.04) recommended.${NC}"
-                read -p "Continue anyway? (y/n): " continue_unknown
-                if [ "$continue_unknown" != "y" ]; then
-                    exit 0
-                fi
             fi
             ;;
     esac
 }
 
-# Run Ubuntu check first
-check_ubuntu_version
-
-# Function to prompt for input
-prompt_input() {
-    local prompt="$1"
-    local default="$2"
-    local var_name="$3"
-    read -p "$prompt [$default]: " input
-    eval "$var_name=\"${input:-$default}\""
+# Generate random password
+generate_password() {
+    openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24
 }
 
-# Function to prompt for password
-prompt_password() {
-    local prompt="$1"
-    local var_name="$2"
+# Get user configuration
+get_user_input() {
+    print_step "Configuration"
+    
+    echo ""
+    echo -e "${CYAN}=== Repository ===${NC}"
+    read -p "Git repository URL [https://github.com/sercan8282/tmsapp.git]: " REPO_URL
+    REPO_URL=${REPO_URL:-https://github.com/sercan8282/tmsapp.git}
+    
+    echo ""
+    echo -e "${CYAN}=== Domain Configuration ===${NC}"
+    read -p "Main domain for TMS (e.g., tms.example.com): " DOMAIN_TMS
+    if [ -z "$DOMAIN_TMS" ]; then
+        print_error "TMS domain is required"
+        exit 1
+    fi
+    
+    # Extract base domain
+    BASE_DOMAIN=${DOMAIN_TMS#*.}
+    
+    read -p "Domain for Portainer [portainer.$BASE_DOMAIN]: " DOMAIN_PORTAINER
+    DOMAIN_PORTAINER=${DOMAIN_PORTAINER:-portainer.$BASE_DOMAIN}
+    
+    read -p "Domain for Nginx Proxy Manager [npm.$BASE_DOMAIN]: " DOMAIN_NPM
+    DOMAIN_NPM=${DOMAIN_NPM:-npm.$BASE_DOMAIN}
+    
+    echo ""
+    echo -e "${CYAN}=== Database ===${NC}"
+    read -p "Database name [tms_db]: " DB_NAME
+    DB_NAME=${DB_NAME:-tms_db}
+    
+    read -p "Database user [tms_user]: " DB_USER
+    DB_USER=${DB_USER:-tms_user}
+    
+    read -p "Database password (leave empty to generate): " DB_PASSWORD
+    if [ -z "$DB_PASSWORD" ]; then
+        DB_PASSWORD=$(generate_password)
+        echo "  Generated: $DB_PASSWORD"
+    fi
+    
+    echo ""
+    echo -e "${CYAN}=== TMS Admin Account ===${NC}"
+    read -p "Admin email [admin@$DOMAIN_TMS]: " ADMIN_EMAIL
+    ADMIN_EMAIL=${ADMIN_EMAIL:-admin@$DOMAIN_TMS}
+    
     while true; do
-        read -sp "$prompt: " password
+        read -sp "Admin password: " ADMIN_PASSWORD
         echo
-        read -sp "Confirm password: " password2
+        if [ -z "$ADMIN_PASSWORD" ]; then
+            print_error "Password is required"
+            continue
+        fi
+        read -sp "Confirm admin password: " ADMIN_PASSWORD2
         echo
-        if [ "$password" = "$password2" ]; then
-            eval "$var_name=\"$password\""
+        if [ "$ADMIN_PASSWORD" = "$ADMIN_PASSWORD2" ]; then
             break
         else
-            echo -e "${RED}Passwords do not match.${NC}"
+            print_error "Passwords do not match"
         fi
     done
+    
+    echo ""
+    echo -e "${CYAN}=== Portainer Admin ===${NC}"
+    read -p "Portainer admin username [admin]: " PORTAINER_USER
+    PORTAINER_USER=${PORTAINER_USER:-admin}
+    
+    read -p "Portainer admin password (leave empty to generate): " PORTAINER_PASSWORD
+    if [ -z "$PORTAINER_PASSWORD" ]; then
+        PORTAINER_PASSWORD=$(generate_password)
+        echo "  Generated: $PORTAINER_PASSWORD"
+    fi
+    
+    echo ""
+    echo -e "${CYAN}=== SSL Configuration ===${NC}"
+    read -p "Email for SSL certificates (Let's Encrypt via NPM): " SSL_EMAIL
+    if [ -z "$SSL_EMAIL" ]; then
+        SSL_EMAIL=$ADMIN_EMAIL
+    fi
+    
+    # Generate secrets
+    SECRET_KEY=$(openssl rand -base64 48)
+    
+    # Display summary
+    echo ""
+    echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║                 Configuration Summary                      ║${NC}"
+    echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo "  Repository:         $REPO_URL"
+    echo ""
+    echo "  TMS Domain:         $DOMAIN_TMS"
+    echo "  Portainer Domain:   $DOMAIN_PORTAINER"
+    echo "  NPM Domain:         $DOMAIN_NPM"
+    echo ""
+    echo "  Database:           $DB_NAME"
+    echo "  DB User:            $DB_USER"
+    echo ""
+    echo "  TMS Admin:          $ADMIN_EMAIL"
+    echo "  Portainer Admin:    $PORTAINER_USER"
+    echo "  SSL Email:          $SSL_EMAIL"
+    echo ""
+    echo -e "${YELLOW}Docker directories to be created:${NC}"
+    echo "  $DOCKER_DIR/tms             - TMS application"
+    echo "  $DOCKER_DIR/portainer       - Portainer data"
+    echo "  $DOCKER_DIR/nginx-proxy     - Nginx Proxy Manager"
+    echo "  $DOCKER_DIR/postgres        - PostgreSQL data"
+    echo "  $DOCKER_DIR/redis           - Redis data"
+    echo ""
+    read -p "Continue with installation? (y/n): " confirm
+    if [ "$confirm" != "y" ]; then
+        echo "Installation cancelled"
+        exit 0
+    fi
 }
 
-# =============================================
-# Step 1: Get configuration FIRST (before apt)
-# =============================================
-echo -e "${YELLOW}Step 1: Configuration...${NC}"
-echo ""
-prompt_input "Git repository URL" "https://github.com/sercan8282/tmsapp.git" REPO_URL
-prompt_input "Enter your domain name" "localhost" DOMAIN_NAME
-prompt_input "Service account name" "tms" SERVICE_USER
-prompt_input "Database name" "tms_db" DB_NAME
-prompt_input "Database user" "tms_user" DB_USER
-prompt_password "Database password" DB_PASSWORD
-prompt_input "Admin email" "admin@example.com" ADMIN_EMAIL
-prompt_password "Admin password" ADMIN_PASSWORD
+# Install Docker
+install_docker() {
+    print_step "Installing Docker..."
+    
+    if command -v docker &> /dev/null; then
+        echo "  Docker already installed: $(docker --version)"
+    else
+        # Install dependencies
+        apt-get update
+        apt-get install -y ca-certificates curl gnupg
+        
+        # Add Docker GPG key
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        chmod a+r /etc/apt/keyrings/docker.gpg
+        
+        # Add Docker repository
+        echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+          $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+          tee /etc/apt/sources.list.d/docker.list > /dev/null
+        
+        # Install Docker
+        apt-get update
+        apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        
+        # Enable and start Docker
+        systemctl enable docker
+        systemctl start docker
+        
+        echo "  Docker installed: $(docker --version)"
+    fi
+}
 
-# Generate secret key
-SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(64))' 2>/dev/null || openssl rand -base64 48)
+# Create directory structure with proper permissions
+create_directories() {
+    print_step "Creating Docker directory structure..."
+    
+    # Main directories
+    mkdir -p $DOCKER_DIR/{tms,portainer,nginx-proxy,postgres,redis}
+    
+    # TMS subdirectories
+    mkdir -p $DOCKER_DIR/tms/{backend,frontend,media,staticfiles,logs,backups}
+    
+    # Nginx Proxy Manager subdirectories
+    mkdir -p $DOCKER_DIR/nginx-proxy/{data,letsencrypt}
+    
+    # PostgreSQL data
+    mkdir -p $DOCKER_DIR/postgres/data
+    
+    # Redis data
+    mkdir -p $DOCKER_DIR/redis/data
+    
+    # Set base permissions (docker group will be added)
+    chmod -R 755 $DOCKER_DIR
+    
+    # Secure sensitive directories
+    chmod 750 $DOCKER_DIR/postgres
+    chmod 750 $DOCKER_DIR/postgres/data
+    chmod 750 $DOCKER_DIR/tms/logs
+    chmod 750 $DOCKER_DIR/tms/backups
+    chmod 755 $DOCKER_DIR/tms/media
+    chmod 755 $DOCKER_DIR/tms/staticfiles
+    chmod 755 $DOCKER_DIR/nginx-proxy/letsencrypt
+    
+    # Set ownership for containers (Docker uses specific UIDs)
+    # PostgreSQL uses UID 999
+    chown -R 999:999 $DOCKER_DIR/postgres/data
+    # Redis uses UID 999
+    chown -R 999:999 $DOCKER_DIR/redis/data
+    
+    echo "  ✓ Directories created with permissions:"
+    echo "    $DOCKER_DIR/tms/backend       - Backend code"
+    echo "    $DOCKER_DIR/tms/frontend      - Frontend code"
+    echo "    $DOCKER_DIR/tms/media         - Uploads (755)"
+    echo "    $DOCKER_DIR/tms/staticfiles   - Static assets (755)"
+    echo "    $DOCKER_DIR/tms/logs          - App logs (750)"
+    echo "    $DOCKER_DIR/tms/backups       - Backups (750)"
+    echo "    $DOCKER_DIR/portainer         - Portainer data"
+    echo "    $DOCKER_DIR/nginx-proxy/data  - NPM config"
+    echo "    $DOCKER_DIR/nginx-proxy/letsencrypt - SSL certs"
+    echo "    $DOCKER_DIR/postgres/data     - DB files (750, uid:999)"
+    echo "    $DOCKER_DIR/redis/data        - Redis data (uid:999)"
+}
 
-echo ""
-echo -e "${BLUE}Configuration Summary:${NC}"
-echo "  Repository:    $REPO_URL"
-echo "  Domain:        $DOMAIN_NAME"
-echo "  Service User:  $SERVICE_USER"
-echo "  Database:      $DB_NAME"
-echo "  DB User:       $DB_USER"
-echo "  Admin Email:   $ADMIN_EMAIL"
-echo "  Install Dir:   $INSTALL_DIR"
-echo ""
-read -p "Continue with installation? (y/n): " confirm
-if [ "$confirm" != "y" ]; then
-    echo "Installation cancelled"
-    exit 0
-fi
+# Create Docker network
+create_docker_network() {
+    print_step "Creating Docker network..."
+    
+    docker network create tms-network 2>/dev/null || echo "  Network 'tms-network' already exists"
+}
 
-# =============================================
-# Step 2: Installing system packages
-# =============================================
-echo -e "${YELLOW}Step 2: Installing system packages...${NC}"
+# Setup Portainer
+setup_portainer() {
+    print_step "Setting up Portainer..."
+    
+    # Stop existing if running
+    docker stop portainer 2>/dev/null || true
+    docker rm portainer 2>/dev/null || true
+    
+    # Create Portainer container
+    docker run -d \
+        --name portainer \
+        --restart=always \
+        --network=tms-network \
+        -p 9443:9443 \
+        -p 9000:9000 \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v $DOCKER_DIR/portainer:/data \
+        portainer/portainer-ce:latest
+    
+    # Wait for Portainer to start
+    echo "  Waiting for Portainer to start..."
+    sleep 10
+    
+    # Create admin user via API
+    echo "  Creating Portainer admin user..."
+    
+    # Wait for API to be ready
+    for i in {1..30}; do
+        if curl -s -k https://localhost:9443/api/status > /dev/null 2>&1; then
+            break
+        fi
+        sleep 2
+    done
+    
+    # Initialize admin user
+    curl -s -k -X POST https://localhost:9443/api/users/admin/init \
+        -H "Content-Type: application/json" \
+        -d "{\"Username\":\"$PORTAINER_USER\",\"Password\":\"$PORTAINER_PASSWORD\"}" > /dev/null 2>&1 || true
+    
+    echo "  ✓ Portainer installed!"
+}
 
-# Update system
-apt-get update
-apt-get upgrade -y
+# Setup Nginx Proxy Manager
+setup_nginx_proxy_manager() {
+    print_step "Setting up Nginx Proxy Manager..."
+    
+    # Create docker-compose for NPM
+    cat > $DOCKER_DIR/nginx-proxy/docker-compose.yml << EOF
+version: '3.8'
+services:
+  npm:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nginx-proxy-manager
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+      - '81:81'
+    volumes:
+      - $DOCKER_DIR/nginx-proxy/data:/data
+      - $DOCKER_DIR/nginx-proxy/letsencrypt:/etc/letsencrypt
+    networks:
+      - tms-network
 
-# Add deadsnakes PPA for Python 3.12
-apt-get install -y software-properties-common
-add-apt-repository -y ppa:deadsnakes/ppa
-apt-get update
+networks:
+  tms-network:
+    external: true
+EOF
+    
+    # Start Nginx Proxy Manager
+    cd $DOCKER_DIR/nginx-proxy
+    docker compose up -d
+    
+    # Wait for it to start
+    echo "  Waiting for Nginx Proxy Manager to start..."
+    sleep 15
+    
+    echo "  ✓ Nginx Proxy Manager installed!"
+}
 
-# Install packages
-apt-get install -y \
-    python3.12 \
-    python3.12-venv \
-    python3.12-dev \
-    python3-pip \
-    postgresql \
-    postgresql-contrib \
-    redis-server \
-    nginx \
-    certbot \
-    python3-certbot-nginx \
-    git \
-    curl \
-    build-essential \
+# Create TMS Docker Compose
+create_tms_compose() {
+    print_step "Creating TMS Docker Compose configuration..."
+    
+    cat > $DOCKER_DIR/tms/docker-compose.yml << EOF
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tms-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: $DB_NAME
+      POSTGRES_USER: $DB_USER
+      POSTGRES_PASSWORD: $DB_PASSWORD
+    volumes:
+      - $DOCKER_DIR/postgres/data:/var/lib/postgresql/data
+    networks:
+      - tms-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $DB_USER -d $DB_NAME"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: tms-redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - $DOCKER_DIR/redis/data:/data
+    networks:
+      - tms-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tms-backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DJANGO_SETTINGS_MODULE=tms.settings.production
+      - SECRET_KEY=$SECRET_KEY
+      - DB_NAME=$DB_NAME
+      - DB_USER=$DB_USER
+      - DB_PASSWORD=$DB_PASSWORD
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/1
+      - ALLOWED_HOSTS=$DOMAIN_TMS,localhost,tms-backend
+      - CORS_ALLOWED_ORIGINS=https://$DOMAIN_TMS
+      - SECURE_SSL_REDIRECT=False
+      - SESSION_COOKIE_SECURE=True
+      - CSRF_COOKIE_SECURE=True
+    volumes:
+      - $DOCKER_DIR/tms/media:/app/media
+      - $DOCKER_DIR/tms/staticfiles:/app/staticfiles
+      - $DOCKER_DIR/tms/logs:/app/logs
+    networks:
+      - tms-network
+    expose:
+      - "8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api
+    container_name: tms-frontend
+    restart: always
+    depends_on:
+      - backend
+    networks:
+      - tms-network
+    expose:
+      - "80"
+
+networks:
+  tms-network:
+    external: true
+EOF
+
+    echo "  ✓ Docker Compose file created"
+}
+
+# Create Dockerfiles
+create_dockerfiles() {
+    print_step "Creating Dockerfiles..."
+    
+    # Backend Dockerfile
+    cat > $DOCKER_DIR/tms/backend/Dockerfile << 'DOCKERFILE'
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
     libpq-dev \
+    gcc \
     libcairo2 \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
     libgdk-pixbuf2.0-0 \
     libffi-dev \
     shared-mime-info \
-    ufw \
-    supervisor
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
+# Install Python dependencies
+COPY requirements/production.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-echo -e "${GREEN}System packages installed!${NC}"
+# Copy application
+COPY . .
 
-# =============================================
-# Step 3: Configuring PostgreSQL
-# =============================================
-echo -e "${YELLOW}Step 3: Configuring PostgreSQL...${NC}"
+# Create directories
+RUN mkdir -p logs media staticfiles
 
-# Start PostgreSQL
-systemctl enable postgresql
-systemctl start postgresql
+# Collect static files
+RUN python manage.py collectstatic --noinput || true
 
-# Create database and user
-sudo -u postgres psql << EOF
-CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
-CREATE DATABASE $DB_NAME OWNER $DB_USER;
-ALTER USER $DB_USER CREATEDB;
-GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
-EOF
+# Expose port
+EXPOSE 8000
 
-echo -e "${GREEN}PostgreSQL configured!${NC}"
+# Run gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--threads", "2", "--timeout", "60", "tms.wsgi:application"]
+DOCKERFILE
 
-# =============================================
-# Step 4: Configuring Redis
-# =============================================
-echo -e "${YELLOW}Step 4: Configuring Redis...${NC}"
+    # Frontend Dockerfile
+    cat > $DOCKER_DIR/tms/frontend/Dockerfile << 'DOCKERFILE'
+# Build stage
+FROM node:20-alpine as build
 
-systemctl enable redis-server
-systemctl start redis-server
+WORKDIR /app
 
-# =============================================
-# Step 5: Cloning repository
-# =============================================
-echo -e "${YELLOW}Step 5: Cloning repository...${NC}"
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
 
-# Create service user
-useradd -r -m -s /bin/bash "$SERVICE_USER" || true
+COPY package*.json ./
+RUN npm ci
 
-# Clone repository
-if [ -d "$INSTALL_DIR" ]; then
-    cd "$INSTALL_DIR"
-    git fetch origin
-    git checkout "$BRANCH"
-    git pull origin "$BRANCH"
-else
-    git clone -b "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
-fi
+COPY . .
+RUN npm run build
 
-# Set ownership of application directory
-chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+# Production stage
+FROM nginx:alpine
 
-# Create additional directories with correct permissions
-echo -e "${YELLOW}Creating application directories...${NC}"
+COPY --from=build /app/dist /usr/share/nginx/html
 
-# Media directory (uploaded files)
-mkdir -p "$INSTALL_DIR/backend/media"
-chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/backend/media"
-chmod 755 "$INSTALL_DIR/backend/media"
+# Nginx config for SPA
+RUN echo 'server { \
+    listen 80; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ { \
+        expires 1y; \
+        add_header Cache-Control "public, immutable"; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
 
-# Static files directory
-mkdir -p "$INSTALL_DIR/backend/staticfiles"
-chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/backend/staticfiles"
-chmod 755 "$INSTALL_DIR/backend/staticfiles"
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+DOCKERFILE
 
-# Backups directory
-mkdir -p "$INSTALL_DIR/backups"
-chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/backups"
-chmod 750 "$INSTALL_DIR/backups"
+    echo "  ✓ Dockerfiles created"
+}
 
-# Log directory
-mkdir -p /var/log/tms
-chown -R "$SERVICE_USER:$SERVICE_USER" /var/log/tms
-chmod 750 /var/log/tms
-
-# Run directory (for sockets)
-mkdir -p /run/tms
-chown "$SERVICE_USER:www-data" /run/tms
-chmod 755 /run/tms
-
-echo -e "${YELLOW}Step 6: Setting up Python environment...${NC}"
-
-cd "$INSTALL_DIR/backend"
-
-# Create virtual environment
-sudo -u "$SERVICE_USER" python3.12 -m venv venv
-
-# Install dependencies
-sudo -u "$SERVICE_USER" ./venv/bin/pip install --upgrade pip
-sudo -u "$SERVICE_USER" ./venv/bin/pip install -r requirements/production.txt
-sudo -u "$SERVICE_USER" ./venv/bin/pip install gunicorn
-
-# Create .env file
-cat > "$INSTALL_DIR/backend/.env" << EOF
-DJANGO_SETTINGS_MODULE=tms.settings.production
-SECRET_KEY=$SECRET_KEY
-DB_NAME=$DB_NAME
-DB_USER=$DB_USER
-DB_PASSWORD=$DB_PASSWORD
-DB_HOST=localhost
-DB_PORT=5432
-REDIS_URL=redis://localhost:6379/1
-ALLOWED_HOSTS=$DOMAIN_NAME,localhost,127.0.0.1
-CORS_ALLOWED_ORIGINS=https://$DOMAIN_NAME,http://localhost
-EOF
-
-chmod 600 "$INSTALL_DIR/backend/.env"
-chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/backend/.env"
-
-# Run migrations
-cd "$INSTALL_DIR/backend"
-sudo -u "$SERVICE_USER" ./venv/bin/python manage.py migrate --noinput
-sudo -u "$SERVICE_USER" ./venv/bin/python manage.py collectstatic --noinput
-
-# Create superuser
-sudo -u "$SERVICE_USER" ./venv/bin/python manage.py shell << PYTHON_EOF
+# Clone and setup TMS
+setup_tms_application() {
+    print_step "Cloning TMS application..."
+    
+    # Clone repository
+    if [ -d "$INSTALL_DIR" ]; then
+        cd $INSTALL_DIR
+        git pull origin main
+    else
+        git clone $REPO_URL $INSTALL_DIR
+    fi
+    
+    # Copy to Docker directory
+    print_step "Copying source to Docker directory..."
+    cp -r $INSTALL_DIR/backend/* $DOCKER_DIR/tms/backend/
+    cp -r $INSTALL_DIR/frontend/* $DOCKER_DIR/tms/frontend/
+    
+    # Build and start TMS
+    print_step "Building TMS containers (this may take a few minutes)..."
+    cd $DOCKER_DIR/tms
+    docker compose build --no-cache
+    
+    print_step "Starting TMS containers..."
+    docker compose up -d
+    
+    # Wait for backend to be ready
+    echo "  Waiting for backend to start..."
+    for i in {1..60}; do
+        if docker exec tms-backend python -c "print('ready')" 2>/dev/null; then
+            break
+        fi
+        sleep 2
+    done
+    sleep 5
+    
+    # Run migrations
+    print_step "Running database migrations..."
+    docker exec tms-backend python manage.py migrate --noinput
+    
+    # Collect static files
+    docker exec tms-backend python manage.py collectstatic --noinput || true
+    
+    # Create admin user
+    print_step "Creating admin user..."
+    docker exec tms-backend python manage.py shell << PYTHON_EOF
 from apps.accounts.models import User
 if not User.objects.filter(email='$ADMIN_EMAIL').exists():
     User.objects.create_superuser(
@@ -331,258 +626,352 @@ if not User.objects.filter(email='$ADMIN_EMAIL').exists():
 else:
     print('Superuser already exists.')
 PYTHON_EOF
-
-echo -e "${GREEN}Backend configured!${NC}"
-
-echo -e "${YELLOW}Step 7: Building frontend...${NC}"
-
-cd "$INSTALL_DIR/frontend"
-
-# Create frontend .env
-cat > "$INSTALL_DIR/frontend/.env" << EOF
-VITE_API_URL=/api
-EOF
-
-# Install and build
-sudo -u "$SERVICE_USER" npm ci
-sudo -u "$SERVICE_USER" npm run build
-
-echo -e "${GREEN}Frontend built!${NC}"
-
-echo -e "${YELLOW}Step 8: Configuring Gunicorn (Supervisor)...${NC}"
-
-# Create Gunicorn config
-cat > /etc/supervisor/conf.d/tms.conf << EOF
-[program:tms]
-directory=$INSTALL_DIR/backend
-command=$INSTALL_DIR/backend/venv/bin/gunicorn --workers 4 --threads 2 --bind unix:/run/tms/gunicorn.sock tms.wsgi:application
-user=$SERVICE_USER
-autostart=true
-autorestart=true
-redirect_stderr=true
-stdout_logfile=/var/log/tms/gunicorn.log
-environment=DJANGO_SETTINGS_MODULE="tms.settings.production"
-EOF
-
-# Create log and run directories
-mkdir -p /var/log/tms /run/tms
-chown -R "$SERVICE_USER:$SERVICE_USER" /var/log/tms /run/tms
-
-# Create systemd service for socket directory
-cat > /etc/systemd/system/tms-socket.service << EOF
-[Unit]
-Description=Create TMS socket directory
-
-[Service]
-Type=oneshot
-ExecStart=/bin/mkdir -p /run/tms
-ExecStart=/bin/chown $SERVICE_USER:www-data /run/tms
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable tms-socket
-systemctl start tms-socket
-
-supervisorctl reread
-supervisorctl update
-
-echo -e "${GREEN}Gunicorn configured!${NC}"
-
-echo -e "${YELLOW}Step 9: Configuring Nginx...${NC}"
-
-# Remove default site
-rm -f /etc/nginx/sites-enabled/default
-
-# Create TMS site config
-cat > /etc/nginx/sites-available/tms << EOF
-upstream tms_backend {
-    server unix:/run/tms/gunicorn.sock fail_timeout=0;
+    
+    echo "  ✓ TMS application deployed!"
 }
 
-server {
-    listen 80;
-    server_name $DOMAIN_NAME;
-
-    client_max_body_size 100M;
-
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-
-    # Frontend (static files)
-    location / {
-        root $INSTALL_DIR/frontend/dist;
-        try_files \$uri \$uri/ /index.html;
-        
-        # Cache static assets
-        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-        }
-    }
-
-    # Backend API
-    location /api/ {
-        proxy_pass http://tms_backend;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_connect_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-
-    # Django Admin
-    location /admin/ {
-        proxy_pass http://tms_backend;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    # Static files (Django)
-    location /static/ {
-        alias $INSTALL_DIR/backend/staticfiles/;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # Media files
-    location /media/ {
-        alias $INSTALL_DIR/backend/media/;
-        expires 7d;
-    }
+# Configure firewall
+configure_firewall() {
+    print_step "Configuring firewall..."
+    
+    apt-get install -y ufw > /dev/null 2>&1
+    
+    ufw default deny incoming
+    ufw default allow outgoing
+    
+    # SSH
+    ufw limit ssh
+    
+    # HTTP/HTTPS (Nginx Proxy Manager)
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    
+    # Nginx Proxy Manager Admin
+    ufw allow 81/tcp
+    
+    # Portainer
+    ufw allow 9000/tcp
+    ufw allow 9443/tcp
+    
+    echo "y" | ufw enable
+    
+    echo "  ✓ Firewall configured"
+    echo "    Open ports: 22 (SSH), 80, 443 (HTTP/S), 81 (NPM), 9000/9443 (Portainer)"
 }
-EOF
 
-ln -sf /etc/nginx/sites-available/tms /etc/nginx/sites-enabled/
-
-nginx -t
-systemctl enable nginx
-systemctl restart nginx
-
-echo -e "${GREEN}Nginx configured!${NC}"
-
-echo -e "${YELLOW}Step 10: Setting up SSL...${NC}"
-
-if [ "$DOMAIN_NAME" != "localhost" ]; then
-    certbot --nginx -d "$DOMAIN_NAME" --non-interactive --agree-tos --email "$ADMIN_EMAIL"
-    echo -e "${GREEN}SSL certificate installed!${NC}"
-else
-    echo -e "${YELLOW}Skipping SSL (localhost mode)${NC}"
-fi
-
-echo -e "${YELLOW}Step 11: Configuring firewall...${NC}"
-
-ufw allow 22/tcp
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw --force enable
-
-echo -e "${YELLOW}Step 12: Creating maintenance scripts...${NC}"
-
-# Update script
-cat > /usr/local/bin/tms-update << EOF
+# Create maintenance scripts
+create_maintenance_scripts() {
+    print_step "Creating maintenance scripts..."
+    
+    # Update script
+    cat > /usr/local/bin/tms-update << EOF
 #!/bin/bash
 set -e
+echo "=== Updating TMS ==="
+
 cd $INSTALL_DIR
+echo "Pulling latest code..."
+git pull origin main
 
-# Pull latest code as service user
-sudo -u $SERVICE_USER git pull origin main
+echo "Copying to Docker directory..."
+cp -r backend/* $DOCKER_DIR/tms/backend/
+cp -r frontend/* $DOCKER_DIR/tms/frontend/
 
-# Update backend
-cd backend
-sudo -u $SERVICE_USER ./venv/bin/pip install -r requirements/production.txt
-sudo -u $SERVICE_USER ./venv/bin/python manage.py migrate --noinput
-sudo -u $SERVICE_USER ./venv/bin/python manage.py collectstatic --noinput
+echo "Rebuilding containers..."
+cd $DOCKER_DIR/tms
+docker compose build
+docker compose up -d
 
-# Update frontend
-cd ../frontend
-sudo -u $SERVICE_USER npm ci
-sudo -u $SERVICE_USER npm run build
+echo "Running migrations..."
+sleep 10
+docker exec tms-backend python manage.py migrate --noinput
+docker exec tms-backend python manage.py collectstatic --noinput
 
-# Restart services
-supervisorctl restart tms
-systemctl reload nginx
-
-echo "TMS updated successfully!"
+echo "=== TMS updated successfully! ==="
 EOF
-chmod +x /usr/local/bin/tms-update
-
-# Backup script
-cat > /usr/local/bin/tms-backup << EOF
+    chmod +x /usr/local/bin/tms-update
+    
+    # Backup script
+    cat > /usr/local/bin/tms-backup << EOF
 #!/bin/bash
-BACKUP_DIR="$INSTALL_DIR/backups"
+BACKUP_DIR="$DOCKER_DIR/tms/backups"
 TIMESTAMP=\$(date +%Y%m%d_%H%M%S)
-mkdir -p "\$BACKUP_DIR"
-chown $SERVICE_USER:$SERVICE_USER "\$BACKUP_DIR"
+
+echo "=== Creating TMS Backup ==="
 
 # Backup database
-PGPASSWORD=$DB_PASSWORD pg_dump -h localhost -U $DB_USER $DB_NAME > "\$BACKUP_DIR/db_\$TIMESTAMP.sql"
+echo "Backing up database..."
+docker exec tms-postgres pg_dump -U $DB_USER $DB_NAME > "\$BACKUP_DIR/db_\$TIMESTAMP.sql"
 
 # Backup media
-tar -czf "\$BACKUP_DIR/media_\$TIMESTAMP.tar.gz" -C $INSTALL_DIR/backend media/
+echo "Backing up media files..."
+tar -czf "\$BACKUP_DIR/media_\$TIMESTAMP.tar.gz" -C $DOCKER_DIR/tms media/
 
-# Set correct ownership
-chown $SERVICE_USER:$SERVICE_USER "\$BACKUP_DIR"/*
-
-# Keep only last 7 backups
+# Keep only last 7 days
 find "\$BACKUP_DIR" -type f -mtime +7 -delete
 
-echo "Backup completed: \$BACKUP_DIR"
+echo "=== Backup completed ==="
+echo "Location: \$BACKUP_DIR"
+ls -lh "\$BACKUP_DIR" | tail -5
 EOF
-chmod +x /usr/local/bin/tms-backup
+    chmod +x /usr/local/bin/tms-backup
+    
+    # Status script
+    cat > /usr/local/bin/tms-status << 'EOF'
+#!/bin/bash
+echo "=== Docker Containers ==="
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "tms|portainer|nginx"
+echo ""
+echo "=== Disk Usage ==="
+docker system df
+echo ""
+echo "=== Volume Sizes ==="
+du -sh /opt/docker/*/ 2>/dev/null
+EOF
+    chmod +x /usr/local/bin/tms-status
+    
+    # Logs script
+    cat > /usr/local/bin/tms-logs << 'EOF'
+#!/bin/bash
+CONTAINER=${1:-tms-backend}
+docker logs -f --tail 100 $CONTAINER
+EOF
+    chmod +x /usr/local/bin/tms-logs
+    
+    # Setup daily backups
+    (crontab -l 2>/dev/null | grep -v "tms-backup"; echo "0 2 * * * /usr/local/bin/tms-backup >> /var/log/tms-backup.log 2>&1") | crontab -
+    
+    echo "  ✓ Maintenance scripts created"
+    echo "    tms-update  - Update to latest version"
+    echo "    tms-backup  - Create backup"
+    echo "    tms-status  - Show container status"
+    echo "    tms-logs    - View container logs"
+}
 
-# Setup daily backups
-(crontab -l 2>/dev/null; echo "0 2 * * * /usr/local/bin/tms-backup") | crontab -
+# Save credentials
+save_credentials() {
+    print_step "Saving credentials..."
+    
+    CREDS_FILE="$DOCKER_DIR/CREDENTIALS.txt"
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    
+    cat > "$CREDS_FILE" << EOF
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    TMS Docker Installation Credentials                        ║
+║                 KEEP THIS FILE SECURE - DELETE AFTER BACKUP                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 
-# Setup SSL renewal
-(crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet") | crontab -
+Server IP: $SERVER_IP
 
-echo ""
-echo -e "${GREEN}============================================="
-echo "   Installation Complete!"
-echo "=============================================${NC}"
-echo ""
-if [ "$DOMAIN_NAME" != "localhost" ]; then
-    echo -e "Your TMS is running at: ${BLUE}https://$DOMAIN_NAME${NC}"
-else
-    echo -e "Your TMS is running at: ${BLUE}http://localhost${NC}"
-fi
-echo ""
-echo -e "Admin login: ${YELLOW}$ADMIN_EMAIL${NC}"
-echo ""
-echo -e "${YELLOW}Service account:${NC}"
-echo "  User:        $SERVICE_USER"
-echo "  Services:    Gunicorn/Supervisor runs as $SERVICE_USER"
-echo ""
-echo -e "${YELLOW}Database:${NC}"
-echo "  Name:        $DB_NAME"
-echo "  User:        $DB_USER"
-echo "  Connection:  localhost:5432"
-echo ""
-echo -e "${YELLOW}Directory permissions (owned by $SERVICE_USER):${NC}"
-echo "  $INSTALL_DIR                 - Application files"
-echo "  $INSTALL_DIR/backend/media   - Uploaded files"
-echo "  $INSTALL_DIR/backend/staticfiles - Static assets"
-echo "  $INSTALL_DIR/backups         - Database backups"
-echo "  /var/log/tms                 - Application logs"
-echo "  /run/tms                     - Runtime socket"
-echo ""
-echo -e "${YELLOW}Useful commands:${NC}"
-echo "  tms-update              - Update to latest version"
-echo "  tms-backup              - Create a backup"
-echo "  supervisorctl status    - Check service status"
-echo "  supervisorctl restart tms - Restart backend"
-echo ""
-echo -e "${YELLOW}Log files:${NC}"
-echo "  /var/log/tms/gunicorn.log"
-echo "  /var/log/nginx/access.log"
-echo "  /var/log/nginx/error.log"
-echo ""
+════════════════════════════════════════════════════════════════════════════════
+ TMS APPLICATION
+════════════════════════════════════════════════════════════════════════════════
+URL:        https://$DOMAIN_TMS  (after NPM proxy setup)
+Admin:      $ADMIN_EMAIL
+Password:   [as entered during installation]
+
+════════════════════════════════════════════════════════════════════════════════
+ PORTAINER (Docker Management)
+════════════════════════════════════════════════════════════════════════════════
+URL:        https://$SERVER_IP:9443
+            https://$DOMAIN_PORTAINER  (after NPM proxy setup)
+Username:   $PORTAINER_USER
+Password:   $PORTAINER_PASSWORD
+
+════════════════════════════════════════════════════════════════════════════════
+ NGINX PROXY MANAGER
+════════════════════════════════════════════════════════════════════════════════
+URL:        http://$SERVER_IP:81
+            https://$DOMAIN_NPM  (after self-proxy setup)
+
+DEFAULT CREDENTIALS (CHANGE IMMEDIATELY!):
+Email:      admin@example.com
+Password:   changeme
+
+════════════════════════════════════════════════════════════════════════════════
+ DATABASE
+════════════════════════════════════════════════════════════════════════════════
+Type:       PostgreSQL 16
+Host:       tms-postgres (internal Docker network)
+Name:       $DB_NAME
+User:       $DB_USER
+Password:   $DB_PASSWORD
+
+════════════════════════════════════════════════════════════════════════════════
+ DOCKER DIRECTORIES & VOLUMES
+════════════════════════════════════════════════════════════════════════════════
+$DOCKER_DIR/tms/backend         - Backend source code
+$DOCKER_DIR/tms/frontend        - Frontend source code
+$DOCKER_DIR/tms/media           - Uploaded files (VOLUME)
+$DOCKER_DIR/tms/staticfiles     - Static assets (VOLUME)
+$DOCKER_DIR/tms/logs            - Application logs (VOLUME)
+$DOCKER_DIR/tms/backups         - Database backups
+
+$DOCKER_DIR/portainer           - Portainer data (VOLUME)
+
+$DOCKER_DIR/nginx-proxy/data       - NPM configuration (VOLUME)
+$DOCKER_DIR/nginx-proxy/letsencrypt - SSL certificates (VOLUME)
+
+$DOCKER_DIR/postgres/data       - PostgreSQL data (VOLUME)
+$DOCKER_DIR/redis/data          - Redis persistence (VOLUME)
+
+════════════════════════════════════════════════════════════════════════════════
+ COMMANDS
+════════════════════════════════════════════════════════════════════════════════
+tms-update              - Update TMS to latest version
+tms-backup              - Create database & media backup
+tms-status              - Show Docker container status
+tms-logs [container]    - View container logs (default: tms-backend)
+
+docker compose -f $DOCKER_DIR/tms/docker-compose.yml logs -f        - All logs
+docker compose -f $DOCKER_DIR/tms/docker-compose.yml restart        - Restart TMS
+docker exec -it tms-backend python manage.py shell                  - Django shell
+docker exec -it tms-postgres psql -U $DB_USER $DB_NAME              - PostgreSQL
+
+════════════════════════════════════════════════════════════════════════════════
+ SETUP INSTRUCTIONS - FOLLOW THESE STEPS!
+════════════════════════════════════════════════════════════════════════════════
+
+1. LOGIN TO NGINX PROXY MANAGER
+   - Go to: http://$SERVER_IP:81
+   - Login with: admin@example.com / changeme
+   - IMMEDIATELY change your password!
+
+2. ADD SSL CERTIFICATES
+   - Go to: SSL Certificates → Add SSL Certificate
+   - Choose: Let's Encrypt
+   - Enter domains: $DOMAIN_TMS, $DOMAIN_PORTAINER, $DOMAIN_NPM
+   - Email: $SSL_EMAIL
+   - Agree to Terms and Save
+
+3. CREATE PROXY HOSTS
+
+   A) TMS Frontend:
+      Domain: $DOMAIN_TMS
+      Forward Hostname: tms-frontend
+      Forward Port: 80
+      Enable: Block Common Exploits, Websockets Support
+      SSL: Select your certificate, Force SSL, HTTP/2
+
+   B) TMS API (Custom Location in same host):
+      Add Custom Location: /api
+      Forward Hostname: tms-backend
+      Forward Port: 8000
+
+   C) Portainer:
+      Domain: $DOMAIN_PORTAINER
+      Forward Hostname: portainer
+      Forward Port: 9443
+      Scheme: https
+      SSL: Select certificate, Force SSL
+
+   D) NPM itself (optional):
+      Domain: $DOMAIN_NPM
+      Forward Hostname: nginx-proxy-manager
+      Forward Port: 81
+      SSL: Select certificate, Force SSL
+
+4. TEST YOUR SETUP
+   - TMS: https://$DOMAIN_TMS
+   - Portainer: https://$DOMAIN_PORTAINER
+   - NPM: https://$DOMAIN_NPM
+
+5. SECURITY
+   - Delete this file after saving credentials!
+   - Consider restricting port 81, 9000, 9443 in firewall after NPM setup
+
+════════════════════════════════════════════════════════════════════════════════
+EOF
+
+    chmod 600 "$CREDS_FILE"
+    
+    echo "  ✓ Credentials saved to: $CREDS_FILE"
+}
+
+# Print final summary
+print_summary() {
+    # Get server IP
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    
+    echo ""
+    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║                         Installation Complete!                               ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│ TMS Application                                                              │${NC}"
+    echo -e "${CYAN}├──────────────────────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "│ URL:      ${BLUE}https://$DOMAIN_TMS${NC} (after NPM setup)"
+    echo -e "│ Admin:    ${YELLOW}$ADMIN_EMAIL${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│ Portainer (Docker Management)                                                │${NC}"
+    echo -e "${CYAN}├──────────────────────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "│ URL:      ${BLUE}https://$SERVER_IP:9443${NC}"
+    echo -e "│ Username: ${YELLOW}$PORTAINER_USER${NC}"
+    echo -e "│ Password: ${YELLOW}$PORTAINER_PASSWORD${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│ Nginx Proxy Manager                                                          │${NC}"
+    echo -e "${CYAN}├──────────────────────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "│ URL:      ${BLUE}http://$SERVER_IP:81${NC}"
+    echo -e "│ Email:    ${RED}admin@example.com${NC}  ← CHANGE THIS!"
+    echo -e "│ Password: ${RED}changeme${NC}           ← CHANGE THIS!"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│ Database                                                                     │${NC}"
+    echo -e "${CYAN}├──────────────────────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "│ Name:     ${YELLOW}$DB_NAME${NC}"
+    echo -e "│ User:     ${YELLOW}$DB_USER${NC}"
+    echo -e "│ Password: ${YELLOW}$DB_PASSWORD${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+    echo -e "${YELLOW}Commands:${NC}"
+    echo "  tms-update     - Update TMS"
+    echo "  tms-backup     - Create backup"
+    echo "  tms-status     - Container status"
+    echo "  tms-logs       - View logs"
+    echo ""
+    echo -e "${YELLOW}Docker Directories:${NC}"
+    echo "  $DOCKER_DIR/tms           - TMS volumes"
+    echo "  $DOCKER_DIR/portainer     - Portainer data"
+    echo "  $DOCKER_DIR/nginx-proxy   - NPM & SSL certs"
+    echo "  $DOCKER_DIR/postgres      - Database"
+    echo ""
+    echo -e "${RED}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  IMPORTANT: Complete these steps NOW!                                        ║${NC}"
+    echo -e "${RED}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${RED}║  1. Go to http://$SERVER_IP:81 and change NPM default password!${NC}"
+    echo -e "${RED}║  2. Configure proxy hosts for your domains                                   ║${NC}"
+    echo -e "${RED}║  3. Read setup instructions in: $DOCKER_DIR/CREDENTIALS.txt${NC}"
+    echo -e "${RED}║  4. Delete credentials file after saving securely!                          ║${NC}"
+    echo -e "${RED}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+}
+
+# Main installation
+main() {
+    print_header
+    check_root
+    check_ubuntu_version
+    get_user_input
+    
+    install_docker
+    create_directories
+    create_docker_network
+    setup_portainer
+    setup_nginx_proxy_manager
+    create_tms_compose
+    create_dockerfiles
+    setup_tms_application
+    configure_firewall
+    create_maintenance_scripts
+    save_credentials
+    print_summary
+}
+
+main "$@"
