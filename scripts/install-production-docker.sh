@@ -252,19 +252,48 @@ else
     git clone -b "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
 fi
 
+# Set ownership of application directory
 chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+
+# Create additional directories with correct permissions
+echo -e "${YELLOW}Creating application directories...${NC}"
+
+# Media directory (uploaded files)
+mkdir -p "$INSTALL_DIR/backend/media"
+chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/backend/media"
+chmod 755 "$INSTALL_DIR/backend/media"
+
+# Static files directory
+mkdir -p "$INSTALL_DIR/backend/staticfiles"
+chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/backend/staticfiles"
+chmod 755 "$INSTALL_DIR/backend/staticfiles"
+
+# Backups directory
+mkdir -p "$INSTALL_DIR/backups"
+chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/backups"
+chmod 750 "$INSTALL_DIR/backups"
+
+# Log directory
+mkdir -p /var/log/tms
+chown -R "$SERVICE_USER:$SERVICE_USER" /var/log/tms
+chmod 750 /var/log/tms
+
+# Run directory (for sockets)
+mkdir -p /run/tms
+chown "$SERVICE_USER:www-data" /run/tms
+chmod 755 /run/tms
 
 echo -e "${YELLOW}Step 6: Setting up Python environment...${NC}"
 
 cd "$INSTALL_DIR/backend"
 
 # Create virtual environment
-sudo -u tms python3.12 -m venv venv
+sudo -u "$SERVICE_USER" python3.12 -m venv venv
 
 # Install dependencies
-sudo -u tms ./venv/bin/pip install --upgrade pip
-sudo -u tms ./venv/bin/pip install -r requirements/production.txt
-sudo -u tms ./venv/bin/pip install gunicorn
+sudo -u "$SERVICE_USER" ./venv/bin/pip install --upgrade pip
+sudo -u "$SERVICE_USER" ./venv/bin/pip install -r requirements/production.txt
+sudo -u "$SERVICE_USER" ./venv/bin/pip install gunicorn
 
 # Create .env file
 cat > "$INSTALL_DIR/backend/.env" << EOF
@@ -459,24 +488,24 @@ ufw --force enable
 echo -e "${YELLOW}Step 12: Creating maintenance scripts...${NC}"
 
 # Update script
-cat > /usr/local/bin/tms-update << 'EOF'
+cat > /usr/local/bin/tms-update << EOF
 #!/bin/bash
 set -e
-cd /opt/tms
+cd $INSTALL_DIR
 
-# Pull latest code
-git pull origin main
+# Pull latest code as service user
+sudo -u $SERVICE_USER git pull origin main
 
 # Update backend
 cd backend
-./venv/bin/pip install -r requirements/production.txt
-./venv/bin/python manage.py migrate --noinput
-./venv/bin/python manage.py collectstatic --noinput
+sudo -u $SERVICE_USER ./venv/bin/pip install -r requirements/production.txt
+sudo -u $SERVICE_USER ./venv/bin/python manage.py migrate --noinput
+sudo -u $SERVICE_USER ./venv/bin/python manage.py collectstatic --noinput
 
 # Update frontend
 cd ../frontend
-npm ci
-npm run build
+sudo -u $SERVICE_USER npm ci
+sudo -u $SERVICE_USER npm run build
 
 # Restart services
 supervisorctl restart tms
@@ -489,15 +518,19 @@ chmod +x /usr/local/bin/tms-update
 # Backup script
 cat > /usr/local/bin/tms-backup << EOF
 #!/bin/bash
-BACKUP_DIR="/opt/tms/backups"
+BACKUP_DIR="$INSTALL_DIR/backups"
 TIMESTAMP=\$(date +%Y%m%d_%H%M%S)
 mkdir -p "\$BACKUP_DIR"
+chown $SERVICE_USER:$SERVICE_USER "\$BACKUP_DIR"
 
 # Backup database
 PGPASSWORD=$DB_PASSWORD pg_dump -h localhost -U $DB_USER $DB_NAME > "\$BACKUP_DIR/db_\$TIMESTAMP.sql"
 
 # Backup media
-tar -czf "\$BACKUP_DIR/media_\$TIMESTAMP.tar.gz" -C /opt/tms/backend media/
+tar -czf "\$BACKUP_DIR/media_\$TIMESTAMP.tar.gz" -C $INSTALL_DIR/backend media/
+
+# Set correct ownership
+chown $SERVICE_USER:$SERVICE_USER "\$BACKUP_DIR"/*
 
 # Keep only last 7 backups
 find "\$BACKUP_DIR" -type f -mtime +7 -delete
@@ -524,6 +557,23 @@ else
 fi
 echo ""
 echo -e "Admin login: ${YELLOW}$ADMIN_EMAIL${NC}"
+echo ""
+echo -e "${YELLOW}Service account:${NC}"
+echo "  User:        $SERVICE_USER"
+echo "  Services:    Gunicorn/Supervisor runs as $SERVICE_USER"
+echo ""
+echo -e "${YELLOW}Database:${NC}"
+echo "  Name:        $DB_NAME"
+echo "  User:        $DB_USER"
+echo "  Connection:  localhost:5432"
+echo ""
+echo -e "${YELLOW}Directory permissions (owned by $SERVICE_USER):${NC}"
+echo "  $INSTALL_DIR                 - Application files"
+echo "  $INSTALL_DIR/backend/media   - Uploaded files"
+echo "  $INSTALL_DIR/backend/staticfiles - Static assets"
+echo "  $INSTALL_DIR/backups         - Database backups"
+echo "  /var/log/tms                 - Application logs"
+echo "  /run/tms                     - Runtime socket"
 echo ""
 echo -e "${YELLOW}Useful commands:${NC}"
 echo "  tms-update              - Update to latest version"
