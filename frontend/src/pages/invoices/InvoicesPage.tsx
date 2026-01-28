@@ -275,9 +275,9 @@ export default function InvoicesPage() {
       {/* Filters */}
       <div className="card">
         <div className="p-4 space-y-4">
-          <div className="flex flex-wrap gap-4">
-            {/* Search */}
-            <div className="flex-1 min-w-[200px]">
+          {/* Search row */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
               <div className="relative">
                 <input
                   type="text"
@@ -285,17 +285,23 @@ export default function InvoicesPage() {
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="input-field pl-10 w-full"
+                  className="input-field pl-10 w-full min-h-[44px]"
                 />
                 <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               </div>
             </div>
-            
+            <button onClick={handleSearch} className="btn-primary min-h-[44px] w-full sm:w-auto">
+              Zoeken
+            </button>
+          </div>
+          
+          {/* Filter row */}
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-3">
             {/* Type filter */}
             <select
               value={filters.type || ''}
               onChange={(e) => handleFilterChange('type', e.target.value)}
-              className="input-field w-40"
+              className="input-field min-h-[44px]"
             >
               {TYPE_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -306,7 +312,7 @@ export default function InvoicesPage() {
             <select
               value={filters.status || ''}
               onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="input-field w-40"
+              className="input-field min-h-[44px]"
             >
               {STATUS_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -317,24 +323,21 @@ export default function InvoicesPage() {
             <select
               value={filters.bedrijf || ''}
               onChange={(e) => handleFilterChange('bedrijf', e.target.value)}
-              className="input-field w-48"
+              className="input-field min-h-[44px] xs:col-span-2 lg:col-span-1"
             >
               <option value="">Alle bedrijven</option>
               {companies.map(company => (
                 <option key={company.id} value={company.id}>{company.naam}</option>
               ))}
             </select>
-            
-            <button onClick={handleSearch} className="btn-primary">
-              Zoeken
-            </button>
           </div>
         </div>
       </div>
 
       {/* Invoices table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -437,7 +440,7 @@ export default function InvoicesPage() {
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => { setSelectedInvoice(invoice); setShowDetailModal(true) }}
-                          className="text-gray-600 hover:text-gray-900"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
                           title="Bekijken"
                         >
                           <EyeIcon className="h-5 w-5" />
@@ -447,7 +450,7 @@ export default function InvoicesPage() {
                         <button
                           onClick={() => handleDownloadPdf(invoice)}
                           disabled={saving}
-                          className="text-indigo-600 hover:text-indigo-900 disabled:opacity-50"
+                          className="p-2 min-w-[40px] min-h-[40px] text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded disabled:opacity-50"
                           title="Download PDF"
                         >
                           <ArrowDownTrayIcon className="h-5 w-5" />
@@ -457,7 +460,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && (
                           <button
                             onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
-                            className="text-orange-600 hover:text-orange-900"
+                            className="p-2 min-w-[40px] min-h-[40px] text-orange-600 hover:text-orange-900 hover:bg-orange-50 rounded"
                             title="Bewerken"
                           >
                             <PencilSquareIcon className="h-5 w-5" />
@@ -468,7 +471,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && (invoice.status === 'definitief' || invoice.status === 'verzonden') && (
                           <button
                             onClick={() => openEmailModal(invoice)}
-                            className="text-purple-600 hover:text-purple-900"
+                            className="p-2 min-w-[40px] min-h-[40px] text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded"
                             title="Verstuur via e-mail"
                           >
                             <EnvelopeIcon className="h-5 w-5" />
@@ -479,7 +482,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && invoice.status === 'concept' && (
                           <button
                             onClick={() => handleStatusAction(invoice, 'definitief')}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="p-2 min-w-[40px] min-h-[40px] text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded"
                             title="Definitief maken"
                           >
                             <CheckCircleIcon className="h-5 w-5" />
@@ -489,7 +492,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && invoice.status === 'definitief' && (
                           <button
                             onClick={() => handleStatusAction(invoice, 'verzonden')}
-                            className="text-yellow-600 hover:text-yellow-900"
+                            className="p-2 min-w-[40px] min-h-[40px] text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50 rounded"
                             title="Markeer als verzonden"
                           >
                             <PaperAirplaneIcon className="h-5 w-5" />
@@ -499,7 +502,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && invoice.status === 'verzonden' && (
                           <button
                             onClick={() => handleStatusAction(invoice, 'betaald')}
-                            className="text-green-600 hover:text-green-900"
+                            className="p-2 min-w-[40px] min-h-[40px] text-green-600 hover:text-green-900 hover:bg-green-50 rounded"
                             title="Markeer als betaald"
                           >
                             <CurrencyEuroIcon className="h-5 w-5" />
@@ -510,7 +513,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && (
                           <button
                             onClick={() => { setSelectedInvoice(invoice); setShowDeleteModal(true) }}
-                            className="text-red-600 hover:text-red-900"
+                            className="p-2 min-w-[40px] min-h-[40px] text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
                             title="Verwijderen"
                           >
                             <TrashIcon className="h-5 w-5" />
@@ -523,6 +526,129 @@ export default function InvoicesPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-gray-200">
+          {loading ? (
+            <div className="px-4 py-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+            </div>
+          ) : invoices.length === 0 ? (
+            <div className="px-4 py-8 text-center text-gray-500">
+              Geen facturen gevonden
+            </div>
+          ) : (
+            invoices.map((invoice) => (
+              <div key={invoice.id} className="p-4 hover:bg-gray-50">
+                {/* Card Header */}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <DocumentTextIcon className="h-5 w-5 text-gray-400 shrink-0" />
+                      <span className="font-semibold text-gray-900 truncate">{invoice.factuurnummer}</span>
+                      <span className={clsx(
+                        'px-2 py-0.5 text-xs font-medium rounded-full capitalize shrink-0',
+                        STATUS_COLORS[invoice.status] || 'bg-gray-100 text-gray-800'
+                      )}>
+                        {invoice.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 truncate">{invoice.bedrijf_naam}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-semibold text-gray-900">{formatCurrency(invoice.totaal)}</div>
+                    <div className="text-xs text-gray-500">{new Date(invoice.factuurdatum).toLocaleDateString('nl-NL')}</div>
+                  </div>
+                </div>
+                
+                {/* Card Meta */}
+                <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                  <span className="capitalize">{invoice.type}</span>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
+                  <button
+                    onClick={() => { setSelectedInvoice(invoice); setShowDetailModal(true) }}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg min-h-[44px]"
+                  >
+                    <EyeIcon className="h-4 w-4" />
+                    <span>Bekijken</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => handleDownloadPdf(invoice)}
+                    disabled={saving}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg min-h-[44px] disabled:opacity-50"
+                  >
+                    <ArrowDownTrayIcon className="h-4 w-4" />
+                    <span>PDF</span>
+                  </button>
+                  
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg min-h-[44px]"
+                    >
+                      <PencilSquareIcon className="h-4 w-4" />
+                      <span>Bewerken</span>
+                    </button>
+                  )}
+                  
+                  {!isReadOnly && (invoice.status === 'definitief' || invoice.status === 'verzonden') && (
+                    <button
+                      onClick={() => openEmailModal(invoice)}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg min-h-[44px]"
+                    >
+                      <EnvelopeIcon className="h-4 w-4" />
+                      <span>E-mail</span>
+                    </button>
+                  )}
+                  
+                  {!isReadOnly && invoice.status === 'concept' && (
+                    <button
+                      onClick={() => handleStatusAction(invoice, 'definitief')}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg min-h-[44px]"
+                    >
+                      <CheckCircleIcon className="h-4 w-4" />
+                      <span>Definitief</span>
+                    </button>
+                  )}
+                  
+                  {!isReadOnly && invoice.status === 'definitief' && (
+                    <button
+                      onClick={() => handleStatusAction(invoice, 'verzonden')}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-yellow-600 bg-yellow-50 hover:bg-yellow-100 rounded-lg min-h-[44px]"
+                    >
+                      <PaperAirplaneIcon className="h-4 w-4" />
+                      <span>Verzonden</span>
+                    </button>
+                  )}
+                  
+                  {!isReadOnly && invoice.status === 'verzonden' && (
+                    <button
+                      onClick={() => handleStatusAction(invoice, 'betaald')}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-green-600 bg-green-50 hover:bg-green-100 rounded-lg min-h-[44px]"
+                    >
+                      <CurrencyEuroIcon className="h-4 w-4" />
+                      <span>Betaald</span>
+                    </button>
+                  )}
+                  
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => { setSelectedInvoice(invoice); setShowDeleteModal(true) }}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg min-h-[44px]"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                      <span>Verwijder</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
         
         {/* Pagination */}

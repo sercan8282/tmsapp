@@ -171,7 +171,7 @@ function CompanyForm({
         {errors.naam && <p className="text-red-500 text-xs mt-1">{errors.naam}</p>}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             KVK Nummer
@@ -181,7 +181,7 @@ function CompanyForm({
             name="kvk"
             value={formData.kvk}
             onChange={handleChange}
-            className="input"
+            className="input min-h-[44px]"
           />
         </div>
         <div>
@@ -193,12 +193,12 @@ function CompanyForm({
             name="telefoon"
             value={formData.telefoon}
             onChange={handleChange}
-            className="input"
+            className="input min-h-[44px]"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Contactpersoon
@@ -208,7 +208,7 @@ function CompanyForm({
             name="contactpersoon"
             value={formData.contactpersoon}
             onChange={handleChange}
-            className="input"
+            className="input min-h-[44px]"
           />
         </div>
         <div>
@@ -220,7 +220,7 @@ function CompanyForm({
             name="email"
             value={formData.email}
             onChange={handleChange}
-            className={`input ${errors.email ? 'border-red-500' : ''}`}
+            className={`input min-h-[44px] ${errors.email ? 'border-red-500' : ''}`}
           />
           {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
         </div>
@@ -239,7 +239,7 @@ function CompanyForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Postcode
@@ -249,7 +249,7 @@ function CompanyForm({
             name="postcode"
             value={formData.postcode}
             onChange={handleChange}
-            className="input"
+            className="input min-h-[44px]"
           />
         </div>
         <div>
@@ -261,7 +261,7 @@ function CompanyForm({
             name="stad"
             value={formData.stad}
             onChange={handleChange}
-            className="input"
+            className="input min-h-[44px]"
           />
         </div>
       </div>
@@ -503,7 +503,8 @@ export default function CompaniesPage() {
 
       {/* Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
@@ -582,17 +583,17 @@ export default function CompaniesPage() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => { setSelectedCompany(company); setShowEditModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
                           title="Bewerken"
                         >
-                          <PencilSquareIcon className="w-4 h-4" />
+                          <PencilSquareIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => { setSelectedCompany(company); setShowDeleteModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
                           title="Verwijderen"
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <TrashIcon className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
@@ -601,6 +602,89 @@ export default function CompaniesPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y">
+          {isLoading ? (
+            <div className="px-4 py-12 text-center text-gray-500">
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                <span className="ml-3">Laden...</span>
+              </div>
+            </div>
+          ) : companies.length === 0 ? (
+            <div className="px-4 py-12 text-center text-gray-500">
+              <BuildingOfficeIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+              <p>Geen bedrijven gevonden</p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-2 text-primary-600 hover:text-primary-700"
+              >
+                Voeg je eerste bedrijf toe
+              </button>
+            </div>
+          ) : (
+            companies.map(company => (
+              <div key={company.id} className="p-4 hover:bg-gray-50">
+                {/* Card Header */}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 truncate">{company.naam}</h3>
+                    {company.contactpersoon && (
+                      <p className="text-sm text-gray-500">{company.contactpersoon}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => { setSelectedCompany(company); setShowEditModal(true) }}
+                      className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg"
+                      title="Bewerken"
+                    >
+                      <PencilSquareIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => { setSelectedCompany(company); setShowDeleteModal(true) }}
+                      className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-lg"
+                      title="Verwijderen"
+                    >
+                      <TrashIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Card Details */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {company.kvk && (
+                    <div>
+                      <span className="text-gray-500">KVK: </span>
+                      <span className="text-gray-700">{company.kvk}</span>
+                    </div>
+                  )}
+                  {company.telefoon && (
+                    <div>
+                      <span className="text-gray-500">Tel: </span>
+                      <a href={`tel:${company.telefoon}`} className="text-primary-600">{company.telefoon}</a>
+                    </div>
+                  )}
+                  {company.email && (
+                    <div className="col-span-2">
+                      <span className="text-gray-500">E-mail: </span>
+                      <a href={`mailto:${company.email}`} className="text-primary-600 truncate">{company.email}</a>
+                    </div>
+                  )}
+                  {(company.stad || company.postcode) && (
+                    <div className="col-span-2">
+                      <span className="text-gray-500">Locatie: </span>
+                      <span className="text-gray-700">
+                        {[company.postcode, company.stad].filter(Boolean).join(' ')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Pagination */}
