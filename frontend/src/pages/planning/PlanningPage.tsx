@@ -656,7 +656,8 @@ function AdminPlanningView() {
       {/* Planning Grid */}
       {planning ? (
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -743,6 +744,69 @@ function AdminPlanningView() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="lg:hidden divide-y divide-gray-200">
+            {getEntriesByVehicle().map((vehicle) => (
+              <div key={vehicle.vehicleId} className="p-3">
+                {/* Vehicle header */}
+                <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+                  <TruckIcon className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <div className="font-mono font-bold text-gray-900">{vehicle.kenteken}</div>
+                    <div className="text-xs text-gray-500">{vehicle.ritnummer} • {vehicle.type}</div>
+                  </div>
+                </div>
+                
+                {/* Days grid */}
+                <div className="grid grid-cols-5 gap-1">
+                  {DAYS.map((day) => {
+                    const entry = vehicle.entries.get(day.key)
+                    
+                    return (
+                      <div key={day.key} className="text-center">
+                        <div className="text-xs font-medium text-gray-500 mb-1">{day.label}</div>
+                        {entry ? (
+                          <div
+                            onClick={() => !isReadOnly && setEditingEntry(entry.id)}
+                            className={clsx(
+                              'rounded p-1 min-h-[40px] text-xs transition-colors',
+                              entry.chauffeur
+                                ? 'bg-primary-50 border border-primary-200'
+                                : 'bg-gray-50 border border-gray-200 border-dashed',
+                              !isReadOnly && 'cursor-pointer active:bg-primary-100'
+                            )}
+                          >
+                            {editingEntry === entry.id && !isReadOnly ? (
+                              <DriverSelector
+                                drivers={companyDrivers}
+                                value={entry.chauffeur}
+                                onChange={(driverId) => handleUpdateEntry(entry.id, driverId)}
+                                onCancel={() => setEditingEntry(null)}
+                              />
+                            ) : entry.chauffeur ? (
+                              <div>
+                                <div className="font-medium text-gray-900 truncate text-[10px]">
+                                  {entry.chauffeur_naam?.split(' ')[0]}
+                                </div>
+                                {entry.adr && (
+                                  <span className="text-[8px] font-medium text-yellow-800">ADR</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="rounded p-1 min-h-[40px] bg-gray-100 text-gray-400 text-[10px]">-</div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
           
           {getEntriesByVehicle().length === 0 && (
