@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Variables for theming */
+:root {
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-primary-light: #eff6ff;
+  --color-primary-50: #eff6ff;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #3b82f6;
+  --color-primary-700: #2563eb;
+  --color-background: #f3f4f6;
+  --color-background-secondary: #ffffff;
+  --color-sidebar: #1e293b;
+  --color-sidebar-text: #94a3b8;
+  --color-sidebar-hover: #334155;
+  --color-card: #ffffff;
+  --color-card-border: #e5e7eb;
+  --color-text: #111827;
+  --color-text-secondary: #6b7280;
+  --color-accent: #3b82f6;
+}
+
 /* Custom base styles */
 @layer base {
   html {
@@ -10,13 +31,15 @@
   
   body {
     @apply h-full font-sans antialiased;
+    background-color: var(--color-background);
+    color: var(--color-text);
   }
   
   #root {
     @apply h-full;
   }
   
-  /* Default input styling with blue border */
+  /* Default input styling with theme color border */
   input[type="text"],
   input[type="email"],
   input[type="password"],
@@ -28,7 +51,24 @@
   input[type="search"],
   select,
   textarea {
-    @apply border border-primary-300 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500;
+    @apply border rounded-lg;
+    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  }
+  
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="password"]:focus,
+  input[type="number"]:focus,
+  input[type="date"]:focus,
+  input[type="time"]:focus,
+  input[type="tel"]:focus,
+  input[type="url"]:focus,
+  input[type="search"]:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--color-primary);
+    outline: none;
+    box-shadow: 0 0 0 1px var(--color-primary);
   }
 }
 
@@ -39,11 +79,21 @@
   }
   
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500;
+    @apply btn text-white;
+    background-color: var(--color-primary);
+  }
+  
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+  }
+  
+  .btn-primary:focus {
+    box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-primary);
   }
   
   .btn-secondary {
-    @apply btn bg-white text-gray-700 border-gray-300 hover:bg-gray-50 focus:ring-primary-500;
+    @apply btn text-gray-700 border-gray-300 hover:bg-gray-50;
+    background-color: var(--color-card);
   }
   
   .btn-danger {
@@ -51,19 +101,36 @@
   }
   
   .input {
-    @apply block w-full rounded-lg border border-primary-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm;
+    @apply block w-full rounded-lg shadow-sm sm:text-sm;
+    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+    background-color: var(--color-card);
+  }
+  
+  .input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px var(--color-primary);
   }
   
   .input-field {
-    @apply block w-full rounded-lg border border-primary-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 sm:text-sm;
+    @apply block w-full rounded-lg px-3 py-2 shadow-sm sm:text-sm;
+    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+    background-color: var(--color-card);
+  }
+  
+  .input-field:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px var(--color-primary);
   }
   
   .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+    @apply block text-sm font-medium mb-1;
+    color: var(--color-text);
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden;
+    @apply rounded-lg shadow-sm overflow-hidden;
+    background-color: var(--color-card);
+    border: 1px solid var(--color-card-border);
   }
   
   .page-header {
@@ -71,7 +138,8 @@
   }
   
   .page-title {
-    @apply text-2xl font-bold text-gray-900;
+    @apply text-2xl font-bold;
+    color: var(--color-text);
   }
   
   /* Responsive utilities */
