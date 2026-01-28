@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { Company, Invoice } from '@/types'
+import Pagination, { PageSize } from '@/components/common/Pagination'
 import {
   getInvoices,
   deleteInvoice,
@@ -70,10 +71,11 @@ export default function InvoicesPage() {
   // Filter state
   const [filters, setFilters] = useState<InvoiceFilters>({
     page: 1,
-    page_size: 20,
+    page_size: 30,
     ordering: '-factuurdatum',
   })
   const [searchInput, setSearchInput] = useState('')
+  const [pageSize, setPageSize] = useState<PageSize>(30)
   
   // Modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -229,7 +231,12 @@ export default function InvoicesPage() {
     }).format(amount)
   }
 
-  const totalPages = Math.ceil(totalCount / (filters.page_size || 20))
+  const handlePageSizeChange = (newSize: PageSize) => {
+    setPageSize(newSize)
+    setFilters(prev => ({ ...prev, page_size: newSize, page: 1 }))
+  }
+
+  const totalPages = Math.ceil(totalCount / pageSize)
 
   return (
     <div className="space-y-6">
@@ -518,32 +525,14 @@ export default function InvoicesPage() {
         </div>
         
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              {totalCount} facturen totaal
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) - 1 }))}
-                disabled={filters.page === 1}
-                className="btn-secondary disabled:opacity-50"
-              >
-                Vorige
-              </button>
-              <span className="px-4 py-2 text-sm">
-                Pagina {filters.page} van {totalPages}
-              </span>
-              <button
-                onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
-                disabled={filters.page === totalPages}
-                className="btn-secondary disabled:opacity-50"
-              >
-                Volgende
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          currentPage={filters.page || 1}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
+          onPageSizeChange={handlePageSizeChange}
+        />
       </div>
 
       {/* Detail Modal */}

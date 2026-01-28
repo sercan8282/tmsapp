@@ -22,6 +22,7 @@ import {
   VehicleUpdate,
 } from '@/api/fleet'
 import { getAllCompanies } from '@/api/companies'
+import Pagination, { PageSize } from '@/components/common/Pagination'
 
 // Modal component
 function Modal({ 
@@ -261,7 +262,7 @@ export default function FleetPage() {
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<string>('kenteken')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-  const pageSize = 10
+  const [pageSize, setPageSize] = useState<PageSize>(30)
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -612,32 +613,14 @@ export default function FleetPage() {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              {totalCount} voertuig{totalCount !== 1 ? 'en' : ''} gevonden
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                disabled={page === 1}
-                className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Vorige
-              </button>
-              <span className="text-sm text-gray-600">
-                Pagina {page} van {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={page === totalPages}
-                className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Volgende
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => { setPageSize(newSize); setPage(1); }}
+        />
       </div>
 
       {/* Create Modal */}

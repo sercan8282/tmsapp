@@ -21,6 +21,7 @@ import {
   WeekSummary,
 } from '@/api/timetracking'
 import toast from 'react-hot-toast'
+import Pagination, { PageSize } from '@/components/common/Pagination'
 
 // Format duration to readable string
 function formatDuration(duration: string | null): string {
@@ -59,8 +60,10 @@ export default function MyHoursPage() {
   const [weekSummary, setWeekSummary] = useState<WeekSummary | null>(null)
   const [currentWeek, setCurrentWeek] = useState<number>(getCurrentWeekNumber())
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear())
+  const [totalCount, setTotalCount] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState<PageSize>(30)
   
   // Modal state
   const [showDetailModal, setShowDetailModal] = useState(false)
@@ -72,7 +75,7 @@ export default function MyHoursPage() {
   useEffect(() => {
     loadEntries()
     loadWeekSummary()
-  }, [currentWeek, currentYear, currentPage])
+  }, [currentWeek, currentYear, currentPage, pageSize])
 
   const loadEntries = async () => {
     try {
@@ -82,12 +85,13 @@ export default function MyHoursPage() {
         jaar: currentYear,
         status: 'ingediend',
         page: currentPage,
-        page_size: 10,
+        page_size: pageSize,
         ordering: '-datum',
       })
       
       setEntries(response.results)
-      setTotalPages(Math.ceil(response.count / 10))
+      setTotalCount(response.count)
+      setTotalPages(Math.ceil(response.count / pageSize))
     } catch (err) {
       console.error('Failed to load entries:', err)
       toast.error('Kon uren niet laden')
@@ -122,6 +126,11 @@ export default function MyHoursPage() {
     } else {
       setCurrentWeek(currentWeek + 1)
     }
+    setCurrentPage(1)
+  }
+
+  const handlePageSizeChange = (newSize: PageSize) => {
+    setPageSize(newSize)
     setCurrentPage(1)
   }
 
@@ -319,29 +328,14 @@ export default function MyHoursPage() {
             </table>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-6 py-4 border-t flex items-center justify-between">
-                <div className="text-sm text-gray-500">
-                  Pagina {currentPage} van {totalPages}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="btn-secondary disabled:opacity-50"
-                  >
-                    Vorige
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className="btn-secondary disabled:opacity-50"
-                  >
-                    Volgende
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={handlePageSizeChange}
+            />
           </>
         )}
       </div>

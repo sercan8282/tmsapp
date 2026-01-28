@@ -20,6 +20,7 @@ import {
   getWeekHistory,
 } from '@/api/timetracking'
 import toast from 'react-hot-toast'
+import Pagination, { PageSize } from '@/components/common/Pagination'
 
 // Format duration to readable string
 function formatDuration(duration: string | null): string {
@@ -48,7 +49,7 @@ export default function SubmittedHoursPage() {
   const [filteredWeeks, setFilteredWeeks] = useState<WeekHistory[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 15
+  const [pageSize, setPageSize] = useState<PageSize>(30)
   
   // Week detail state
   const [showWeekModal, setShowWeekModal] = useState(false)
@@ -294,29 +295,14 @@ export default function SubmittedHoursPage() {
             </table>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-6 py-4 border-t flex items-center justify-between">
-                <div className="text-sm text-gray-500">
-                  Pagina {currentPage} van {totalPages} ({filteredWeeks.length} weken)
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="btn-secondary disabled:opacity-50"
-                  >
-                    <ChevronLeftIcon className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className="btn-secondary disabled:opacity-50"
-                  >
-                    <ChevronRightIcon className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalCount={filteredWeeks.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(newSize) => { setPageSize(newSize); setCurrentPage(1); }}
+            />
           </>
         )}
       </div>
