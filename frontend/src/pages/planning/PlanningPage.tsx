@@ -150,54 +150,76 @@ function ChauffeurPlanningView() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Dag
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Voertuig
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Bedrijf
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {entries.map((entry) => (
-                <tr key={entry.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="font-medium text-gray-900">{entry.dag_naam}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <TruckIcon className="h-5 w-5 text-gray-400 mr-2" />
-                      <span className="font-mono font-medium">{entry.kenteken}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                    {entry.voertuig_type}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                    {entry.bedrijf}
-                  </td>
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Dag
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Voertuig
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Bedrijf
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {entries.map((entry) => (
+                  <tr key={entry.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="font-medium text-gray-900">{entry.dag_naam}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <TruckIcon className="h-5 w-5 text-gray-400 mr-2" />
+                        <span className="font-mono font-medium">{entry.kenteken}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {entry.voertuig_type}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {entry.bedrijf}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-gray-200">
+            {entries.map((entry) => (
+              <div key={entry.id} className="p-4 hover:bg-gray-50">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{entry.dag_naam}</h3>
+                    <p className="text-sm text-gray-500">{entry.bedrijf}</p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                    <TruckIcon className="h-4 w-4 text-gray-500" />
+                    {entry.kenteken}
+                  </span>
+                </div>
+                
+                <div className="text-sm text-gray-600">
+                  <span className="text-gray-500">Type:</span>{' '}
+                  <span className="font-medium">{entry.voertuig_type}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
   )
 }
-
-// Admin/Manager Planning View
-function AdminPlanningView() {
-  // Admins can always edit
   const isReadOnly = false
   
   // State

@@ -793,84 +793,136 @@ export default function TimeEntriesPage() {
         isSubmitting={isActionLoading}
       />
 
-      {/* Table */}
+      {/* Table/Cards */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th 
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('datum')}
-                >
-                  Datum <SortIcon field="datum" />
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Ritnummer
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Kenteken
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Tijd
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                  KM
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                  Uren
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                  Acties
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                      <span className="ml-3">Laden...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : entries.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
-                    <ClockIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                    <p>Geen urenregistraties voor week {selectedWeek}</p>
-                    <button
-                      onClick={() => setShowCreateModal(true)}
-                      className="mt-2 text-primary-600 hover:text-primary-700"
+        {isLoading ? (
+          <div className="px-4 py-12 text-center text-gray-500">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              <span className="ml-3">Laden...</span>
+            </div>
+          </div>
+        ) : entries.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-500">
+            <ClockIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+            <p>Geen urenregistraties voor week {selectedWeek}</p>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="mt-2 text-primary-600 hover:text-primary-700"
+            >
+              Voeg je eerste registratie toe
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('datum')}
                     >
-                      Voeg je eerste registratie toe
-                    </button>
-                  </td>
-                </tr>
-              ) : (
-                entries.map(entry => (
-                  <tr key={entry.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">
+                      Datum <SortIcon field="datum" />
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Ritnummer
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Kenteken
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Tijd
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                      KM
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                      Uren
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                      Acties
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {entries.map(entry => (
+                    <tr key={entry.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-900">
+                          {new Date(entry.datum).toLocaleDateString('nl-NL', { 
+                            weekday: 'short', 
+                            day: 'numeric', 
+                            month: 'short' 
+                          })}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 font-mono">{entry.ritnummer}</td>
+                      <td className="px-4 py-3 text-gray-600 font-mono">{entry.kenteken}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {entry.aanvang} - {entry.eind}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-600">{entry.totaal_km.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right font-medium text-gray-900">{entry.totaal_uren_display}</td>
+                      <td className="px-4 py-3 text-center">
+                        {entry.status === 'concept' ? (
+                          <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                            Concept
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                            Ingediend
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          {canEditEntry(entry) && (
+                            <>
+                              <button
+                                onClick={() => { setSelectedEntry(entry); setShowEditModal(true) }}
+                                className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                                title="Bewerken"
+                              >
+                                <PencilSquareIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => { setSelectedEntry(entry); setShowDeleteModal(true) }}
+                                className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
+                                title="Verwijderen"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-gray-200">
+              {entries.map(entry => (
+                <div key={entry.id} className="p-4 hover:bg-gray-50">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
                         {new Date(entry.datum).toLocaleDateString('nl-NL', { 
                           weekday: 'short', 
                           day: 'numeric', 
                           month: 'short' 
                         })}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 font-mono">{entry.ritnummer}</td>
-                    <td className="px-4 py-3 text-gray-600 font-mono">{entry.kenteken}</td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {entry.aanvang} - {entry.eind}
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-600">{entry.totaal_km.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900">{entry.totaal_uren_display}</td>
-                    <td className="px-4 py-3 text-center">
+                      </h3>
+                      <p className="text-sm text-gray-500 font-mono">{entry.ritnummer}</p>
+                    </div>
+                    <div className="text-right">
                       {entry.status === 'concept' ? (
                         <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
                           Concept
@@ -880,35 +932,50 @@ export default function TimeEntriesPage() {
                           Ingediend
                         </span>
                       )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        {canEditEntry(entry) && (
-                          <>
-                            <button
-                              onClick={() => { setSelectedEntry(entry); setShowEditModal(true) }}
-                              className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
-                              title="Bewerken"
-                            >
-                              <PencilSquareIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => { setSelectedEntry(entry); setShowDeleteModal(true) }}
-                              className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
-                              title="Verwijderen"
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm mb-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Kenteken:</span>
+                      <span className="font-mono font-medium">{entry.kenteken}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Tijd:</span>
+                      <span className="font-medium">{entry.aanvang} - {entry.eind}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Uren:</span>
+                      <span className="font-bold text-primary-600">{entry.totaal_uren_display}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">KM:</span>
+                      <span className="font-medium">{entry.totaal_km.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  
+                  {canEditEntry(entry) && (
+                    <div className="flex gap-2 pt-3 border-t">
+                      <button
+                        onClick={() => { setSelectedEntry(entry); setShowEditModal(true) }}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100 min-h-[44px]"
+                      >
+                        <PencilSquareIcon className="h-5 w-5" />
+                        Bewerken
+                      </button>
+                      <button
+                        onClick={() => { setSelectedEntry(entry); setShowDeleteModal(true) }}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 min-h-[44px]"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (

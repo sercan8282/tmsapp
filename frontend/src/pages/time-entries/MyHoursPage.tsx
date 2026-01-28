@@ -250,7 +250,7 @@ export default function MyHoursPage() {
         </div>
       </div>
 
-      {/* Entries table */}
+      {/* Entries table/cards */}
       <div className="card overflow-hidden">
         {loading ? (
           <div className="p-8 text-center">
@@ -263,69 +263,116 @@ export default function MyHoursPage() {
           </div>
         ) : (
           <>
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Datum
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ritnummer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Kenteken
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Uren
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    KM
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acties
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {entries.map((entry) => (
-                  <tr key={entry.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {formatDate(entry.datum)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {entry.ritnummer}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono">
-                      {entry.kenteken}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                      {formatDuration(entry.totaal_uren)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                      {entry.totaal_km}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleViewEntry(entry)}
-                          className="text-primary-600 hover:text-primary-900 p-1"
-                          title="Bekijken"
-                        >
-                          <EyeIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(entry)}
-                          className="text-red-600 hover:text-red-900 p-1"
-                          title="Verwijderen"
-                        >
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </td>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Datum
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ritnummer
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Kenteken
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Uren
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      KM
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acties
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {entries.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {formatDate(entry.datum)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        {entry.ritnummer}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono">
+                        {entry.kenteken}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                        {formatDuration(entry.totaal_uren)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                        {entry.totaal_km}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleViewEntry(entry)}
+                            className="text-primary-600 hover:text-primary-900 p-1"
+                            title="Bekijken"
+                          >
+                            <EyeIcon className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(entry)}
+                            className="text-red-600 hover:text-red-900 p-1"
+                            title="Verwijderen"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-gray-200">
+              {entries.map((entry) => (
+                <div key={entry.id} className="p-4 hover:bg-gray-50">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{entry.ritnummer}</h3>
+                      <p className="text-sm text-gray-500">{formatDate(entry.datum)}</p>
+                    </div>
+                    <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                      {entry.kenteken}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-3">
+                    <div>
+                      <span className="text-gray-500">Uren:</span>{' '}
+                      <span className="font-medium">{formatDuration(entry.totaal_uren)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">KM:</span>{' '}
+                      <span className="font-medium">{entry.totaal_km}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 pt-3 border-t">
+                    <button
+                      onClick={() => handleViewEntry(entry)}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100 min-h-[44px]"
+                    >
+                      <EyeIcon className="h-5 w-5" />
+                      Bekijken
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(entry)}
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 min-h-[44px]"
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {/* Pagination */}
             <Pagination
