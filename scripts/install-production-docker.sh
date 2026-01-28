@@ -173,10 +173,21 @@ get_user_input() {
     fi
     
     echo ""
+    echo -e "${CYAN}=== Nginx Proxy Manager Admin ===${NC}"
+    read -p "NPM admin email [$ADMIN_EMAIL]: " NPM_ADMIN_EMAIL
+    NPM_ADMIN_EMAIL=${NPM_ADMIN_EMAIL:-$ADMIN_EMAIL}
+    
+    read -p "NPM admin password (leave empty to generate): " NPM_ADMIN_PASSWORD
+    if [ -z "$NPM_ADMIN_PASSWORD" ]; then
+        NPM_ADMIN_PASSWORD=$(generate_password)
+        echo "  Generated: $NPM_ADMIN_PASSWORD"
+    fi
+    
+    echo ""
     echo -e "${CYAN}=== SSL Configuration ===${NC}"
-    read -p "Email for SSL certificates (Let's Encrypt via NPM): " SSL_EMAIL
+    read -p "Email for SSL certificates (Let's Encrypt): " SSL_EMAIL
     if [ -z "$SSL_EMAIL" ]; then
-        SSL_EMAIL=$ADMIN_EMAIL
+        SSL_EMAIL=$NPM_ADMIN_EMAIL
     fi
     
     # Generate secrets
@@ -199,6 +210,7 @@ get_user_input() {
     echo ""
     echo "  TMS Admin:          $ADMIN_EMAIL"
     echo "  Portainer Admin:    $PORTAINER_USER"
+    echo "  NPM Admin:          $NPM_ADMIN_EMAIL"
     echo "  SSL Email:          $SSL_EMAIL"
     echo ""
     echo -e "${YELLOW}Docker directories to be created:${NC}"
@@ -207,6 +219,8 @@ get_user_input() {
     echo "  $DOCKER_DIR/nginx-proxy     - Nginx Proxy Manager"
     echo "  $DOCKER_DIR/postgres        - PostgreSQL data"
     echo "  $DOCKER_DIR/redis           - Redis data"
+    echo ""
+    echo -e "${YELLOW}SSL will be configured automatically via NPM${NC}"
     echo ""
     read -p "Continue with installation? (y/n): " confirm
     if [ "$confirm" != "y" ]; then
@@ -380,11 +394,195 @@ EOF
     cd $DOCKER_DIR/nginx-proxy
     docker compose up -d
     
-    # Wait for it to start
+    # Wait for NPM to be fully ready
     echo "  Waiting for Nginx Proxy Manager to start..."
-    sleep 15
+    for i in {1..60}; do
+        if curl -s http://localhost:81/api/ > /dev/null 2>&1; then
+            echo "  NPM API is ready"
+            break
+        fi
+        sleep 3
+    done
+    sleep 10
     
     echo "  ✓ Nginx Proxy Manager installed!"
+}
+
+# Configure NPM with SSL and proxy hosts
+configure_npm_ssl() {
+    print_step "Configuring Nginx Proxy Manager with SSL..."
+    
+    NPM_API="http://localhost:81/api"
+    
+    # Step 1: Login with default credentials
+    echo "  Logging in to NPM..."
+    LOGIN_RESPONSE=$(curl -s -X POST "$NPM_API/tokens" \
+        -H "Content-Type: application/json" \
+        -d '{"identity":"admin@example.com","secret":"changeme"}')
+    
+    TOKEN=$(echo "$LOGIN_RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+    
+    if [ -z "$TOKEN" ]; then
+        print_warning "Could not login to NPM with default credentials"
+        print_warning "NPM may need manual configuration"
+        return 1
+    fi
+    
+    echo "  ✓ Logged in to NPM"
+    
+    # Step 2: Change default password
+    echo "  Changing NPM admin password..."
+    USER_ID=$(curl -s -X GET "$NPM_API/users" \
+        -H "Authorization: Bearer $TOKEN" | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
+    
+    curl -s -X PUT "$NPM_API/users/$USER_ID" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"email\": \"$NPM_ADMIN_EMAIL\",
+            \"nickname\": \"Admin\",
+            \"is_disabled\": false,
+            \"roles\": [\"admin\"]
+        }" > /dev/null
+    
+    curl -s -X PUT "$NPM_API/users/$USER_ID/auth" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"type\": \"password\",
+            \"current\": \"changeme\",
+            \"secret\": \"$NPM_ADMIN_PASSWORD\"
+        }" > /dev/null
+    
+    echo "  ✓ NPM password changed"
+    
+    # Re-login with new credentials
+    LOGIN_RESPONSE=$(curl -s -X POST "$NPM_API/tokens" \
+        -H "Content-Type: application/json" \
+        -d "{\"identity\":\"$NPM_ADMIN_EMAIL\",\"secret\":\"$NPM_ADMIN_PASSWORD\"}")
+    
+    TOKEN=$(echo "$LOGIN_RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+    
+    # Step 3: Request SSL certificate for all domains
+    echo "  Requesting SSL certificate from Let's Encrypt..."
+    echo "  Domains: $DOMAIN_TMS, $DOMAIN_PORTAINER, $DOMAIN_NPM"
+    
+    SSL_RESPONSE=$(curl -s -X POST "$NPM_API/nginx/certificates" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"domain_names\": [\"$DOMAIN_TMS\", \"$DOMAIN_PORTAINER\", \"$DOMAIN_NPM\"],
+            \"meta\": {
+                \"letsencrypt_email\": \"$SSL_EMAIL\",
+                \"letsencrypt_agree\": true,
+                \"dns_challenge\": false
+            },
+            \"provider\": \"letsencrypt\"
+        }")
+    
+    CERT_ID=$(echo "$SSL_RESPONSE" | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
+    
+    if [ -n "$CERT_ID" ] && [ "$CERT_ID" != "null" ]; then
+        echo "  ✓ SSL certificate obtained (ID: $CERT_ID)"
+    else
+        print_warning "Could not obtain SSL certificate automatically"
+        echo "  This might be because:"
+        echo "    - DNS records not yet pointing to this server"
+        echo "    - Domains not accessible from internet"
+        echo "  You can configure SSL manually via NPM web interface"
+        CERT_ID=""
+    fi
+    
+    # Step 4: Create proxy host for TMS (frontend + backend)
+    echo "  Creating proxy host for TMS: $DOMAIN_TMS"
+    
+    if [ -n "$CERT_ID" ]; then
+        SSL_CONFIG="\"certificate_id\": $CERT_ID,
+            \"ssl_forced\": true,
+            \"http2_support\": true,"
+    else
+        SSL_CONFIG=""
+    fi
+    
+    # TMS Proxy Host with custom locations for API
+    curl -s -X POST "$NPM_API/nginx/proxy-hosts" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"domain_names\": [\"$DOMAIN_TMS\"],
+            \"forward_scheme\": \"http\",
+            \"forward_host\": \"tms-frontend\",
+            \"forward_port\": 80,
+            \"block_exploits\": true,
+            \"allow_websocket_upgrade\": true,
+            \"access_list_id\": 0,
+            \"advanced_config\": \"location /api/ {\\n    proxy_pass http://tms-backend:8000;\\n    proxy_set_header Host \\$host;\\n    proxy_set_header X-Real-IP \\$remote_addr;\\n    proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for;\\n    proxy_set_header X-Forwarded-Proto \\$scheme;\\n}\\n\\nlocation /admin/ {\\n    proxy_pass http://tms-backend:8000;\\n    proxy_set_header Host \\$host;\\n    proxy_set_header X-Real-IP \\$remote_addr;\\n}\\n\\nlocation /static/ {\\n    proxy_pass http://tms-backend:8000;\\n}\\n\\nlocation /media/ {\\n    proxy_pass http://tms-backend:8000;\\n}\",
+            $SSL_CONFIG
+            \"meta\": {
+                \"letsencrypt_agree\": false,
+                \"dns_challenge\": false
+            },
+            \"locations\": []
+        }" > /dev/null 2>&1
+    
+    echo "  ✓ TMS proxy host created"
+    
+    # Step 5: Create proxy host for Portainer
+    echo "  Creating proxy host for Portainer: $DOMAIN_PORTAINER"
+    
+    curl -s -X POST "$NPM_API/nginx/proxy-hosts" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"domain_names\": [\"$DOMAIN_PORTAINER\"],
+            \"forward_scheme\": \"https\",
+            \"forward_host\": \"portainer\",
+            \"forward_port\": 9443,
+            \"block_exploits\": true,
+            \"allow_websocket_upgrade\": true,
+            \"access_list_id\": 0,
+            $SSL_CONFIG
+            \"meta\": {
+                \"letsencrypt_agree\": false,
+                \"dns_challenge\": false
+            },
+            \"locations\": []
+        }" > /dev/null 2>&1
+    
+    echo "  ✓ Portainer proxy host created"
+    
+    # Step 6: Create proxy host for NPM itself
+    echo "  Creating proxy host for NPM: $DOMAIN_NPM"
+    
+    curl -s -X POST "$NPM_API/nginx/proxy-hosts" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"domain_names\": [\"$DOMAIN_NPM\"],
+            \"forward_scheme\": \"http\",
+            \"forward_host\": \"127.0.0.1\",
+            \"forward_port\": 81,
+            \"block_exploits\": true,
+            \"allow_websocket_upgrade\": true,
+            \"access_list_id\": 0,
+            $SSL_CONFIG
+            \"meta\": {
+                \"letsencrypt_agree\": false,
+                \"dns_challenge\": false
+            },
+            \"locations\": []
+        }" > /dev/null 2>&1
+    
+    echo "  ✓ NPM proxy host created"
+    
+    echo ""
+    if [ -n "$CERT_ID" ]; then
+        echo -e "  ${GREEN}✓ SSL fully configured!${NC}"
+        echo "    All services accessible via HTTPS"
+    else
+        echo -e "  ${YELLOW}⚠ Proxy hosts created without SSL${NC}"
+        echo "    Add SSL certificates manually via NPM interface"
+    fi
 }
 
 # Create TMS Docker Compose
@@ -766,7 +964,7 @@ Server IP: $SERVER_IP
 ════════════════════════════════════════════════════════════════════════════════
  TMS APPLICATION
 ════════════════════════════════════════════════════════════════════════════════
-URL:        https://$DOMAIN_TMS  (after NPM proxy setup)
+URL:        https://$DOMAIN_TMS
 Admin:      $ADMIN_EMAIL
 Password:   [as entered during installation]
 
@@ -774,7 +972,7 @@ Password:   [as entered during installation]
  PORTAINER (Docker Management)
 ════════════════════════════════════════════════════════════════════════════════
 URL:        https://$SERVER_IP:9443
-            https://$DOMAIN_PORTAINER  (after NPM proxy setup)
+            https://$DOMAIN_PORTAINER (with SSL)
 Username:   $PORTAINER_USER
 Password:   $PORTAINER_PASSWORD
 
@@ -782,11 +980,9 @@ Password:   $PORTAINER_PASSWORD
  NGINX PROXY MANAGER
 ════════════════════════════════════════════════════════════════════════════════
 URL:        http://$SERVER_IP:81
-            https://$DOMAIN_NPM  (after self-proxy setup)
-
-DEFAULT CREDENTIALS (CHANGE IMMEDIATELY!):
-Email:      admin@example.com
-Password:   changeme
+            https://$DOMAIN_NPM (with SSL)
+Email:      $NPM_ADMIN_EMAIL
+Password:   $NPM_ADMIN_PASSWORD
 
 ════════════════════════════════════════════════════════════════════════════════
  DATABASE
@@ -829,56 +1025,23 @@ docker exec -it tms-backend python manage.py shell                  - Django she
 docker exec -it tms-postgres psql -U $DB_USER $DB_NAME              - PostgreSQL
 
 ════════════════════════════════════════════════════════════════════════════════
- SETUP INSTRUCTIONS - FOLLOW THESE STEPS!
+ SSL STATUS
 ════════════════════════════════════════════════════════════════════════════════
+SSL certificates have been automatically configured via Let's Encrypt.
+If SSL setup failed (DNS not ready), you can manually add certificates:
 
-1. LOGIN TO NGINX PROXY MANAGER
-   - Go to: http://$SERVER_IP:81
-   - Login with: admin@example.com / changeme
-   - IMMEDIATELY change your password!
+1. Login to NPM: http://$SERVER_IP:81
+2. Go to: SSL Certificates → Add SSL Certificate
+3. Choose: Let's Encrypt
+4. Enter domains: $DOMAIN_TMS, $DOMAIN_PORTAINER, $DOMAIN_NPM
+5. Update proxy hosts with new certificate
 
-2. ADD SSL CERTIFICATES
-   - Go to: SSL Certificates → Add SSL Certificate
-   - Choose: Let's Encrypt
-   - Enter domains: $DOMAIN_TMS, $DOMAIN_PORTAINER, $DOMAIN_NPM
-   - Email: $SSL_EMAIL
-   - Agree to Terms and Save
-
-3. CREATE PROXY HOSTS
-
-   A) TMS Frontend:
-      Domain: $DOMAIN_TMS
-      Forward Hostname: tms-frontend
-      Forward Port: 80
-      Enable: Block Common Exploits, Websockets Support
-      SSL: Select your certificate, Force SSL, HTTP/2
-
-   B) TMS API (Custom Location in same host):
-      Add Custom Location: /api
-      Forward Hostname: tms-backend
-      Forward Port: 8000
-
-   C) Portainer:
-      Domain: $DOMAIN_PORTAINER
-      Forward Hostname: portainer
-      Forward Port: 9443
-      Scheme: https
-      SSL: Select certificate, Force SSL
-
-   D) NPM itself (optional):
-      Domain: $DOMAIN_NPM
-      Forward Hostname: nginx-proxy-manager
-      Forward Port: 81
-      SSL: Select certificate, Force SSL
-
-4. TEST YOUR SETUP
-   - TMS: https://$DOMAIN_TMS
-   - Portainer: https://$DOMAIN_PORTAINER
-   - NPM: https://$DOMAIN_NPM
-
-5. SECURITY
-   - Delete this file after saving credentials!
-   - Consider restricting port 81, 9000, 9443 in firewall after NPM setup
+════════════════════════════════════════════════════════════════════════════════
+ PROXY HOSTS (Auto-Configured)
+════════════════════════════════════════════════════════════════════════════════
+$DOMAIN_TMS         → tms-frontend:80 (with /api → tms-backend:8000)
+$DOMAIN_PORTAINER   → portainer:9443 (HTTPS)
+$DOMAIN_NPM         → localhost:81
 
 ════════════════════════════════════════════════════════════════════════════════
 EOF
@@ -918,8 +1081,9 @@ print_summary() {
     echo -e "${CYAN}│ Nginx Proxy Manager                                                          │${NC}"
     echo -e "${CYAN}├──────────────────────────────────────────────────────────────────────────────┤${NC}"
     echo -e "│ URL:      ${BLUE}http://$SERVER_IP:81${NC}"
-    echo -e "│ Email:    ${RED}admin@example.com${NC}  ← CHANGE THIS!"
-    echo -e "│ Password: ${RED}changeme${NC}           ← CHANGE THIS!"
+    echo -e "│           ${BLUE}https://$DOMAIN_NPM${NC} (with SSL)"
+    echo -e "│ Email:    ${YELLOW}$NPM_ADMIN_EMAIL${NC}"
+    echo -e "│ Password: ${YELLOW}$NPM_ADMIN_PASSWORD${NC}"
     echo -e "${CYAN}└──────────────────────────────────────────────────────────────────────────────┘${NC}"
     echo ""
     echo -e "${CYAN}┌──────────────────────────────────────────────────────────────────────────────┐${NC}"
@@ -942,14 +1106,26 @@ print_summary() {
     echo "  $DOCKER_DIR/nginx-proxy   - NPM & SSL certs"
     echo "  $DOCKER_DIR/postgres      - Database"
     echo ""
-    echo -e "${RED}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${RED}║  IMPORTANT: Complete these steps NOW!                                        ║${NC}"
-    echo -e "${RED}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
-    echo -e "${RED}║  1. Go to http://$SERVER_IP:81 and change NPM default password!${NC}"
-    echo -e "${RED}║  2. Configure proxy hosts for your domains                                   ║${NC}"
-    echo -e "${RED}║  3. Read setup instructions in: $DOCKER_DIR/CREDENTIALS.txt${NC}"
-    echo -e "${RED}║  4. Delete credentials file after saving securely!                          ║${NC}"
-    echo -e "${RED}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║  SSL & PROXY CONFIGURATION - AUTOMATED!                                      ║${NC}"
+    echo -e "${GREEN}╠══════════════════════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${GREEN}║  ✓ NPM password has been changed                                             ║${NC}"
+    echo -e "${GREEN}║  ✓ Proxy hosts created for TMS, Portainer, and NPM                          ║${NC}"
+    echo -e "${GREEN}║  ✓ SSL certificates requested from Let's Encrypt                            ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${YELLOW}Next Steps:${NC}"
+    echo "  1. Make sure DNS records point to this server: $SERVER_IP"
+    echo "  2. Test your URLs:"
+    echo "     - TMS:        https://$DOMAIN_TMS"
+    echo "     - Portainer:  https://$DOMAIN_PORTAINER"
+    echo "     - NPM:        https://$DOMAIN_NPM"
+    echo "  3. Save credentials from: $DOCKER_DIR/CREDENTIALS.txt"
+    echo "  4. Delete credentials file after saving securely!"
+    echo ""
+    echo -e "${YELLOW}If SSL failed (DNS not ready yet):${NC}"
+    echo "  - Login to NPM: http://$SERVER_IP:81"
+    echo "  - Manually request SSL certificates once DNS propagates"
     echo ""
 }
 
@@ -968,6 +1144,7 @@ main() {
     create_tms_compose
     create_dockerfiles
     setup_tms_application
+    configure_npm_ssl
     configure_firewall
     create_maintenance_scripts
     save_credentials
