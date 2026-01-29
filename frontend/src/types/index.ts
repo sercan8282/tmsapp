@@ -77,6 +77,19 @@ export interface AppSettingsAdmin extends AppSettings {
   oauth_tenant_id: string
   invoice_payment_text: string
   email_signature: string
+  // AI Settings
+  ai_provider: 'github' | 'openai' | 'azure' | 'none'
+  ai_github_token?: string // Write-only
+  ai_openai_api_key?: string // Write-only
+  ai_azure_endpoint?: string
+  ai_azure_api_key?: string // Write-only
+  ai_azure_deployment?: string
+  ai_model?: string
+  ai_status?: {
+    configured: boolean
+    provider?: string
+    message: string
+  }
 }
 
 // Company types

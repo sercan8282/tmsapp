@@ -26,6 +26,7 @@ django-anymail[mailgun,sendgrid]>=10.0,<11.0
 
 # Security
 bleach>=6.0,<7.0
+cryptography>=42.0,<43.0
 
 # Utils
 django-filter>=23.0,<24.0
@@ -37,3 +38,6 @@ drf-spectacular>=0.27,<1.0
 # OCR & Document Processing
 pytesseract>=0.3.10,<1.0
 pdf2image>=1.16,<2.0
+
+# AI-powered extraction (optional)
+openai>=1.0,<2.0

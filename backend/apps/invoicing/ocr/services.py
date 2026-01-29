@@ -4,6 +4,7 @@ Invoice OCR Service - Self-learning text extraction from invoices
 import re
 import os
 import json
+import uuid
 import logging
 from typing import Optional, Dict, List, Any, Tuple
 from decimal import Decimal
@@ -131,6 +132,19 @@ class OCREngine:
         """Check if required dependencies are available."""
         try:
             import pytesseract
+            
+            # Try to configure Tesseract path for Windows
+            import platform
+            if platform.system() == 'Windows':
+                tesseract_paths = [
+                    r'C:\Program Files\Tesseract-OCR\tesseract.exe',
+                    r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe',
+                ]
+                for path in tesseract_paths:
+                    if os.path.exists(path):
+                        pytesseract.pytesseract.tesseract_cmd = path
+                        break
+            
             pytesseract.get_tesseract_version()
             self.tesseract_available = True
         except Exception as e:
@@ -173,45 +187,83 @@ class OCREngine:
         from pdf2image import convert_from_path
         import pytesseract
         from PIL import Image
+        import platform
+        
+        # Configure poppler path for Windows
+        poppler_path = None
+        if platform.system() == 'Windows':
+            poppler_paths = [
+                r'C:\Tools\poppler\poppler-24.08.0\Library\bin',
+                r'C:\Program Files\poppler\Library\bin',
+                r'C:\ProgramData\chocolatey\bin',
+            ]
+            for path in poppler_paths:
+                if os.path.exists(path):
+                    poppler_path = path
+                    break
         
         # Convert PDF to images
         images = convert_from_path(
             file_path,
             dpi=300,
-            fmt='png'
+            fmt='png',
+            poppler_path=poppler_path
         )
         
         pages = []
         all_text = []
         total_confidence = 0.0
         
-        # Create temp directory for images
-        temp_dir = Path(settings.MEDIA_ROOT) / 'temp' / 'ocr'
+        # Create temp directory for images using unique session ID
+        session_id = str(uuid.uuid4())[:8]
+        temp_dir = Path(settings.MEDIA_ROOT) / 'temp' / 'ocr' / session_id
         temp_dir.mkdir(parents=True, exist_ok=True)
         
-        for i, image in enumerate(images):
-            # Save image temporarily
-            img_path = temp_dir / f"page_{i}.png"
-            image.save(str(img_path))
+        temp_files = []  # Track files for cleanup
+        
+        try:
+            for i, image in enumerate(images):
+                # Save image temporarily with unique session ID
+                img_path = temp_dir / f"page_{i}.png"
+                image.save(str(img_path))
+                temp_files.append(img_path)
+                
+                # Use relative path for media URL (relative to MEDIA_ROOT)
+                relative_img_path = f"temp/ocr/{session_id}/page_{i}.png"
+                
+                # Process page
+                page = self._process_single_image(
+                    image, 
+                    i, 
+                    language,
+                    relative_img_path
+                )
+                pages.append(page)
+                all_text.append(page.text)
+                total_confidence += page.confidence
             
-            # Process page
-            page = self._process_single_image(
-                image, 
-                i, 
-                language,
-                str(img_path)
+            avg_confidence = total_confidence / len(pages) if pages else 0.0
+            
+            return OCRResult(
+                pages=pages,
+                full_text="\n\n".join(all_text),
+                avg_confidence=avg_confidence
             )
-            pages.append(page)
-            all_text.append(page.text)
-            total_confidence += page.confidence
-        
-        avg_confidence = total_confidence / len(pages) if pages else 0.0
-        
-        return OCRResult(
-            pages=pages,
-            full_text="\n\n".join(all_text),
-            avg_confidence=avg_confidence
-        )
+        finally:
+            # Clean up temporary files
+            for temp_file in temp_files:
+                try:
+                    if temp_file.exists():
+                        temp_file.unlink()
+                except Exception as e:
+                    logger.warning(f"Failed to delete temp file {temp_file}: {e}")
+            
+            # Remove temp directory if empty
+            try:
+                if temp_dir.exists():
+                    temp_dir.rmdir()
+            except Exception:
+                pass  # Directory not empty or other error, ignore
     
     def _process_image(self, file_path: str, language: str) -> OCRResult:
         """Process an image file."""
@@ -486,50 +538,164 @@ class InvoiceDataExtractor:
         line_items = []
         
         for page in ocr_result.pages:
-            # Look for table-like structures
             lines = page.lines
             
-            # Find potential header row
+            # Strategy 1: Find header row and extract following lines
             header_idx = None
             for i, line in enumerate(lines):
                 lower_text = line.text.lower()
                 if any(kw in lower_text for kw in ['omschrijving', 'description', 'artikel', 'product']):
-                    if any(kw in lower_text for kw in ['aantal', 'quantity', 'qty', 'prijs', 'price']):
+                    if any(kw in lower_text for kw in ['aantal', 'quantity', 'qty', 'prijs', 'price', 'bedrag', 'totaal']):
                         header_idx = i
                         break
             
             if header_idx is not None:
-                # Extract lines after header
                 for line in lines[header_idx + 1:]:
-                    # Skip if looks like a total row
-                    if any(kw in line.text.lower() for kw in ['totaal', 'total', 'subtotal', 'btw']):
+                    lower = line.text.lower()
+                    # Stop at subtotaal/totaal lines
+                    if lower.startswith('subtotaal') or lower.startswith('totaal') or 'btw' in lower:
                         break
-                    
-                    # Try to parse as line item
                     item = self._parse_line_item(line.text)
                     if item:
                         item['position'] = line.bbox.to_dict()
                         line_items.append(item)
+            
+            # Strategy 2: Find lines with € symbol and multiple numbers (typical invoice line)
+            if not line_items:
+                for line in lines:
+                    text = line.text
+                    lower = text.lower()
+                    
+                    # Skip header/footer lines
+                    if any(kw in lower for kw in ['subtotaal', 'btw', 'iban', 'kvk', 'telefoon', 't.a.v', 'factuur', 'datum', 'vervaldatum']):
+                        continue
+                    
+                    # Look for lines with euro amounts (€ X.XX pattern)
+                    euro_pattern = r'€\s*[\d.,]+'
+                    euro_matches = re.findall(euro_pattern, text)
+                    
+                    # If line has multiple euro amounts, it's likely a line item
+                    if len(euro_matches) >= 2:
+                        item = self._parse_line_item(text)
+                        if item:
+                            item['position'] = line.bbox.to_dict()
+                            line_items.append(item)
+                    # Or if it has € and numbers that look like quantity/price
+                    elif '€' in text:
+                        numbers = re.findall(r'[\d]+[.,]?[\d]*', text)
+                        if len(numbers) >= 3:  # quantity, price, total
+                            item = self._parse_line_item(text)
+                            if item:
+                                item['position'] = line.bbox.to_dict()
+                                line_items.append(item)
+        
+        return line_items
         
         return line_items
     
     def _parse_line_item(self, text: str) -> Optional[Dict]:
         """Try to parse a text line as an invoice line item."""
-        # Very basic parsing - patterns make this more accurate
         parts = text.split()
         if len(parts) < 2:
             return None
         
-        # Look for numbers that might be quantities or prices
-        numbers = re.findall(r'[\d.,]+', text)
+        # Look for euro amounts first (€ X.XX pattern) - most reliable
+        euro_amounts = re.findall(r'€\s*([\d.,]+)', text)
         
-        if not numbers:
+        # Also look for standalone numbers
+        all_numbers = re.findall(r'[\d]+[.,]?[\d]*', text)
+        
+        if not all_numbers:
             return None
         
-        # Assume last number is total, second to last is price, etc.
+        # Parse all numbers to float
+        def parse_dutch_number(num_str):
+            try:
+                clean = num_str.replace(',', '.')
+                return float(clean)
+            except ValueError:
+                return None
+        
+        parsed_euros = [parse_dutch_number(n) for n in euro_amounts]
+        parsed_euros = [n for n in parsed_euros if n is not None]
+        
+        parsed_numbers = [parse_dutch_number(n) for n in all_numbers]
+        parsed_numbers = [n for n in parsed_numbers if n is not None]
+        
+        if not parsed_numbers:
+            return None
+        
+        # Extract description - text before the first € or first number that looks like a quantity
+        # Try to find meaningful description
+        description = ''
+        
+        # Method 1: Everything before first €
+        if '€' in text:
+            euro_idx = text.index('€')
+            description = text[:euro_idx].strip()
+        else:
+            # Method 2: Everything before the first number
+            first_num_match = re.search(r'[\d]+[.,]?[\d]*', text)
+            if first_num_match:
+                description = text[:first_num_match.start()].strip()
+        
+        # Clean up description
+        description = re.sub(r'^[\-\*\•]\s*', '', description).strip()
+        description = re.sub(r'\s+', ' ', description)  # Normalize whitespace
+        
+        # Remove common non-description parts
+        for remove in ['PH HOLTEN', 'Muller', 'Omschrijving']:
+            description = description.replace(remove, '').strip()
+        
+        # If description is still bad, try to extract meaningful part
+        if not description or len(description) < 3:
+            # Look for patterns like "Rit 123456" or "Totaal KM"
+            rit_match = re.search(r'(Rit\s*\d+|Totaal\s+\w+)', text, re.IGNORECASE)
+            if rit_match:
+                description = rit_match.group(1)
+            else:
+                description = ' '.join(parts[:3])  # First 3 words
+        
+        # Determine quantity, price, total
+        aantal = 1.0
+        prijs = 0.0
+        totaal = 0.0
+        
+        if len(parsed_euros) >= 2:
+            # Last euro amount is total, second-to-last is unit price
+            prijs = parsed_euros[-2]
+            totaal = parsed_euros[-1]
+            # Look for quantity before the prices
+            non_price_numbers = [n for n in parsed_numbers if n not in parsed_euros and n < 10000]
+            if non_price_numbers:
+                # Find a reasonable quantity (< 1000)
+                for n in non_price_numbers:
+                    if 0.1 <= n <= 1000:
+                        aantal = n
+                        break
+        elif len(parsed_numbers) >= 3:
+            # Assume last is total, second-to-last is price
+            totaal = parsed_numbers[-1]
+            prijs = parsed_numbers[-2]
+            # First reasonable number is quantity
+            for n in parsed_numbers[:-2]:
+                if 0.1 <= n <= 1000:
+                    aantal = n
+                    break
+        elif len(parsed_numbers) == 2:
+            prijs = parsed_numbers[0]
+            totaal = parsed_numbers[1]
+        elif len(parsed_numbers) == 1:
+            totaal = parsed_numbers[0]
+            prijs = totaal
+        
         return {
             'raw_text': text,
-            'numbers_found': numbers,
+            'omschrijving': description or 'Regel',
+            'aantal': aantal,
+            'prijs_per_eenheid': prijs,
+            'totaal': totaal,
+            'numbers_found': all_numbers,
         }
 
 
@@ -667,6 +833,18 @@ class InvoiceImportService:
         self.ocr_engine = OCREngine()
         self.extractor = InvoiceDataExtractor()
         self.pattern_matcher = PatternMatcher()
+        
+        # Initialize AI extractor (optional, depends on API key)
+        try:
+            from .ai_extractor import ai_extractor
+            self.ai_extractor = ai_extractor
+            if self.ai_extractor.is_available:
+                logger.info("AI invoice extraction is available")
+            else:
+                logger.info("AI invoice extraction not configured (no API key)")
+        except ImportError:
+            self.ai_extractor = None
+            logger.info("AI extractor module not available")
     
     def process_upload(self, file: UploadedFile, user) -> 'InvoiceImport':
         """
@@ -681,11 +859,18 @@ class InvoiceImportService:
         """
         from .models import InvoiceImport
         
+        # Sanitize filename to prevent path traversal
+        import re
+        safe_filename = re.sub(r'[^\w\s\-\.]', '', file.name)  # Only allow alphanumeric, spaces, hyphens, dots
+        safe_filename = safe_filename.replace('..', '')  # Prevent path traversal
+        if not safe_filename or safe_filename.startswith('.'):
+            safe_filename = f"upload_{uuid.uuid4().hex[:8]}.pdf"
+        
         # Create import record
         invoice_import = InvoiceImport.objects.create(
             original_file=file,
-            file_name=file.name,
-            file_type=Path(file.name).suffix.lower()[1:],  # Remove dot
+            file_name=safe_filename,
+            file_type=Path(safe_filename).suffix.lower()[1:],  # Remove dot
             file_size=file.size,
             status=InvoiceImport.Status.PROCESSING,
             uploaded_by=user
@@ -700,24 +885,38 @@ class InvoiceImportService:
             invoice_import.ocr_text = ocr_result.full_text
             invoice_import.ocr_confidence = ocr_result.avg_confidence
             
-            # Try pattern matching first
-            pattern = self.pattern_matcher.find_matching_pattern(ocr_result)
+            extracted = None
+            line_items = []
             
-            if pattern:
-                # Use learned pattern
-                image_paths = [p.image_path for p in ocr_result.pages if p.image_path]
-                extracted = self.pattern_matcher.extract_with_pattern(
-                    ocr_result, 
-                    pattern,
-                    image_paths
-                )
-                invoice_import.matched_pattern = pattern
-            else:
-                # Fall back to generic extraction
-                extracted = self.extractor.extract_all_fields(ocr_result.full_text)
+            # Try AI extraction first (most accurate)
+            if self.ai_extractor and self.ai_extractor.is_available:
+                logger.info("Attempting AI-powered extraction...")
+                ai_result = self.ai_extractor.extract_invoice_data(ocr_result.full_text)
+                if ai_result:
+                    extracted = ai_result.get('fields', {})
+                    line_items = ai_result.get('line_items', [])
+                    logger.info(f"AI extraction successful: {len(line_items)} line items")
             
-            # Extract line items
-            line_items = self.extractor.find_line_items(ocr_result)
+            # Fall back to pattern matching
+            if not extracted:
+                pattern = self.pattern_matcher.find_matching_pattern(ocr_result)
+                
+                if pattern:
+                    # Use learned pattern
+                    image_paths = [p.image_path for p in ocr_result.pages if p.image_path]
+                    extracted = self.pattern_matcher.extract_with_pattern(
+                        ocr_result, 
+                        pattern,
+                        image_paths
+                    )
+                    invoice_import.matched_pattern = pattern
+                else:
+                    # Fall back to regex-based extraction
+                    extracted = self.extractor.extract_all_fields(ocr_result.full_text)
+            
+            # Extract line items with regex if AI didn't find any
+            if not line_items:
+                line_items = self.extractor.find_line_items(ocr_result)
             
             # Store results
             invoice_import.extracted_data = {
@@ -735,6 +934,10 @@ class InvoiceImportService:
                 ImportedInvoiceLine.objects.create(
                     invoice_import=invoice_import,
                     raw_text=item.get('raw_text', ''),
+                    omschrijving=item.get('omschrijving', ''),
+                    aantal=item.get('aantal'),
+                    prijs_per_eenheid=item.get('prijs_per_eenheid'),
+                    totaal=item.get('totaal'),
                     position=item.get('position', {}),
                     volgorde=i
                 )

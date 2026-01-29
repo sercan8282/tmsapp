@@ -296,6 +296,13 @@ show_completion() {
     echo "  • Herstarten:  cd $TMS_DIR && docker compose restart"
     echo "  • Update:      cd $TMS_DIR && sudo ./docker-update.sh"
     echo ""
+    echo -e "${CYAN}AI Factuur Extractie:${NC}"
+    echo "  OCR is automatisch ingeschakeld (Tesseract + Poppler)."
+    echo "  Voor AI-powered extractie (optioneel):"
+    echo "    1. Log in als admin"
+    echo "    2. Ga naar Instellingen → AI Extractie"
+    echo "    3. Configureer GitHub Models (GRATIS), OpenAI of Azure OpenAI"
+    echo ""
 }
 
 # Backup functie

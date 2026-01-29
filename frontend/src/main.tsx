@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 // Local font (no external requests to Google Fonts)
 import '@fontsource/inter/400.css'
@@ -12,11 +13,22 @@ import '@fontsource/inter/700.css'
 import App from './App'
 import './index.css'
 
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    },
+  },
+})
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <App />
-      <Toaster 
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <App />
+        <Toaster 
         position="top-right"
         toastOptions={{
           duration: 4000,
@@ -40,6 +52,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           },
         }}
       />
-    </BrowserRouter>
+      </BrowserRouter>
+    </QueryClientProvider>
   </React.StrictMode>,
 )

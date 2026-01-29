@@ -4,10 +4,87 @@ Core app models - Application settings.
 import os
 import uuid
 import hashlib
+import base64
+import logging
 from django.db import models
+from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
+
+logger = logging.getLogger(__name__)
+
+
+class EncryptedCharField(models.CharField):
+    """
+    CharField that encrypts data at rest using Fernet symmetric encryption.
+    Falls back to plain text storage if cryptography is not available.
+    """
+    description = "An encrypted CharField"
+    
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('max_length', 512)  # Encrypted text is longer
+        super().__init__(*args, **kwargs)
+    
+    def _get_fernet(self):
+        """Get Fernet instance for encryption/decryption."""
+        try:
+            from cryptography.fernet import Fernet
+            # Use SECRET_KEY as base for encryption key
+            key = base64.urlsafe_b64encode(
+                hashlib.sha256(settings.SECRET_KEY.encode()).digest()
+            )
+            return Fernet(key)
+        except ImportError:
+            logger.warning("cryptography not installed, storing API keys unencrypted")
+            return None
+    
+    def get_prep_value(self, value):
+        """Encrypt value before saving to database."""
+        if not value:
+            return value
+        
+        # If already encrypted (starts with 'enc:'), don't re-encrypt
+        if isinstance(value, str) and value.startswith('enc:'):
+            return value
+        
+        fernet = self._get_fernet()
+        if fernet:
+            encrypted = fernet.encrypt(value.encode()).decode()
+            return f'enc:{encrypted}'
+        return value
+    
+    def from_db_value(self, value, expression, connection):
+        """Decrypt value when reading from database."""
+        if not value:
+            return value
+        
+        # Only decrypt if it's encrypted (starts with 'enc:')
+        if isinstance(value, str) and value.startswith('enc:'):
+            fernet = self._get_fernet()
+            if fernet:
+                try:
+                    encrypted_data = value[4:]  # Remove 'enc:' prefix
+                    return fernet.decrypt(encrypted_data.encode()).decode()
+                except Exception as e:
+                    logger.error(f"Failed to decrypt field: {e}")
+                    return ''
+        return value
+    
+    def to_python(self, value):
+        """Convert value to Python object."""
+        if not value:
+            return value
+        # Handle decryption for form fields
+        if isinstance(value, str) and value.startswith('enc:'):
+            fernet = self._get_fernet()
+            if fernet:
+                try:
+                    encrypted_data = value[4:]
+                    return fernet.decrypt(encrypted_data.encode()).decode()
+                except Exception:
+                    return ''
+        return value
 
 
 def validate_font_file(value):
@@ -316,6 +393,55 @@ class AppSettings(models.Model):
         default='Wij verzoeken u vriendelijk het totaalbedrag vóór de vervaldatum over te maken op bovenstaand IBAN onder vermelding van het factuurnummer.',
         verbose_name='Factuur Betalingstekst',
         help_text='Tekst die onderaan de factuur wordt getoond. Gebruik {bedrag}, {vervaldatum} en {factuurnummer} als variabelen.'
+    )
+    
+    # AI Configuration for Invoice Extraction
+    ai_provider = models.CharField(
+        max_length=20,
+        choices=[
+            ('github', 'GitHub Models (Gratis)'),
+            ('openai', 'OpenAI'),
+            ('azure', 'Azure OpenAI'),
+            ('none', 'Uitgeschakeld'),
+        ],
+        default='none',
+        verbose_name='AI Provider',
+        help_text='Kies welke AI provider gebruikt wordt voor factuur extractie'
+    )
+    ai_github_token = EncryptedCharField(
+        max_length=512,
+        blank=True,
+        verbose_name='GitHub Token',
+        help_text='GitHub Personal Access Token met "models" permissie (gratis)'
+    )
+    ai_openai_api_key = EncryptedCharField(
+        max_length=512,
+        blank=True,
+        verbose_name='OpenAI API Key',
+        help_text='OpenAI API key (betaald)'
+    )
+    ai_azure_endpoint = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Azure OpenAI Endpoint',
+        help_text='Bijv: https://your-resource.openai.azure.com/'
+    )
+    ai_azure_api_key = EncryptedCharField(
+        max_length=512,
+        blank=True,
+        verbose_name='Azure OpenAI API Key'
+    )
+    ai_azure_deployment = models.CharField(
+        max_length=100,
+        blank=True,
+        default='gpt-4o-mini',
+        verbose_name='Azure Deployment Name'
+    )
+    ai_model = models.CharField(
+        max_length=50,
+        default='gpt-4o-mini',
+        verbose_name='AI Model',
+        help_text='Model naam (bijv: gpt-4o-mini, gpt-4o)'
     )
     
     # Email signature

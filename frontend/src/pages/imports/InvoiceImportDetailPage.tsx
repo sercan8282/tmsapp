@@ -15,24 +15,43 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Download,
-  RefreshCw,
+  Receipt,
+  CreditCard,
+  ShoppingCart,
 } from 'lucide-react';
 import {
   getInvoiceImport,
   submitCorrections,
   extractFromRegion,
   convertToInvoice,
-  InvoiceImport,
   BoundingBox,
 } from '../../api/ocr';
+
+// Helper function to parse Dutch formatted amounts (1.234,56 → 1234.56)
+const parseAmount = (value: unknown): number => {
+  if (typeof value === 'number') return value;
+  if (!value || typeof value !== 'string') return 0;
+  
+  // Remove currency symbols and whitespace
+  let cleaned = value.replace(/[€$\s]/g, '').trim();
+  
+  // Dutch format: 1.234,56 → remove dots, replace comma with dot
+  // Also handle cases where there's only comma as decimal
+  if (cleaned.includes(',')) {
+    // Remove thousand separators (dots) and replace decimal comma with dot
+    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+  }
+  
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : parsed;
+};
 
 // Field type labels in Dutch
 const fieldLabels: Record<string, string> = {
   invoice_number: 'Factuurnummer',
   invoice_date: 'Factuurdatum',
   due_date: 'Vervaldatum',
-  supplier_name: 'Leverancier',
+  supplier_name: 'Leverancier/Klant',
   supplier_address: 'Adres',
   supplier_vat: 'BTW Nummer',
   supplier_kvk: 'KVK',
@@ -44,6 +63,13 @@ const fieldLabels: Record<string, string> = {
   reference: 'Referentie',
   description: 'Omschrijving',
 };
+
+// Invoice type options
+const invoiceTypes = [
+  { value: 'inkoop', label: 'Inkoopfactuur', icon: ShoppingCart, color: 'blue', description: 'Factuur van leverancier' },
+  { value: 'verkoop', label: 'Verkoopfactuur', icon: Receipt, color: 'green', description: 'Factuur aan klant' },
+  { value: 'credit', label: 'Creditnota', icon: CreditCard, color: 'orange', description: 'Credit/terugbetaling' },
+];
 
 interface Selection {
   startX: number;
@@ -57,16 +83,27 @@ const InvoiceImportDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
 
   // State
   const [currentPage, setCurrentPage] = useState(0);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(1.0); // Manual zoom adjustment
+  const [baseScale, setBaseScale] = useState(1.0); // Auto-fit scale
   const [editingField, setEditingField] = useState<string | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [corrections, setCorrections] = useState<Record<string, { value: unknown; region?: BoundingBox }>>({});
   const [extractedValues, setExtractedValues] = useState<Record<string, unknown>>({});
+  const [selectedInvoiceType, setSelectedInvoiceType] = useState<string>('inkoop');
+  const [editableLines, setEditableLines] = useState<Array<{
+    id: string;
+    omschrijving: string;
+    aantal: number;
+    prijs_per_eenheid: number;
+    totaal: number;
+    raw_text: string;
+  }>>([]);
 
   // Fetch import data
   const { data: importData, isLoading, error } = useQuery({
@@ -86,6 +123,37 @@ const InvoiceImportDetailPage: React.FC = () => {
       setExtractedValues(importData.extracted_data.fields);
     }
   }, [importData]);
+
+  // Initialize editable lines from import data
+  useEffect(() => {
+    if (importData?.lines) {
+      setEditableLines(importData.lines.map(line => ({
+        id: line.id,
+        omschrijving: line.omschrijving || line.raw_text || '',
+        aantal: line.aantal || 1,
+        prijs_per_eenheid: line.prijs_per_eenheid || 0,
+        totaal: line.totaal || 0,
+        raw_text: line.raw_text || '',
+      })));
+    }
+  }, [importData]);
+
+  // Line editing helpers
+  const updateLine = (index: number, field: string, value: string | number) => {
+    setEditableLines(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      // Auto-calculate totaal
+      if (field === 'aantal' || field === 'prijs_per_eenheid') {
+        updated[index].totaal = (updated[index].aantal || 0) * (updated[index].prijs_per_eenheid || 0);
+      }
+      return updated;
+    });
+  };
+
+  const removeLine = (index: number) => {
+    setEditableLines(prev => prev.filter((_, i) => i !== index));
+  };
 
   // Mutations
   const correctionMutation = useMutation({
@@ -107,17 +175,27 @@ const InvoiceImportDetailPage: React.FC = () => {
         Object.entries(corrections).map(([k, v]) => [k, v.value])
       )};
       return convertToInvoice(id!, {
-        invoice_type: 'expense',
+        invoice_type: selectedInvoiceType,
         factuurnummer: data.invoice_number as string,
         factuurdatum: data.invoice_date as string,
+        vervaldatum: data.due_date as string,
         omschrijving: data.description as string || importData?.file_name,
-        totaal: parseFloat(data.total as string) || 0,
-        btw_bedrag: parseFloat(data.vat_amount as string) || 0,
-        subtotaal: parseFloat(data.subtotal as string) || 0,
+        leverancier: data.supplier_name as string,
+        totaal: parseAmount(data.total),
+        btw_bedrag: parseAmount(data.vat_amount),
+        subtotaal: parseAmount(data.subtotal),
+        btw_percentage: parseAmount(data.vat_percentage) || 21,
+        line_items: editableLines.map(line => ({
+          omschrijving: line.omschrijving,
+          aantal: line.aantal,
+          prijs_per_eenheid: line.prijs_per_eenheid,
+          totaal: line.totaal,
+        })),
       });
     },
     onSuccess: () => {
-      navigate('/expenses');
+      // Navigate to the appropriate list based on type
+      navigate('/invoices');
     },
   });
 
@@ -170,7 +248,7 @@ const InvoiceImportDetailPage: React.FC = () => {
     }
   }, [importData, currentPage, zoom, selection]);
 
-  // Load page image
+  // Load page image and auto-fit to container
   useEffect(() => {
     const page = importData?.extracted_data?.ocr_pages?.[currentPage];
     if (page?.image_path) {
@@ -178,14 +256,25 @@ const InvoiceImportDetailPage: React.FC = () => {
       img.onload = () => {
         imageRef.current = img;
         const canvas = canvasRef.current;
-        if (canvas) {
-          canvas.width = img.width * zoom;
-          canvas.height = img.height * zoom;
+        const container = containerRef.current;
+        if (canvas && container) {
+          // Calculate scale to fit container (with some padding)
+          const containerWidth = container.clientWidth - 32; // 16px padding each side
+          const containerHeight = container.clientHeight - 32;
+          const scaleX = containerWidth / img.width;
+          const scaleY = containerHeight / img.height;
+          const fitScale = Math.min(scaleX, scaleY, 1.5); // Max 150%
+          setBaseScale(fitScale);
+          
+          // Apply both base scale and manual zoom
+          const totalScale = fitScale * zoom;
+          canvas.width = img.width * totalScale;
+          canvas.height = img.height * totalScale;
           drawCanvas();
         }
       };
-      // Construct URL from path
-      img.src = `/api/media/${page.image_path}`;
+      // Construct URL from path - use backend media URL directly
+      img.src = `http://localhost:8001/media/${page.image_path}`;
     }
   }, [importData, currentPage, zoom, drawCanvas]);
 
@@ -302,115 +391,123 @@ const InvoiceImportDetailPage: React.FC = () => {
   const totalPages = importData.extracted_data?.ocr_pages?.length || 1;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/imports')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">{importData.file_name}</h1>
-            <p className="text-sm text-gray-500">
-              {importData.pattern_name ? `Patroon: ${importData.pattern_name}` : 'Geen patroon herkend'}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          {Object.keys(corrections).length > 0 && (
+      <div className="max-w-7xl mx-auto mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <button
-              onClick={handleSaveCorrections}
-              disabled={correctionMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              onClick={() => navigate('/imports')}
+              className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
             >
-              {correctionMutation.isPending ? (
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">{importData.file_name}</h1>
+              <p className="text-sm text-gray-500">
+                {importData.pattern_name ? `Patroon: ${importData.pattern_name}` : 'Geen patroon herkend'}
+                {importData.ocr_confidence !== undefined && (
+                  <span className="ml-2">
+                    • OCR: {(importData.ocr_confidence * 100).toFixed(0)}%
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {Object.keys(corrections).length > 0 && (
+              <button
+                onClick={handleSaveCorrections}
+                disabled={correctionMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+              >
+                {correctionMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                Correcties Opslaan
+              </button>
+            )}
+            
+            <button
+              onClick={() => convertMutation.mutate()}
+              disabled={convertMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
+            >
+              {convertMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Save className="w-4 h-4" />
+                <CheckCircle className="w-4 h-4" />
               )}
-              Correcties Opslaan
+              Opslaan als Factuur
             </button>
-          )}
-          
-          <button
-            onClick={() => convertMutation.mutate()}
-            disabled={convertMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-          >
-            {convertMutation.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <CheckCircle className="w-4 h-4" />
-            )}
-            Opslaan als Uitgave
-          </button>
+          </div>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Document Viewer */}
-        <div className="flex-1 flex flex-col bg-gray-800">
-          {/* Viewer Toolbar */}
-          <div className="bg-gray-900 px-4 py-2 flex items-center justify-between text-white">
+      {/* Main Content - Grid Layout */}
+      <div className="max-w-[1600px] mx-auto grid grid-cols-12 gap-6">
+        {/* Document Preview - Left Column */}
+        <div className="col-span-7 bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col">
+          {/* Preview Toolbar */}
+          <div className="bg-gray-800 px-4 py-2 flex items-center justify-between text-white text-sm">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
                 disabled={currentPage === 0}
-                className="p-1.5 hover:bg-gray-700 rounded disabled:opacity-50"
+                className="p-1 hover:bg-gray-700 rounded disabled:opacity-50"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-sm">
-                Pagina {currentPage + 1} van {totalPages}
+              <span className="text-xs">
+                {currentPage + 1} / {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
                 disabled={currentPage >= totalPages - 1}
-                className="p-1.5 hover:bg-gray-700 rounded disabled:opacity-50"
+                className="p-1 hover:bg-gray-700 rounded disabled:opacity-50"
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => setZoom(Math.max(0.5, zoom - 0.25))}
-                className="p-1.5 hover:bg-gray-700 rounded"
+                className="p-1 hover:bg-gray-700 rounded"
               >
-                <ZoomOut className="w-5 h-5" />
+                <ZoomOut className="w-4 h-4" />
               </button>
-              <span className="text-sm w-16 text-center">{Math.round(zoom * 100)}%</span>
+              <span className="text-xs w-12 text-center">{Math.round(baseScale * zoom * 100)}%</span>
               <button
                 onClick={() => setZoom(Math.min(2, zoom + 0.25))}
-                className="p-1.5 hover:bg-gray-700 rounded"
+                className="p-1 hover:bg-gray-700 rounded"
               >
-                <ZoomIn className="w-5 h-5" />
+                <ZoomIn className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setZoom(1)}
-                className="p-1.5 hover:bg-gray-700 rounded ml-2"
+                onClick={() => setZoom(1.0)}
+                className="p-1 hover:bg-gray-700 rounded ml-1"
+                title="Fit to window"
               >
-                <RotateCcw className="w-5 h-5" />
+                <RotateCcw className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Canvas Container */}
-          <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
+          {/* Canvas Container - Full Height */}
+          <div ref={containerRef} className="flex-1 min-h-[750px] overflow-auto bg-gray-100 p-4 flex items-center justify-center">
             {importData.status === 'processing' ? (
-              <div className="flex flex-col items-center justify-center text-white">
-                <Loader2 className="w-12 h-12 animate-spin mb-4" />
-                <p>Document wordt verwerkt...</p>
+              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                <p className="text-sm">Verwerken...</p>
               </div>
             ) : (
               <canvas
                 ref={canvasRef}
-                className={`bg-white shadow-2xl ${editingField ? 'cursor-crosshair' : 'cursor-default'}`}
+                className={`bg-white shadow-lg mx-auto ${editingField ? 'cursor-crosshair' : 'cursor-default'}`}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -421,15 +518,15 @@ const InvoiceImportDetailPage: React.FC = () => {
 
           {/* Selection Mode Indicator */}
           {editingField && (
-            <div className="bg-blue-600 text-white px-4 py-2 text-center text-sm">
-              <MousePointer2 className="w-4 h-4 inline mr-2" />
-              Selecteer het veld "{fieldLabels[editingField] || editingField}" op het document
+            <div className="bg-blue-600 text-white px-4 py-2 text-center text-xs">
+              <MousePointer2 className="w-3 h-3 inline mr-1" />
+              Selecteer "{fieldLabels[editingField]}" op document
               <button
                 onClick={() => {
                   setEditingField(null);
                   setSelection(null);
                 }}
-                className="ml-4 underline hover:no-underline"
+                className="ml-3 underline hover:no-underline"
               >
                 Annuleren
               </button>
@@ -437,107 +534,190 @@ const InvoiceImportDetailPage: React.FC = () => {
           )}
         </div>
 
-        {/* Sidebar - Extracted Data */}
-        <div className="w-96 bg-white border-l overflow-y-auto">
-          <div className="p-4 border-b">
-            <h2 className="text-lg font-semibold text-gray-900">Geëxtraheerde Gegevens</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Klik op het potlood icoon om een veld te corrigeren door een regio te selecteren
-            </p>
-          </div>
-
-          {/* OCR Confidence */}
-          {importData.ocr_confidence !== undefined && (
-            <div className="p-4 border-b bg-gray-50">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">OCR Nauwkeurigheid</span>
-                <span className="text-sm text-gray-600">
-                  {(importData.ocr_confidence * 100).toFixed(0)}%
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className={`h-2 rounded-full ${
-                    importData.ocr_confidence >= 0.8 ? 'bg-green-500' :
-                    importData.ocr_confidence >= 0.6 ? 'bg-yellow-500' : 'bg-red-500'
-                  }`}
-                  style={{ width: `${importData.ocr_confidence * 100}%` }}
-                />
-              </div>
+        {/* Right Column - Form & Data */}
+        <div className="col-span-5 space-y-4">
+          {/* Invoice Type Selection */}
+          <div className="bg-white rounded-xl shadow-sm border p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Type Document</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {invoiceTypes.map((type) => {
+                const Icon = type.icon;
+                const isSelected = selectedInvoiceType === type.value;
+                return (
+                  <button
+                    key={type.value}
+                    onClick={() => setSelectedInvoiceType(type.value)}
+                    className={`p-3 rounded-lg border-2 transition-all text-left ${
+                      isSelected
+                        ? type.color === 'blue' 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : type.color === 'green'
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-orange-500 bg-orange-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 mb-1 ${
+                      isSelected
+                        ? type.color === 'blue' 
+                          ? 'text-blue-600' 
+                          : type.color === 'green'
+                          ? 'text-green-600'
+                          : 'text-orange-600'
+                        : 'text-gray-400'
+                    }`} />
+                    <div className="font-medium text-sm text-gray-900">{type.label}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{type.description}</div>
+                  </button>
+                );
+              })}
             </div>
-          )}
-
-          {/* Extracted Fields */}
-          <div className="divide-y">
-            {Object.entries(fieldLabels).map(([key, label]) => {
-              const value = extractedValues[key];
-              const hasCorrection = key in corrections;
-              
-              return (
-                <div
-                  key={key}
-                  className={`p-4 ${hasCorrection ? 'bg-blue-50' : ''}`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-sm font-medium text-gray-700">{label}</label>
-                    <button
-                      onClick={() => setEditingField(editingField === key ? null : key)}
-                      className={`p-1 rounded hover:bg-gray-100 ${
-                        editingField === key ? 'bg-blue-100 text-blue-600' : 'text-gray-400'
-                      }`}
-                      title="Selecteer regio op document"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={(value as string) || ''}
-                    onChange={(e) => {
-                      setExtractedValues(prev => ({ ...prev, [key]: e.target.value }));
-                      setCorrections(prev => ({ ...prev, [key]: { value: e.target.value } }));
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder={`Voer ${label.toLowerCase()} in...`}
-                  />
-                  {hasCorrection && (
-                    <p className="mt-1 text-xs text-blue-600">
-                      ✓ Gecorrigeerd
-                    </p>
-                  )}
-                </div>
-              );
-            })}
           </div>
 
-          {/* Line Items */}
-          {importData.lines && importData.lines.length > 0 && (
-            <div className="border-t">
-              <div className="p-4 border-b bg-gray-50">
-                <h3 className="text-sm font-semibold text-gray-900">Factuurregels</h3>
-                <p className="text-xs text-gray-500 mt-1">{importData.lines.length} regels gevonden</p>
-              </div>
-              <div className="divide-y">
-                {importData.lines.map((line, index) => (
-                  <div key={line.id} className="p-4">
-                    <div className="text-sm font-medium text-gray-900">Regel {index + 1}</div>
-                    <p className="text-sm text-gray-600 mt-1">{line.raw_text || line.omschrijving}</p>
-                    {line.totaal && (
-                      <p className="text-sm text-gray-500 mt-1">€ {line.totaal.toFixed(2)}</p>
+          {/* Extracted Fields - Compact Grid */}
+          <div className="bg-white rounded-xl shadow-sm border p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900">Geëxtraheerde Gegevens</h3>
+              <p className="text-xs text-gray-500">Klik op ✏️ om veld te selecteren</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {Object.entries(fieldLabels).map(([key, label]) => {
+                const value = extractedValues[key];
+                const hasCorrection = key in corrections;
+                
+                return (
+                  <div
+                    key={key}
+                    className={`relative ${hasCorrection ? 'ring-2 ring-blue-200 rounded-lg' : ''}`}
+                  >
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      {label}
+                      {hasCorrection && <span className="text-blue-600 ml-1">✓</span>}
+                    </label>
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        value={(value as string) || ''}
+                        onChange={(e) => {
+                          setExtractedValues(prev => ({ ...prev, [key]: e.target.value }));
+                          setCorrections(prev => ({ ...prev, [key]: { value: e.target.value } }));
+                        }}
+                        className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder={`${label}...`}
+                      />
+                      <button
+                        onClick={() => setEditingField(editingField === key ? null : key)}
+                        className={`p-1.5 rounded border transition-colors ${
+                          editingField === key 
+                            ? 'bg-blue-100 border-blue-300 text-blue-600' 
+                            : 'border-gray-300 text-gray-400 hover:bg-gray-50'
+                        }`}
+                        title="Selecteer op document"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Line Items - Editable */}
+          <div className="bg-white rounded-xl shadow-sm border p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">
+                Factuurregels ({importData.lines?.length || 0})
+              </h3>
+              <button
+                onClick={() => {
+                  const newLine = {
+                    id: `new-${Date.now()}`,
+                    omschrijving: '',
+                    aantal: 1,
+                    prijs_per_eenheid: 0,
+                    totaal: 0,
+                    raw_text: '',
+                  };
+                  setEditableLines(prev => [...prev, newLine]);
+                }}
+                className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+              >
+                + Regel toevoegen
+              </button>
+            </div>
+            
+            {editableLines.length > 0 ? (
+              <div className="space-y-2 max-h-64 overflow-auto">
+                {editableLines.map((line, index) => (
+                  <div key={line.id} className="p-2 bg-gray-50 rounded-lg border">
+                    <div className="grid grid-cols-12 gap-2 items-center text-sm">
+                      <div className="col-span-5">
+                        <input
+                          type="text"
+                          value={line.omschrijving || ''}
+                          onChange={(e) => updateLine(index, 'omschrijving', e.target.value)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="Omschrijving"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="number"
+                          value={line.aantal || ''}
+                          onChange={(e) => updateLine(index, 'aantal', parseFloat(e.target.value) || 0)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-right"
+                          placeholder="Aantal"
+                          step="0.01"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="number"
+                          value={line.prijs_per_eenheid || ''}
+                          onChange={(e) => updateLine(index, 'prijs_per_eenheid', parseFloat(e.target.value) || 0)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-right"
+                          placeholder="Prijs"
+                          step="0.01"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <span className="block px-2 py-1 bg-white border border-gray-200 rounded text-sm text-right font-medium">
+                          € {((line.aantal || 0) * (line.prijs_per_eenheid || 0)).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="col-span-1">
+                        <button
+                          onClick={() => removeLine(index)}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded"
+                          title="Verwijderen"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    {line.raw_text && (
+                      <div className="mt-1 text-xs text-gray-400 truncate">
+                        OCR: {line.raw_text}
+                      </div>
                     )}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-gray-500 italic">Geen factuurregels gevonden. Klik op '+ Regel toevoegen' om handmatig toe te voegen.</p>
+            )}
+          </div>
 
-          {/* Raw OCR Text (collapsible) */}
-          <details className="border-t">
-            <summary className="p-4 cursor-pointer hover:bg-gray-50 font-medium text-gray-700">
+          {/* Raw OCR Text (Collapsible) */}
+          <details className="bg-white rounded-xl shadow-sm border">
+            <summary className="px-4 py-3 cursor-pointer hover:bg-gray-50 font-medium text-sm text-gray-700">
+              <FileText className="w-4 h-4 inline mr-2" />
               Ruwe OCR Tekst
             </summary>
-            <div className="p-4 pt-0">
-              <pre className="text-xs text-gray-600 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg max-h-96 overflow-auto">
+            <div className="px-4 pb-4">
+              <pre className="text-xs text-gray-600 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg max-h-48 overflow-auto">
                 {importData.ocr_text || 'Geen tekst beschikbaar'}
               </pre>
             </div>

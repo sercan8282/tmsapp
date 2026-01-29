@@ -131,16 +131,17 @@ export interface RegionExtractionResult {
 }
 
 export interface ConvertToInvoiceData {
-  invoice_type: 'inkoop' | 'expense';
+  invoice_type: 'inkoop' | 'verkoop' | 'credit';
   factuurnummer?: string;
   factuurdatum?: string;
   vervaldatum?: string;
   omschrijving?: string;
+  leverancier?: string;
   leverancier_id?: string;
   subtotaal?: number;
+  btw_percentage?: number;
   btw_bedrag?: number;
-  totaal: number;
-  expense_category?: string;
+  totaal?: number;
   line_items?: Record<string, unknown>[];
 }
 
@@ -153,8 +154,14 @@ export const getInvoiceImports = async (status?: string): Promise<InvoiceImport[
   const params = new URLSearchParams();
   if (status) params.append('status', status);
   
-  const response = await api.get<InvoiceImport[]>(`/invoicing/ocr/imports/?${params}`);
-  return response.data;
+  const response = await api.get(`/invoicing/ocr/imports/?${params}`);
+  // Handle both paginated and non-paginated responses
+  const data = response.data;
+  if (Array.isArray(data)) {
+    return data;
+  }
+  // Paginated response
+  return data.results || [];
 };
 
 /**

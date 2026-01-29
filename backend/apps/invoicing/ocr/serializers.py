@@ -36,7 +36,7 @@ class InvoiceImportListSerializer(serializers.ModelSerializer):
     
     def get_uploaded_by_name(self, obj):
         if obj.uploaded_by:
-            return obj.uploaded_by.get_full_name() or obj.uploaded_by.username
+            return obj.uploaded_by.full_name or obj.uploaded_by.username
         return None
     
     def get_pattern_name(self, obj):
@@ -68,7 +68,7 @@ class InvoiceImportDetailSerializer(serializers.ModelSerializer):
     
     def get_uploaded_by_name(self, obj):
         if obj.uploaded_by:
-            return obj.uploaded_by.get_full_name() or obj.uploaded_by.username
+            return obj.uploaded_by.full_name or obj.uploaded_by.username
         return None
     
     def get_pattern_name(self, obj):
@@ -199,35 +199,36 @@ class ExtractRegionSerializer(serializers.Serializer):
 
 
 class ConvertToInvoiceSerializer(serializers.Serializer):
-    """Serializer for converting import to invoice/expense."""
+    """Serializer for converting import to invoice."""
     
     invoice_type = serializers.ChoiceField(
-        choices=['inkoop', 'expense'],
-        default='expense'
+        choices=['inkoop', 'verkoop', 'credit'],
+        default='inkoop'
     )
     
     # Common fields
-    factuurnummer = serializers.CharField(max_length=50, required=False)
-    factuurdatum = serializers.DateField(required=False)
-    vervaldatum = serializers.DateField(required=False)
-    omschrijving = serializers.CharField(max_length=500, required=False)
+    factuurnummer = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
+    factuurdatum = serializers.CharField(required=False, allow_blank=True, allow_null=True)  # Accept string to parse
+    vervaldatum = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    omschrijving = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
     
-    # For inkoop factuur
-    leverancier_id = serializers.UUIDField(required=False)
+    # Leverancier/Klant
+    leverancier = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    leverancier_id = serializers.UUIDField(required=False, allow_null=True)
     
     # Amounts
     subtotaal = serializers.DecimalField(
-        max_digits=10, decimal_places=2, required=False
+        max_digits=10, decimal_places=2, required=False, allow_null=True
+    )
+    btw_percentage = serializers.DecimalField(
+        max_digits=5, decimal_places=2, required=False, default=21
     )
     btw_bedrag = serializers.DecimalField(
-        max_digits=10, decimal_places=2, required=False
+        max_digits=10, decimal_places=2, required=False, allow_null=True
     )
     totaal = serializers.DecimalField(
-        max_digits=10, decimal_places=2, required=True
+        max_digits=10, decimal_places=2, required=False, default=0
     )
-    
-    # For expense
-    expense_category = serializers.CharField(max_length=30, required=False)
     
     # Line items
     line_items = serializers.ListField(

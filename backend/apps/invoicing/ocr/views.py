@@ -4,7 +4,7 @@ Invoice OCR Views - API endpoints for invoice import and OCR processing
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -30,7 +30,7 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
     """
     queryset = InvoiceImport.objects.all()
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     
     def get_serializer_class(self):
         if self.action == 'list':
@@ -42,7 +42,7 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter imports by user (unless staff)."""
         queryset = InvoiceImport.objects.select_related(
-            'uploaded_by', 'matched_pattern', 'matched_pattern__company'
+            'uploaded_by', 'matched_pattern'
         ).prefetch_related('lines')
         
         if not self.request.user.is_staff:
@@ -65,17 +65,29 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
         
         file = serializer.validated_data['file']
         
-        # Process the upload
-        service = InvoiceImportService()
-        invoice_import = service.process_upload(file, request.user)
-        
-        # Return the result
-        detail_serializer = InvoiceImportDetailSerializer(
-            invoice_import,
-            context={'request': request}
-        )
-        
-        return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
+        try:
+            # Process the upload
+            service = InvoiceImportService()
+            invoice_import = service.process_upload(file, request.user)
+            
+            # Return the result
+            detail_serializer = InvoiceImportDetailSerializer(
+                invoice_import,
+                context={'request': request}
+            )
+            
+            return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
+        except RuntimeError as e:
+            # OCR not available
+            return Response(
+                {'error': str(e), 'detail': 'Tesseract OCR is niet geïnstalleerd. Installeer Tesseract op het systeem.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=True, methods=['post'])
     def corrections(self, request, pk=None):
@@ -151,7 +163,14 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
         
         # Extract from region
         from .services import OCREngine
+        from django.conf import settings
+        import os
+        
         engine = OCREngine()
+        
+        # Convert relative path to absolute path for processing
+        if not os.path.isabs(image_path):
+            image_path = os.path.join(settings.MEDIA_ROOT, image_path)
         
         bbox = BoundingBox(
             x=serializer.validated_data['x'],
@@ -171,50 +190,159 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def convert(self, request, pk=None):
         """
-        Convert the import to an actual invoice or expense.
+        Convert the import to an actual invoice.
+        Supports: inkoop, verkoop, credit
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Convert request data: {request.data}")
+        
         invoice_import = self.get_object()
         
         serializer = ConvertToInvoiceSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            logger.error(f"Serializer errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         data = serializer.validated_data
+        invoice_type = data['invoice_type']
         
-        if data['invoice_type'] == 'expense':
-            # Create expense
-            from apps.invoicing.models import Expense
-            
-            expense = Expense.objects.create(
-                omschrijving=data.get('omschrijving', invoice_import.file_name),
-                datum=data.get('factuurdatum', timezone.now().date()),
-                bedrag=data.get('subtotaal', data['totaal']),
-                btw_bedrag=data.get('btw_bedrag', 0),
-                totaal=data['totaal'],
-                categorie=data.get('expense_category', 'overig'),
-                referentie=data.get('factuurnummer', ''),
-                bijlage=invoice_import.original_file,
-            )
-            
-            # Mark as completed
-            invoice_import.status = InvoiceImport.Status.COMPLETED
-            invoice_import.completed_at = timezone.now()
-            invoice_import.save(update_fields=['status', 'completed_at'])
-            
-            return Response({
-                'success': True,
-                'type': 'expense',
-                'id': str(expense.id),
-                'message': 'Uitgave aangemaakt'
-            })
+        from apps.invoicing.models import Invoice, InvoiceLine, InvoiceType, InvoiceStatus, InvoiceTemplate
+        from apps.companies.models import Company
+        from datetime import date, timedelta
         
+        # Get or create a default template
+        template, _ = InvoiceTemplate.objects.get_or_create(
+            naam='Standaard',
+            defaults={'beschrijving': 'Standaard factuur template', 'layout': {}, 'variables': {}}
+        )
+        
+        # Try to find or create the company (leverancier/klant)
+        leverancier_naam = data.get('leverancier', 'Onbekend')
+        company, _ = Company.objects.get_or_create(
+            naam=leverancier_naam
+        )
+        
+        # Parse dates
+        factuurdatum = data.get('factuurdatum')
+        if isinstance(factuurdatum, str):
+            try:
+                # Try common date formats
+                for fmt in ['%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y']:
+                    try:
+                        factuurdatum = date.fromisoformat(factuurdatum) if fmt == '%Y-%m-%d' else None
+                        if factuurdatum:
+                            break
+                    except:
+                        pass
+            except:
+                factuurdatum = None
+        if not factuurdatum:
+            factuurdatum = date.today()
+        
+        vervaldatum = data.get('vervaldatum')
+        if not vervaldatum:
+            vervaldatum = factuurdatum + timedelta(days=30)
+        
+        # Generate invoice number if not provided
+        factuurnummer = data.get('factuurnummer', '')
+        if not factuurnummer:
+            # Generate unique number
+            prefix = 'INK' if invoice_type == 'inkoop' else 'VRK' if invoice_type == 'verkoop' else 'CRD'
+            count = Invoice.objects.filter(type=invoice_type).count() + 1
+            factuurnummer = f"{prefix}-{date.today().year}-{count:04d}"
+        
+        # Ensure unique factuurnummer
+        base_nummer = factuurnummer
+        counter = 1
+        while Invoice.objects.filter(factuurnummer=factuurnummer).exists():
+            factuurnummer = f"{base_nummer}-{counter}"
+            counter += 1
+        
+        # Map invoice type
+        type_mapping = {
+            'inkoop': InvoiceType.INKOOP,
+            'verkoop': InvoiceType.VERKOOP,
+            'credit': InvoiceType.CREDIT,
+        }
+        
+        # Create the invoice
+        invoice = Invoice.objects.create(
+            factuurnummer=factuurnummer,
+            type=type_mapping.get(invoice_type, InvoiceType.INKOOP),
+            status=InvoiceStatus.CONCEPT,
+            template=template,
+            bedrijf=company,
+            factuurdatum=factuurdatum,
+            vervaldatum=vervaldatum,
+            subtotaal=data.get('subtotaal', 0) or data.get('totaal', 0),
+            btw_percentage=data.get('btw_percentage', 21),
+            btw_bedrag=data.get('btw_bedrag', 0),
+            totaal=data.get('totaal', 0),
+            opmerkingen=data.get('omschrijving', invoice_import.file_name),
+            pdf_file=invoice_import.original_file,
+            created_by=request.user,
+        )
+        
+        # Create invoice lines from user-edited line_items (if provided) or imported lines
+        line_items = data.get('line_items', [])
+        
+        if line_items:
+            # Use user-edited line items from frontend
+            for i, item in enumerate(line_items):
+                # Convert string values to proper types
+                aantal = item.get('aantal', 1)
+                if isinstance(aantal, str):
+                    try:
+                        aantal = float(aantal.replace(',', '.'))
+                    except:
+                        aantal = 1
+                
+                prijs = item.get('prijs_per_eenheid', 0)
+                if isinstance(prijs, str):
+                    try:
+                        prijs = float(prijs.replace(',', '.'))
+                    except:
+                        prijs = 0
+                
+                InvoiceLine.objects.create(
+                    invoice=invoice,
+                    omschrijving=item.get('omschrijving', 'Regel'),
+                    aantal=aantal or 1,
+                    eenheid=item.get('eenheid', 'stuk') or 'stuk',
+                    prijs_per_eenheid=prijs or 0,
+                    volgorde=i,
+                )
         else:
-            # Create inkoop factuur
-            # This would depend on your Invoice model structure
-            return Response({
-                'success': True,
-                'type': 'inkoop',
-                'message': 'Inkoopfactuur aangemaakt'
-            })
+            # Fall back to imported lines from OCR
+            for imported_line in invoice_import.lines.all():
+                InvoiceLine.objects.create(
+                    invoice=invoice,
+                    omschrijving=imported_line.omschrijving or imported_line.raw_text or 'Regel',
+                    aantal=imported_line.aantal or 1,
+                    eenheid=imported_line.eenheid or 'stuk',
+                    prijs_per_eenheid=imported_line.prijs_per_eenheid or imported_line.totaal or 0,
+                    volgorde=imported_line.volgorde,
+                )
+        
+        # Mark import as completed
+        invoice_import.status = InvoiceImport.Status.COMPLETED
+        invoice_import.completed_at = timezone.now()
+        invoice_import.save(update_fields=['status', 'completed_at'])
+        
+        type_labels = {
+            'inkoop': 'Inkoopfactuur',
+            'verkoop': 'Verkoopfactuur', 
+            'credit': 'Creditnota',
+        }
+        
+        return Response({
+            'success': True,
+            'type': invoice_type,
+            'id': str(invoice.id),
+            'factuurnummer': invoice.factuurnummer,
+            'message': f'{type_labels.get(invoice_type, "Factuur")} {invoice.factuurnummer} aangemaakt'
+        })
     
     @action(detail=True, methods=['get'])
     def page_image(self, request, pk=None):
