@@ -110,9 +110,9 @@ const InvoiceImportDetailPage: React.FC = () => {
     queryKey: ['invoiceImport', id],
     queryFn: () => getInvoiceImport(id!),
     enabled: !!id,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Auto refresh while processing
-      if (data?.status === 'processing') return 2000;
+      if (query.state.data?.status === 'processing') return 2000;
       return false;
     },
   });
@@ -175,7 +175,7 @@ const InvoiceImportDetailPage: React.FC = () => {
         Object.entries(corrections).map(([k, v]) => [k, v.value])
       )};
       return convertToInvoice(id!, {
-        invoice_type: selectedInvoiceType,
+        invoice_type: selectedInvoiceType as 'inkoop' | 'verkoop' | 'credit',
         factuurnummer: data.invoice_number as string,
         factuurdatum: data.invoice_date as string,
         vervaldatum: data.due_date as string,
