@@ -248,6 +248,11 @@ create_superuser() {
         read -s -p "Admin wachtwoord: " ADMIN_PASSWORD
         echo ""
         
+        # Sla admin email op in secrets file voor latere referentie
+        echo "" >> "$ENV_FILE"
+        echo "# Admin gebruiker (aangemaakt tijdens installatie)" >> "$ENV_FILE"
+        echo "ADMIN_EMAIL=$ADMIN_EMAIL" >> "$ENV_FILE"
+        
         docker compose exec -T backend python manage.py shell << EOF
 from apps.accounts.models import User
 User.objects.create_superuser(
@@ -260,6 +265,9 @@ User.objects.create_superuser(
 print('Superuser aangemaakt!')
 EOF
         log_success "Superuser aangemaakt: $ADMIN_EMAIL"
+        
+        # Export voor show_completion functie
+        export CREATED_ADMIN_EMAIL="$ADMIN_EMAIL"
     else
         log_success "Superuser bestaat al"
     fi
@@ -282,9 +290,25 @@ show_completion() {
     echo "  • NPM Admin:      http://$(hostname -I | awk '{print $1}'):81"
     echo "  • Portainer:      https://$(hostname -I | awk '{print $1}'):9443"
     echo ""
+    echo -e "${CYAN}TMS Admin Login:${NC}"
+    if [ -n "$CREATED_ADMIN_EMAIL" ]; then
+        echo "  • Email:    $CREATED_ADMIN_EMAIL"
+        echo "  • Password: (het wachtwoord dat je zojuist hebt ingevoerd)"
+    elif [ -n "$ADMIN_EMAIL" ]; then
+        echo "  • Email:    $ADMIN_EMAIL"
+        echo "  • Password: (opgeslagen tijdens installatie)"
+    else
+        echo "  • (Superuser bestond al)"
+    fi
+    echo ""
     echo -e "${CYAN}NPM Standaard login:${NC}"
     echo "  • Email:    admin@example.com"
     echo "  • Password: changeme"
+    echo ""
+    echo -e "${CYAN}Database:${NC}"
+    echo "  • Gebruiker:   $DB_USER"
+    echo "  • Database:    $DB_NAME"
+    echo "  • Wachtwoord:  $DB_PASSWORD"
     echo ""
     echo -e "${CYAN}Bestanden:${NC}"
     echo "  • Secrets:     $ENV_FILE"
