@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import InvoiceTemplate, Invoice, InvoiceLine, InvoiceStatus
+from .models import InvoiceTemplate, Invoice, InvoiceLine, InvoiceStatus, Expense, ExpenseCategory
 
 
 class InvoiceTemplateSerializer(serializers.ModelSerializer):
@@ -137,3 +137,47 @@ class InvoiceUpdateSerializer(serializers.ModelSerializer):
                         f"Veld '{field}' kan niet worden gewijzigd voor niet-concept facturen"
                     )
         return data
+
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    """Serializer for expenses."""
+    categorie_display = serializers.CharField(source='get_categorie_display', read_only=True)
+    bedrijf_naam = serializers.CharField(source='bedrijf.naam', read_only=True)
+    voertuig_kenteken = serializers.CharField(source='voertuig.kenteken', read_only=True)
+    chauffeur_naam = serializers.CharField(source='chauffeur.full_name', read_only=True)
+    created_by_naam = serializers.CharField(source='created_by.full_name', read_only=True)
+    
+    class Meta:
+        model = Expense
+        fields = [
+            'id', 'omschrijving', 'categorie', 'categorie_display',
+            'bedrag', 'btw_bedrag', 'totaal', 'datum',
+            'bedrijf', 'bedrijf_naam',
+            'voertuig', 'voertuig_kenteken',
+            'chauffeur', 'chauffeur_naam',
+            'notities', 'bijlage',
+            'created_by', 'created_by_naam',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+    
+    def create(self, validated_data):
+        # Calculate total if not provided
+        if 'totaal' not in validated_data or not validated_data['totaal']:
+            validated_data['totaal'] = (
+                validated_data.get('bedrag', 0) + validated_data.get('btw_bedrag', 0)
+            )
+        return super().create(validated_data)
+
+
+class ExpenseCategorySerializer(serializers.Serializer):
+    """Serializer for expense categories."""
+    value = serializers.CharField()
+    label = serializers.CharField()
+    
+    @staticmethod
+    def get_categories():
+        return [
+            {'value': choice[0], 'label': choice[1]}
+            for choice in ExpenseCategory.choices
+        ]

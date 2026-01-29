@@ -5,12 +5,13 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.mail import send_mail, EmailMessage, get_connection
 from django.db.models import Sum
 from django.db import connection
@@ -18,11 +19,13 @@ from django.core.cache import cache
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import AppSettings
+from .models import AppSettings, CustomFont
 from .serializers import (
     AppSettingsSerializer, 
     AppSettingsAdminSerializer,
-    EmailTestSerializer
+    EmailTestSerializer,
+    CustomFontSerializer,
+    FontFamilySerializer,
 )
 
 
@@ -405,3 +408,78 @@ class DashboardStatsView(APIView):
             'year': year,
         })
 
+
+class CustomFontViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing custom fonts.
+    Admin only for create/update/delete.
+    Authenticated users can list (for template selection).
+    """
+    queryset = CustomFont.objects.all()
+    serializer_class = CustomFontSerializer
+    parser_classes = [MultiPartParser, FormParser]
+    
+    def get_permissions(self):
+        """
+        Allow any authenticated user to list fonts.
+        Require admin for modifications.
+        """
+        if self.action in ['list', 'retrieve', 'families', 'css']:
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+    
+    def get_queryset(self):
+        """Filter by active fonts for non-admins."""
+        qs = super().get_queryset()
+        if not self.request.user.is_staff:
+            qs = qs.filter(is_active=True)
+        return qs.order_by('family', 'weight', 'style')
+    
+    def perform_create(self, serializer):
+        """Set uploaded_by on creation."""
+        serializer.save(uploaded_by=self.request.user)
+    
+    def perform_destroy(self, instance):
+        """Prevent deletion of system fonts."""
+        if instance.is_system:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Systeemfonts kunnen niet worden verwijderd.')
+        instance.delete()
+    
+    @action(detail=False, methods=['get'])
+    def families(self, request):
+        """
+        Get all font families with their variants.
+        Useful for font pickers/selectors.
+        """
+        data = FontFamilySerializer.get_families_with_fonts()
+        serializer = FontFamilySerializer(data, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def css(self, request):
+        """
+        Generate @font-face CSS for all active fonts.
+        Returns CSS that can be injected into the page.
+        """
+        fonts = CustomFont.objects.filter(is_active=True)
+        css_rules = []
+        
+        for font in fonts:
+            if font.font_file:
+                url = request.build_absolute_uri(font.font_file.url)
+                css_rule = f"""@font-face {{
+  font-family: '{font.family}';
+  font-style: {font.style};
+  font-weight: {font.weight};
+  font-display: swap;
+  src: url('{url}') format('{font.css_format}');
+}}"""
+                css_rules.append(css_rule)
+        
+        css_content = '\n\n'.join(css_rules)
+        
+        from django.http import HttpResponse
+        response = HttpResponse(css_content, content_type='text/css')
+        response['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
+        return response

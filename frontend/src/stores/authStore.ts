@@ -1,7 +1,48 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware'
 import type { User } from '@/types'
 import { authApi } from '@/api/auth'
+
+// Simple obfuscation for localStorage
+// This adds a layer of protection against casual inspection
+const obfuscate = (data: string): string => {
+  try {
+    return btoa(encodeURIComponent(data).split('').reverse().join(''))
+  } catch {
+    return data
+  }
+}
+
+const deobfuscate = (data: string): string => {
+  try {
+    return decodeURIComponent(atob(data).split('').reverse().join(''))
+  } catch {
+    return data
+  }
+}
+
+// Custom storage with obfuscation for auth tokens
+const secureAuthStorage: StateStorage = {
+  getItem: (name: string): string | null => {
+    const value = localStorage.getItem(name)
+    if (!value) return null
+    
+    try {
+      if (value.startsWith('__sec__:')) {
+        return deobfuscate(value.slice(8))
+      }
+      return value
+    } catch {
+      return value
+    }
+  },
+  setItem: (name: string, value: string): void => {
+    localStorage.setItem(name, '__sec__:' + obfuscate(value))
+  },
+  removeItem: (name: string): void => {
+    localStorage.removeItem(name)
+  },
+}
 
 interface AuthState {
   user: User | null
@@ -121,6 +162,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'tms-auth',
+      storage: createJSONStorage(() => secureAuthStorage),
       partialize: (state) => ({
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,

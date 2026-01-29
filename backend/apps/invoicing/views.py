@@ -1,21 +1,27 @@
 import json
 import logging
-from datetime import date
+from datetime import date, timedelta
+from decimal import Decimal
 from django.utils import timezone
 from django.http import JsonResponse
+from django.db.models import Sum, Q, Count
+from django.db.models.functions import TruncWeek, TruncMonth, TruncQuarter, TruncYear
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
 from apps.core.permissions import IsAdminOrManager
-from .models import InvoiceTemplate, Invoice, InvoiceLine, InvoiceStatus
+from .models import InvoiceTemplate, Invoice, InvoiceLine, InvoiceStatus, InvoiceType, Expense, ExpenseCategory
 from .serializers import (
     InvoiceTemplateSerializer,
     InvoiceSerializer,
     InvoiceCreateSerializer,
     InvoiceUpdateSerializer,
-    InvoiceLineSerializer
+    InvoiceLineSerializer,
+    ExpenseSerializer,
+    ExpenseCategorySerializer,
 )
 
 logger = logging.getLogger('accounts.security')
@@ -617,3 +623,237 @@ class InvoiceLineViewSet(viewsets.ModelViewSet):
             f"InvoiceLine deleted: '{line_desc}' from {invoice.factuurnummer} "
             f"by user {self.request.user.email}"
         )
+
+
+class ExpenseViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet voor uitgaven.
+    Alleen admins en managers mogen uitgaven beheren.
+    """
+    queryset = Expense.objects.select_related('bedrijf', 'voertuig', 'chauffeur', 'created_by').all()
+    serializer_class = ExpenseSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    filterset_fields = ['categorie', 'bedrijf', 'voertuig', 'chauffeur']
+    search_fields = ['omschrijving', 'notities']
+    ordering = ['-datum', '-created_at']
+    
+    def perform_create(self, serializer):
+        expense = serializer.save(created_by=self.request.user)
+        logger.info(
+            f"Expense created: '{expense.omschrijving}' (€{expense.totaal}) "
+            f"by user {self.request.user.email}"
+        )
+    
+    def perform_update(self, serializer):
+        expense = serializer.save()
+        logger.info(
+            f"Expense updated: '{expense.omschrijving}' (€{expense.totaal}) "
+            f"by user {self.request.user.email}"
+        )
+    
+    def perform_destroy(self, instance):
+        desc = instance.omschrijving
+        instance.delete()
+        logger.warning(
+            f"Expense deleted: '{desc}' by user {self.request.user.email}"
+        )
+    
+    @action(detail=False, methods=['get'])
+    def categories(self, request):
+        """Get all expense categories."""
+        categories = ExpenseCategorySerializer.get_categories()
+        return Response(categories)
+    
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Get expense summary by category for a date range."""
+        # Get date range from query params
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        qs = self.get_queryset()
+        
+        if start_date:
+            qs = qs.filter(datum__gte=start_date)
+        if end_date:
+            qs = qs.filter(datum__lte=end_date)
+        
+        # Aggregate by category
+        summary = qs.values('categorie').annotate(
+            totaal=Sum('totaal'),
+            aantal=Count('id')
+        ).order_by('-totaal')
+        
+        # Add display names
+        result = []
+        for item in summary:
+            result.append({
+                'categorie': item['categorie'],
+                'categorie_display': dict(ExpenseCategory.choices).get(item['categorie'], item['categorie']),
+                'totaal': item['totaal'] or 0,
+                'aantal': item['aantal']
+            })
+        
+        return Response(result)
+
+
+class RevenueView(APIView):
+    """
+    API endpoint voor omzet/winst statistieken.
+    Ondersteunt week/maand/kwartaal/jaar aggregatie.
+    """
+    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    
+    def get(self, request):
+        # Get parameters
+        period = request.query_params.get('period', 'month')  # week, month, quarter, year
+        year = request.query_params.get('year')
+        
+        # Determine date range
+        today = date.today()
+        if year:
+            year = int(year)
+            start_date = date(year, 1, 1)
+            end_date = date(year, 12, 31)
+        else:
+            # Default: current year
+            year = today.year
+            start_date = date(year, 1, 1)
+            end_date = today
+        
+        # Get truncation function based on period
+        trunc_funcs = {
+            'week': TruncWeek,
+            'month': TruncMonth,
+            'quarter': TruncQuarter,
+            'year': TruncYear,
+        }
+        trunc_func = trunc_funcs.get(period, TruncMonth)
+        
+        # Get income (verkoop facturen - definitief/verzonden/betaald)
+        income_statuses = [InvoiceStatus.DEFINITIEF, InvoiceStatus.VERZONDEN, InvoiceStatus.BETAALD]
+        income_qs = Invoice.objects.filter(
+            type=InvoiceType.VERKOOP,
+            status__in=income_statuses,
+            factuurdatum__gte=start_date,
+            factuurdatum__lte=end_date,
+        ).annotate(
+            period=trunc_func('factuurdatum')
+        ).values('period').annotate(
+            totaal=Sum('totaal')
+        ).order_by('period')
+        
+        # Get expenses from invoices (inkoop facturen)
+        invoice_expenses_qs = Invoice.objects.filter(
+            type=InvoiceType.INKOOP,
+            status__in=income_statuses,
+            factuurdatum__gte=start_date,
+            factuurdatum__lte=end_date,
+        ).annotate(
+            period=trunc_func('factuurdatum')
+        ).values('period').annotate(
+            totaal=Sum('totaal')
+        ).order_by('period')
+        
+        # Get expenses from Expense model
+        direct_expenses_qs = Expense.objects.filter(
+            datum__gte=start_date,
+            datum__lte=end_date,
+        ).annotate(
+            period=trunc_func('datum')
+        ).values('period').annotate(
+            totaal=Sum('totaal')
+        ).order_by('period')
+        
+        # Combine all data into a timeline
+        income_dict = {item['period']: float(item['totaal'] or 0) for item in income_qs}
+        invoice_exp_dict = {item['period']: float(item['totaal'] or 0) for item in invoice_expenses_qs}
+        direct_exp_dict = {item['period']: float(item['totaal'] or 0) for item in direct_expenses_qs}
+        
+        # Get all unique periods
+        all_periods = sorted(set(
+            list(income_dict.keys()) + 
+            list(invoice_exp_dict.keys()) + 
+            list(direct_exp_dict.keys())
+        ))
+        
+        # Build result
+        data = []
+        total_income = 0
+        total_expenses = 0
+        
+        for period_date in all_periods:
+            income = income_dict.get(period_date, 0)
+            expenses = invoice_exp_dict.get(period_date, 0) + direct_exp_dict.get(period_date, 0)
+            profit = income - expenses
+            
+            total_income += income
+            total_expenses += expenses
+            
+            # Format period label
+            if period == 'week':
+                label = f"Week {period_date.isocalendar()[1]}, {period_date.year}"
+            elif period == 'month':
+                label = period_date.strftime('%B %Y')
+            elif period == 'quarter':
+                quarter = (period_date.month - 1) // 3 + 1
+                label = f"Q{quarter} {period_date.year}"
+            else:
+                label = str(period_date.year)
+            
+            data.append({
+                'period': period_date.isoformat(),
+                'label': label,
+                'income': round(income, 2),
+                'expenses': round(expenses, 2),
+                'profit': round(profit, 2),
+            })
+        
+        # Calculate totals and summary
+        total_profit = total_income - total_expenses
+        
+        return Response({
+            'period_type': period,
+            'year': year,
+            'start_date': start_date.isoformat(),
+            'end_date': end_date.isoformat(),
+            'data': data,
+            'totals': {
+                'income': round(total_income, 2),
+                'expenses': round(total_expenses, 2),
+                'profit': round(total_profit, 2),
+            },
+            'summary': {
+                'avg_income': round(total_income / len(data), 2) if data else 0,
+                'avg_expenses': round(total_expenses / len(data), 2) if data else 0,
+                'avg_profit': round(total_profit / len(data), 2) if data else 0,
+                'profit_margin': round((total_profit / total_income * 100), 1) if total_income > 0 else 0,
+            }
+        })
+
+
+class RevenueYearsView(APIView):
+    """
+    Get available years for revenue data.
+    """
+    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    
+    def get(self, request):
+        # Get years from invoices
+        invoice_years = Invoice.objects.values_list(
+            'factuurdatum__year', flat=True
+        ).distinct()
+        
+        # Get years from expenses
+        expense_years = Expense.objects.values_list(
+            'datum__year', flat=True
+        ).distinct()
+        
+        # Combine and sort
+        all_years = sorted(set(list(invoice_years) + list(expense_years)), reverse=True)
+        
+        # If no data, include current year
+        if not all_years:
+            all_years = [date.today().year]
+        
+        return Response({'years': all_years})

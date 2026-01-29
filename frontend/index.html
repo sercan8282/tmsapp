@@ -5,6 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="description" content="Transport Management Systeem voor urenregistratie, planning en facturatie" />
+    
+    <!-- Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    
     <title>TMS</title>
     
     <!-- PWA Meta Tags -->
@@ -30,10 +36,7 @@
     <!-- Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Fonts loaded locally via @fontsource/inter (no external requests) -->
   </head>
   <body class="h-full">
     <div id="root" class="h-full"></div>

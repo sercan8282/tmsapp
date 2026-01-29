@@ -3,6 +3,10 @@ set -e
 
 echo "=== TMS Backend Starting ==="
 
+# Ensure required directories exist
+echo "Creating required directories..."
+mkdir -p /app/media/fonts /app/media/branding /app/staticfiles /app/logs
+
 # Wait for database to be ready
 echo "Waiting for database..."
 while ! python -c "import socket; socket.create_connection(('${DB_HOST:-db}', ${DB_PORT:-5432}), timeout=1)" 2>/dev/null; do

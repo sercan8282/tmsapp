@@ -21,9 +21,13 @@ import {
   DocumentTextIcon,
   TrashIcon,
   SwatchIcon,
+  ServerIcon,
+  LanguageIcon,
 } from '@heroicons/react/24/outline'
+import { Link } from 'react-router-dom'
 import { settingsApi } from '@/api/settings'
 import { useAppStore } from '@/stores/appStore'
+import { useServerConfigStore } from '@/stores/serverConfigStore'
 import ThemeSelector from '@/components/settings/ThemeSelector'
 import type { AppSettingsAdmin } from '@/types'
 
@@ -31,13 +35,16 @@ import type { AppSettingsAdmin } from '@/types'
 const tabs = [
   { id: 'branding', name: 'Branding', icon: PhotoIcon },
   { id: 'theme', name: 'Thema', icon: SwatchIcon },
+  { id: 'fonts', name: 'Fonts', icon: LanguageIcon, link: '/settings/fonts' },
   { id: 'company', name: 'Bedrijfsgegevens', icon: BuildingOfficeIcon },
   { id: 'invoice', name: 'Factuur', icon: DocumentTextIcon },
   { id: 'email', name: 'E-mail', icon: EnvelopeIcon },
+  { id: 'server', name: 'Server', icon: ServerIcon },
 ]
 
 export default function SettingsPage() {
   const { fetchSettings } = useAppStore()
+  const serverConfig = useServerConfigStore()
   
   // State
   const [activeTab, setActiveTab] = useState('branding')
@@ -279,19 +286,30 @@ export default function SettingsPage() {
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                ${activeTab === tab.id
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
-              `}
-            >
-              <tab.icon className="h-5 w-5" />
-              {tab.name}
-            </button>
+            tab.link ? (
+              <Link
+                key={tab.id}
+                to={tab.link}
+                className="flex items-center gap-2 py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors"
+              >
+                <tab.icon className="h-5 w-5" />
+                {tab.name}
+              </Link>
+            ) : (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                  ${activeTab === tab.id
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+                `}
+              >
+                <tab.icon className="h-5 w-5" />
+                {tab.name}
+              </button>
+            )
           ))}
         </nav>
       </div>
@@ -833,6 +851,59 @@ export default function SettingsPage() {
                     Test versturen
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Server Tab */}
+          {activeTab === 'server' && (
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-gray-900">Server Configuratie</h2>
+              <p className="text-sm text-gray-500">
+                Bekijk of wijzig de huidige server verbinding.
+              </p>
+
+              <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Server URL</label>
+                  <p className="mt-1 text-lg font-mono text-gray-900">
+                    {serverConfig.serverUrl || '(Lokale ontwikkeling)'}
+                  </p>
+                </div>
+                
+                {serverConfig.serverName && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500">Server Naam</label>
+                    <p className="mt-1 text-lg text-gray-900">{serverConfig.serverName}</p>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Status</label>
+                  <p className="mt-1 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="text-sm text-green-700">Verbonden</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t pt-6">
+                <h3 className="text-md font-medium text-gray-900 mb-2">Andere server gebruiken</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Om een andere server te gebruiken moet je uitloggen en de app opnieuw configureren.
+                </p>
+                <button
+                  onClick={() => {
+                    if (confirm('Weet je zeker dat je de server configuratie wilt wissen? Je wordt uitgelogd.')) {
+                      serverConfig.clearServerUrl()
+                      window.location.href = '/setup'
+                    }
+                  }}
+                  className="btn-danger"
+                >
+                  <ServerIcon className="h-5 w-5 mr-2" />
+                  Server configuratie wissen
+                </button>
               </div>
             </div>
           )}
