@@ -1,14 +1,20 @@
 """
 Core app URL configuration.
 """
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from .views import (
     PublicSettingsView, 
     AdminSettingsViewSet, 
     DashboardStatsView, 
     ImageUploadView,
-    HealthCheckView
+    HealthCheckView,
+    CustomFontViewSet,
 )
+
+# Router for viewsets
+router = DefaultRouter()
+router.register(r'fonts', CustomFontViewSet, basename='fonts')
 
 urlpatterns = [
     # Health check (no auth required)
@@ -22,6 +28,9 @@ urlpatterns = [
     
     # Image upload
     path('upload/image/', ImageUploadView.as_view(), name='upload-image'),
+    
+    # Font management (via router)
+    path('', include(router.urls)),
     
     # Admin settings management
     path('admin/settings/', AdminSettingsViewSet.as_view({

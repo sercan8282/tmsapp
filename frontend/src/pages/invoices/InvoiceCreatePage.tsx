@@ -55,6 +55,55 @@ interface ChauffeurWeekGroup {
 // Helper Functions
 // ============================================
 
+// Safe math expression parser (no eval!)
+function safeMathEval(expression: string): number {
+  // Tokenize the expression
+  const tokens = expression.match(/(\d+\.?\d*|\+|\-|\*|\/|\(|\))/g)
+  if (!tokens || tokens.length === 0) return 0
+  
+  let pos = 0
+  
+  function parseExpression(): number {
+    let result = parseTerm()
+    while (pos < tokens!.length && (tokens![pos] === '+' || tokens![pos] === '-')) {
+      const op = tokens![pos++]
+      const term = parseTerm()
+      result = op === '+' ? result + term : result - term
+    }
+    return result
+  }
+  
+  function parseTerm(): number {
+    let result = parseFactor()
+    while (pos < tokens!.length && (tokens![pos] === '*' || tokens![pos] === '/')) {
+      const op = tokens![pos++]
+      const factor = parseFactor()
+      result = op === '*' ? result * factor : result / factor
+    }
+    return result
+  }
+  
+  function parseFactor(): number {
+    if (tokens![pos] === '(') {
+      pos++ // skip '('
+      const result = parseExpression()
+      pos++ // skip ')'
+      return result
+    }
+    if (tokens![pos] === '-') {
+      pos++
+      return -parseFactor()
+    }
+    return parseFloat(tokens![pos++]) || 0
+  }
+  
+  try {
+    return parseExpression()
+  } catch {
+    return 0
+  }
+}
+
 // Parse and evaluate formula with column values
 function evaluateFormula(formula: string, values: Record<string, number | string>, defaults: TemplateLayout['defaults']): number {
   if (!formula) return 0
@@ -74,10 +123,9 @@ function evaluateFormula(formula: string, values: Record<string, number | string
       expression = expression.replace(new RegExp(key.toLowerCase(), 'g'), numVal.toString())
     })
     
-    // Evaluate (safe eval - only numbers and operators)
+    // Evaluate using safe math parser (no eval!)
     if (/^[\d\s+\-*/().]+$/.test(expression)) {
-      // eslint-disable-next-line no-eval
-      return eval(expression) || 0
+      return safeMathEval(expression) || 0
     }
     return 0
   } catch {

@@ -273,6 +273,9 @@ create_directories() {
     # TMS subdirectories
     mkdir -p $DOCKER_DIR/tms/{backend,frontend,media,staticfiles,logs,backups}
     
+    # Media subdirectories for uploads
+    mkdir -p $DOCKER_DIR/tms/media/{fonts,branding}
+    
     # Nginx Proxy Manager subdirectories
     mkdir -p $DOCKER_DIR/nginx-proxy/{data,letsencrypt}
     
@@ -291,6 +294,8 @@ create_directories() {
     chmod 750 $DOCKER_DIR/tms/logs
     chmod 750 $DOCKER_DIR/tms/backups
     chmod 755 $DOCKER_DIR/tms/media
+    chmod 755 $DOCKER_DIR/tms/media/fonts
+    chmod 755 $DOCKER_DIR/tms/media/branding
     chmod 755 $DOCKER_DIR/tms/staticfiles
     chmod 755 $DOCKER_DIR/nginx-proxy/letsencrypt
     
@@ -712,8 +717,8 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 # Copy application
 COPY . .
 
-# Create directories
-RUN mkdir -p logs media staticfiles
+# Create directories including fonts and branding
+RUN mkdir -p logs media/fonts media/branding staticfiles
 
 # Collect static files
 RUN python manage.py collectstatic --noinput || true

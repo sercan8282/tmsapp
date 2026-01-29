@@ -169,3 +169,98 @@ class InvoiceLine(models.Model):
         # Calculate line total
         self.totaal = self.aantal * self.prijs_per_eenheid
         super().save(*args, **kwargs)
+
+
+class ExpenseCategory(models.TextChoices):
+    """Expense categories for classification."""
+    BRANDSTOF = 'brandstof', 'Brandstof'
+    ONDERHOUD = 'onderhoud', 'Onderhoud & Reparatie'
+    VERZEKERING = 'verzekering', 'Verzekering'
+    BELASTING = 'belasting', 'Wegenbelasting'
+    LEASE = 'lease', 'Lease / Huur'
+    PERSONEELSKOSTEN = 'personeelskosten', 'Personeelskosten'
+    KANTOORKOSTEN = 'kantoorkosten', 'Kantoorkosten'
+    MARKETING = 'marketing', 'Marketing & Reclame'
+    SOFTWARE = 'software', 'Software & Abonnementen'
+    OVERIG = 'overig', 'Overig'
+
+
+class Expense(models.Model):
+    """
+    Uitgaven model - voor kosten die niet via inkoopfacturen lopen.
+    Bijv. brandstof, onderhoud, abonnementen, etc.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Description
+    omschrijving = models.CharField(max_length=255, verbose_name='Omschrijving')
+    categorie = models.CharField(
+        max_length=30,
+        choices=ExpenseCategory.choices,
+        default=ExpenseCategory.OVERIG,
+        verbose_name='Categorie'
+    )
+    
+    # Amount
+    bedrag = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Bedrag (excl. BTW)')
+    btw_bedrag = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='BTW Bedrag')
+    totaal = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Totaal (incl. BTW)')
+    
+    # Date
+    datum = models.DateField(verbose_name='Datum')
+    
+    # Optional relations
+    bedrijf = models.ForeignKey(
+        'companies.Company',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='expenses',
+        verbose_name='Leverancier'
+    )
+    voertuig = models.ForeignKey(
+        'fleet.Vehicle',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='expenses',
+        verbose_name='Voertuig'
+    )
+    chauffeur = models.ForeignKey(
+        'drivers.Driver',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='expenses',
+        verbose_name='Chauffeur'
+    )
+    
+    # Notes & attachments
+    notities = models.TextField(blank=True, verbose_name='Notities')
+    bijlage = models.FileField(upload_to='expenses/', null=True, blank=True, verbose_name='Bijlage')
+    
+    # Tracking
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_expenses',
+        verbose_name='Aangemaakt door'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Uitgave'
+        verbose_name_plural = 'Uitgaven'
+        ordering = ['-datum', '-created_at']
+    
+    def __str__(self):
+        return f"{self.datum} - {self.omschrijving} (€{self.totaal})"
+    
+    def save(self, *args, **kwargs):
+        # Calculate total if not set
+        if not self.totaal:
+            self.totaal = self.bedrag + self.btw_bedrag
+        super().save(*args, **kwargs)

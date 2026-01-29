@@ -33,8 +33,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy project files
 COPY . /app/
 
-# Create necessary directories
-RUN mkdir -p /app/staticfiles /app/media /app/logs
+# Create necessary directories including fonts
+RUN mkdir -p /app/staticfiles /app/media/fonts /app/media/branding /app/logs
 
 # Copy entrypoint script and fix line endings (Windows -> Linux)
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh

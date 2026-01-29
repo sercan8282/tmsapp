@@ -1,11 +1,65 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
+import { useServerConfigStore } from '@/stores/serverConfigStore'
+
+// Security: Validate that the base URL is safe
+const isValidBaseUrl = (url: string): boolean => {
+  if (url === '/api') return true // Relative URL is always safe
+  
+  try {
+    const parsed = new URL(url)
+    // Only allow http/https
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return false
+    }
+    // Block javascript: and data: protocols
+    if (url.toLowerCase().startsWith('javascript:') || url.toLowerCase().startsWith('data:')) {
+      return false
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Function to get the current base URL
+const getBaseUrl = (): string => {
+  const serverConfig = useServerConfigStore.getState()
+  
+  // If server is configured, use the getApiUrl method
+  if (serverConfig.isConfigured) {
+    const apiUrl = serverConfig.getApiUrl()
+    // Security check
+    if (isValidBaseUrl(apiUrl)) {
+      return apiUrl
+    }
+    console.error('Invalid API URL detected, falling back to /api')
+  }
+  
+  // Fallback for development (uses Vite proxy)
+  return '/api'
+}
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: getBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
+  // Security: Set reasonable timeouts
+  timeout: 30000, // 30 seconds
+})
+
+// Subscribe to server config changes and update baseURL
+useServerConfigStore.subscribe((state) => {
+  if (state.isConfigured) {
+    const apiUrl = useServerConfigStore.getState().getApiUrl()
+    // Security check before updating
+    if (isValidBaseUrl(apiUrl)) {
+      api.defaults.baseURL = apiUrl
+    }
+  } else {
+    api.defaults.baseURL = '/api'
+  }
 })
 
 // Request interceptor to add auth token
@@ -36,7 +90,9 @@ api.interceptors.response.use(
       
       if (refreshToken) {
         try {
-          const response = await axios.post('/api/auth/token/refresh/', {
+          // Use the current baseURL for refresh
+          const baseUrl = api.defaults.baseURL || '/api'
+          const response = await axios.post(`${baseUrl}/auth/token/refresh/`, {
             refresh: refreshToken,
           })
           
