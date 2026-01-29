@@ -424,7 +424,8 @@ function WeekSummaryCard({
 
   return (
     <div className="card p-4 mb-6">
-      <div className="flex items-center justify-between">
+      {/* Desktop layout */}
+      <div className="hidden md:flex items-center justify-between">
         <div className="flex items-center gap-6">
           <div>
             <span className="text-sm text-gray-500">Week {weeknummer}, {jaar}</span>
@@ -462,6 +463,48 @@ function WeekSummaryCard({
             onClick={onSubmit}
             disabled={isSubmitting}
             className="btn-primary flex items-center"
+          >
+            <PaperAirplaneIcon className="w-4 h-4 mr-2" />
+            {isSubmitting ? 'Bezig...' : 'Week indienen'}
+          </button>
+        )}
+      </div>
+
+      {/* Mobile layout */}
+      <div className="md:hidden">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <span className="text-sm text-gray-500">Week {weeknummer}, {jaar}</span>
+            <p className="text-xl font-bold text-gray-900">{summary.totaal_entries} registraties</p>
+          </div>
+          <div className="flex items-center gap-1">
+            {summary.concept_count > 0 && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                {summary.concept_count}
+              </span>
+            )}
+            {summary.ingediend_count > 0 && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                {summary.ingediend_count}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="bg-gray-50 rounded-lg p-2">
+            <span className="text-xs text-gray-500">Totaal KM</span>
+            <p className="text-sm font-semibold text-gray-900">{summary.totaal_km.toLocaleString()}</p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-2">
+            <span className="text-xs text-gray-500">Totaal Uren</span>
+            <p className="text-sm font-semibold text-gray-900">{summary.totaal_uren}</p>
+          </div>
+        </div>
+        {summary.kan_indienen && (
+          <button
+            onClick={onSubmit}
+            disabled={isSubmitting}
+            className="btn-primary w-full flex items-center justify-center"
           >
             <PaperAirplaneIcon className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Bezig...' : 'Week indienen'}
@@ -696,7 +739,7 @@ export default function TimeEntriesPage() {
   }
 
   return (
-    <div>
+    <div className="max-w-full overflow-hidden">
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Urenregistratie</h1>
@@ -729,7 +772,8 @@ export default function TimeEntriesPage() {
 
       {/* Week Navigation */}
       <div className="card p-4 mb-6">
-        <div className="flex items-center justify-between">
+        {/* Desktop layout */}
+        <div className="hidden sm:flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={goToPreviousWeek}
@@ -773,6 +817,59 @@ export default function TimeEntriesPage() {
             </select>
 
             {/* Refresh button */}
+            <button
+              onClick={() => fetchEntries()}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+              title="Vernieuwen"
+            >
+              <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile layout */}
+        <div className="sm:hidden space-y-3">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={goToPreviousWeek}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+            >
+              <ChevronLeftIcon className="w-5 h-5" />
+            </button>
+            <div className="text-center">
+              <div className="flex items-center gap-2">
+                <CalendarDaysIcon className="w-5 h-5 text-primary-600" />
+                <span className="text-base font-semibold text-gray-900">
+                  Week {selectedWeek}, {selectedYear}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={goToNextWeek}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+            >
+              <ChevronRightIcon className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={goToCurrentWeek}
+              className="text-sm text-primary-600 hover:text-primary-700"
+            >
+              Vandaag
+            </button>
+            
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1) }}
+              className="input flex-1 text-sm"
+            >
+              <option value="all">Alle</option>
+              <option value="concept">Concept</option>
+              <option value="ingediend">Ingediend</option>
+            </select>
+
             <button
               onClick={() => fetchEntries()}
               className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
