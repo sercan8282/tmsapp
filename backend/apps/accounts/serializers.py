@@ -101,6 +101,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Custom JWT serializer that includes user data and handles 2FA."""
     
     def validate(self, attrs):
+        # Make email case-insensitive
+        if 'email' in attrs:
+            attrs['email'] = attrs['email'].lower()
+        
         data = super().validate(attrs)
         
         # Check if user has 2FA enabled
@@ -140,11 +144,6 @@ class MFAVerifySerializer(serializers.Serializer):
 class MFADisableSerializer(serializers.Serializer):
     """Serializer for disabling 2FA."""
     code = serializers.CharField(required=True, min_length=6, max_length=6)
-    password = serializers.CharField(required=True)
-
-
-class MFAResetSerializer(serializers.Serializer):
-    """Serializer for resetting 2FA (user resets their own MFA)."""
     password = serializers.CharField(required=True)
 
 
