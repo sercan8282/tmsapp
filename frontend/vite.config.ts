@@ -167,7 +167,7 @@ export default defineConfig({
         clientsClaim: true,
       },
       devOptions: {
-        enabled: true, // Enable PWA in development
+        enabled: false, // Disabled - causes issues with API proxy
         type: 'module',
       },
     }),

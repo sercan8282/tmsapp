@@ -53,6 +53,9 @@ import TemplateEditorPage from '@/pages/invoices/TemplateEditorPage'
 // Revenue
 import RevenuePage from '@/pages/revenue/RevenuePage'
 
+// Invoice Import (OCR)
+import { InvoiceImportPage, InvoiceImportDetailPage } from '@/pages/imports'
+
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, pendingMfaSetup } = useAuthStore()
@@ -205,6 +208,10 @@ function App() {
 
         {/* Revenue */}
         <Route path="/revenue" element={<AdminRoute><RevenuePage /></AdminRoute>} />
+
+        {/* Invoice Import (OCR) */}
+        <Route path="/imports" element={<AdminRoute><InvoiceImportPage /></AdminRoute>} />
+        <Route path="/imports/:id" element={<AdminRoute><InvoiceImportDetailPage /></AdminRoute>} />
       </Route>
       
       {/* Catch all - redirect to home */}

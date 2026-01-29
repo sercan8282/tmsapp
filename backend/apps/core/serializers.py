@@ -95,6 +95,7 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
     favicon_url = serializers.SerializerMethodField()
     primary_font_data = CustomFontSerializer(source='primary_font', read_only=True)
     secondary_font_data = CustomFontSerializer(source='secondary_font', read_only=True)
+    ai_status = serializers.SerializerMethodField()
     
     class Meta:
         model = AppSettings
@@ -107,13 +108,39 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
             'oauth_enabled', 'oauth_client_id', 'oauth_client_secret', 'oauth_tenant_id',
             'invoice_payment_text', 'email_signature',
             'primary_font', 'primary_font_data', 'secondary_font', 'secondary_font_data',
+            # AI Settings
+            'ai_provider', 'ai_github_token', 'ai_openai_api_key',
+            'ai_azure_endpoint', 'ai_azure_api_key', 'ai_azure_deployment', 'ai_model',
+            'ai_status',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'ai_status']
         extra_kwargs = {
             'smtp_password': {'write_only': True},
             'oauth_client_secret': {'write_only': True},
+            # AI keys should be write_only for security
+            'ai_github_token': {'write_only': True},
+            'ai_openai_api_key': {'write_only': True},
+            'ai_azure_api_key': {'write_only': True},
         }
+    
+    def get_ai_status(self, obj):
+        """Check if AI is properly configured and working."""
+        if obj.ai_provider == 'none':
+            return {'configured': False, 'message': 'AI is uitgeschakeld'}
+        
+        has_key = False
+        if obj.ai_provider == 'github' and obj.ai_github_token:
+            has_key = True
+        elif obj.ai_provider == 'openai' and obj.ai_openai_api_key:
+            has_key = True
+        elif obj.ai_provider == 'azure' and obj.ai_azure_api_key and obj.ai_azure_endpoint:
+            has_key = True
+        
+        if has_key:
+            return {'configured': True, 'provider': obj.ai_provider, 'message': f'AI geconfigureerd ({obj.get_ai_provider_display()})'}
+        else:
+            return {'configured': False, 'message': 'API key ontbreekt'}
     
     def get_logo_url(self, obj):
         if obj.logo:

@@ -41,6 +41,7 @@ LOCAL_APPS = [
     'apps.timetracking',
     'apps.planning',
     'apps.invoicing',
+    'apps.invoicing.ocr',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

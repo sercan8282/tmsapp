@@ -19,6 +19,7 @@ import {
   ClipboardDocumentListIcon,
   KeyIcon,
   CurrencyEuroIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
@@ -45,6 +46,7 @@ const navigation: NavItem[] = [
   { name: 'Planning', href: '/planning', icon: CalendarIcon },  // All roles (filtered by backend)
   { name: 'Facturen', href: '/invoices', icon: DocumentTextIcon, roles: ['admin', 'gebruiker'] },
   { name: 'Factuur Templates', href: '/invoices/templates', icon: DocumentDuplicateIcon, roles: ['admin'] },
+  { name: 'Factuur Import', href: '/imports', icon: ArrowUpTrayIcon, roles: ['admin', 'gebruiker'] },
   { name: 'Omzet', href: '/revenue', icon: CurrencyEuroIcon, roles: ['admin', 'gebruiker'] },
 ]
 

@@ -11,9 +11,31 @@ import {
   CheckCircleIcon,
   XMarkIcon,
   EyeIcon,
+  Cog6ToothIcon,
+  PhotoIcon,
+  SwatchIcon,
+  LanguageIcon,
+  BuildingOfficeIcon,
+  DocumentTextIcon,
+  EnvelopeIcon,
+  SparklesIcon,
+  ServerIcon,
 } from '@heroicons/react/24/outline'
+import { Link } from 'react-router-dom'
 import { fontsApi, CustomFont, FontFamily } from '@/api/fonts'
 import toast from 'react-hot-toast'
+
+// Tab configuration (same as SettingsPage)
+const tabs = [
+  { id: 'branding', name: 'Branding', icon: PhotoIcon, link: '/settings' },
+  { id: 'theme', name: 'Thema', icon: SwatchIcon, link: '/settings' },
+  { id: 'fonts', name: 'Fonts', icon: LanguageIcon },
+  { id: 'company', name: 'Bedrijfsgegevens', icon: BuildingOfficeIcon, link: '/settings' },
+  { id: 'invoice', name: 'Factuur', icon: DocumentTextIcon, link: '/settings' },
+  { id: 'email', name: 'E-mail', icon: EnvelopeIcon, link: '/settings' },
+  { id: 'ai', name: 'AI Extractie', icon: SparklesIcon, link: '/settings' },
+  { id: 'server', name: 'Server', icon: ServerIcon, link: '/settings' },
+]
 
 // Font weight options
 const FONT_WEIGHTS = [
@@ -165,13 +187,12 @@ export default function FontManagementPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Fonts Beheren</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Upload en beheer custom fonts voor templates en de site
-          </p>
+      <div className="page-header">
+        <div className="flex items-center gap-3">
+          <Cog6ToothIcon className="h-8 w-8 text-gray-400" />
+          <h1 className="page-title">Instellingen</h1>
         </div>
+        
         <button
           onClick={() => setShowUploadModal(true)}
           className="btn-primary"
@@ -181,42 +202,80 @@ export default function FontManagementPage() {
         </button>
       </div>
 
-      {/* Loading */}
-      {loading && (
-        <div className="flex justify-center py-12">
-          <ArrowPathIcon className="h-8 w-8 text-primary-600 animate-spin" />
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {tabs.map((tab) => (
+            tab.link ? (
+              <Link
+                key={tab.id}
+                to={tab.link}
+                className="flex items-center gap-2 py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors"
+              >
+                <tab.icon className="h-5 w-5" />
+                {tab.name}
+              </Link>
+            ) : (
+              <button
+                key={tab.id}
+                className="flex items-center gap-2 py-4 px-1 border-b-2 border-primary-500 text-primary-600 font-medium text-sm transition-colors"
+              >
+                <tab.icon className="h-5 w-5" />
+                {tab.name}
+              </button>
+            )
+          ))}
+        </nav>
+      </div>
 
-      {/* Empty state */}
-      {!loading && families.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Geen fonts</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Upload je eerste font om te beginnen.
-          </p>
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="mt-4 btn-primary"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Font Uploaden
-          </button>
-        </div>
-      )}
+      {/* Content */}
+      <div className="card">
+        <div className="p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Fonts Beheren</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Upload en beheer custom fonts voor templates en de site
+              </p>
+            </div>
+          </div>
 
-      {/* Font families list */}
-      {!loading && families.length > 0 && (
-        <div className="space-y-6">
-          {families.map((family) => (
-            <div key={family.family} className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-lg font-semibold text-gray-900" style={{ fontFamily: family.family }}>
-                  {family.family}
-                </h2>
-                <p className="text-sm text-gray-500">{family.fonts.length} variant(en)</p>
-              </div>
+          {/* Loading */}
+          {loading && (
+            <div className="flex justify-center py-12">
+              <ArrowPathIcon className="h-8 w-8 text-primary-600 animate-spin" />
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!loading && families.length === 0 && (
+            <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Geen fonts</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Upload je eerste font om te beginnen.
+              </p>
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="mt-4 btn-primary"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Font Uploaden
+              </button>
+            </div>
+          )}
+
+          {/* Font families list */}
+          {!loading && families.length > 0 && (
+            <div className="space-y-6">
+              {families.map((family) => (
+                <div key={family.family} className="bg-gray-50 rounded-lg overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200 bg-gray-100">
+                    <h3 className="text-lg font-semibold text-gray-900" style={{ fontFamily: family.family }}>
+                      {family.family}
+                    </h3>
+                    <p className="text-sm text-gray-500">{family.fonts.length} variant(en)</p>
+                  </div>
               
               <div className="divide-y divide-gray-200">
                 {family.fonts.map((font) => (
@@ -284,7 +343,9 @@ export default function FontManagementPage() {
             </div>
           ))}
         </div>
-      )}
+          )}
+        </div>
+      </div>
 
       {/* Upload Modal */}
       {showUploadModal && (

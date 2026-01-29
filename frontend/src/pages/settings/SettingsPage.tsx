@@ -23,6 +23,7 @@ import {
   SwatchIcon,
   ServerIcon,
   LanguageIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
 import { settingsApi } from '@/api/settings'
@@ -39,6 +40,7 @@ const tabs = [
   { id: 'company', name: 'Bedrijfsgegevens', icon: BuildingOfficeIcon },
   { id: 'invoice', name: 'Factuur', icon: DocumentTextIcon },
   { id: 'email', name: 'E-mail', icon: EnvelopeIcon },
+  { id: 'ai', name: 'AI Extractie', icon: SparklesIcon },
   { id: 'server', name: 'Server', icon: ServerIcon },
 ]
 
@@ -100,6 +102,11 @@ export default function SettingsPage() {
         oauth_tenant_id: data.oauth_tenant_id,
         invoice_payment_text: data.invoice_payment_text,
         email_signature: data.email_signature,
+        // AI settings
+        ai_provider: data.ai_provider || 'none',
+        ai_azure_endpoint: data.ai_azure_endpoint,
+        ai_azure_deployment: data.ai_azure_deployment,
+        ai_model: data.ai_model || 'gpt-4o-mini',
       })
     } catch (err: any) {
       setError('Kon instellingen niet laden')
@@ -852,6 +859,159 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* AI Tab */}
+          {activeTab === 'ai' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">AI Factuur Extractie</h2>
+                <p className="text-sm text-gray-500">
+                  Configureer AI-powered extractie voor het automatisch herkennen van factuurgegevens.
+                </p>
+              </div>
+
+              {/* Status indicator */}
+              {settings?.ai_status && (
+                <div className={`p-4 rounded-lg ${settings.ai_status.configured ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-3 h-3 rounded-full ${settings.ai_status.configured ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                    <span className={`text-sm font-medium ${settings.ai_status.configured ? 'text-green-800' : 'text-yellow-800'}`}>
+                      {settings.ai_status.message}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Provider selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  AI Provider
+                </label>
+                <select
+                  value={formData.ai_provider || 'none'}
+                  onChange={(e) => handleInputChange('ai_provider', e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="none">Uitgeschakeld</option>
+                  <option value="github">GitHub Models (Gratis)</option>
+                  <option value="openai">OpenAI (Betaald)</option>
+                  <option value="azure">Azure OpenAI</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  GitHub Models is gratis en aanbevolen voor de meeste gebruikers.
+                </p>
+              </div>
+
+              {/* GitHub Models settings */}
+              {formData.ai_provider === 'github' && (
+                <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                  <h3 className="font-medium text-gray-900">GitHub Models (Gratis)</h3>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      GitHub Personal Access Token
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="ghp_... of github_pat_..."
+                      onChange={(e) => handleInputChange('ai_github_token', e.target.value)}
+                      className="input w-full font-mono"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Maak een token op{' '}
+                      <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        github.com/settings/tokens
+                      </a>
+                      {' '}met "models" permissie.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* OpenAI settings */}
+              {formData.ai_provider === 'openai' && (
+                <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                  <h3 className="font-medium text-gray-900">OpenAI</h3>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      API Key
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="sk-..."
+                      onChange={(e) => handleInputChange('ai_openai_api_key', e.target.value)}
+                      className="input w-full font-mono"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Verkrijgbaar op{' '}
+                      <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        platform.openai.com
+                      </a>
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Azure OpenAI settings */}
+              {formData.ai_provider === 'azure' && (
+                <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                  <h3 className="font-medium text-gray-900">Azure OpenAI</h3>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Endpoint URL
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="https://your-resource.openai.azure.com/"
+                      value={formData.ai_azure_endpoint || ''}
+                      onChange={(e) => handleInputChange('ai_azure_endpoint', e.target.value)}
+                      className="input w-full font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      API Key
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Azure API key"
+                      onChange={(e) => handleInputChange('ai_azure_api_key', e.target.value)}
+                      className="input w-full font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Deployment Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="gpt-4o-mini"
+                      value={formData.ai_azure_deployment || ''}
+                      onChange={(e) => handleInputChange('ai_azure_deployment', e.target.value)}
+                      className="input w-full"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Model selection (for all providers except none) */}
+              {formData.ai_provider && formData.ai_provider !== 'none' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Model
+                  </label>
+                  <select
+                    value={formData.ai_model || 'gpt-4o-mini'}
+                    onChange={(e) => handleInputChange('ai_model', e.target.value)}
+                    className="input w-full"
+                  >
+                    <option value="gpt-4o-mini">GPT-4o Mini (Snel, goedkoop)</option>
+                    <option value="gpt-4o">GPT-4o (Beste kwaliteit)</option>
+                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                  </select>
+                </div>
+              )}
             </div>
           )}
 

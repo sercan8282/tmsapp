@@ -20,4 +20,6 @@ urlpatterns = [
     # Revenue endpoints
     path('revenue/', RevenueView.as_view(), name='revenue'),
     path('revenue/years/', RevenueYearsView.as_view(), name='revenue-years'),
+    # OCR Import endpoints
+    path('ocr/', include('apps.invoicing.ocr.urls')),
 ]

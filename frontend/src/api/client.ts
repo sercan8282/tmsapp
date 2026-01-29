@@ -36,7 +36,12 @@ const getBaseUrl = (): string => {
     console.error('Invalid API URL detected, falling back to /api')
   }
   
-  // Fallback for development (uses Vite proxy)
+  // Development: direct backend URL to bypass Service Worker issues
+  if (import.meta.env.DEV) {
+    return 'http://localhost:8001/api'
+  }
+  
+  // Production: uses relative URL
   return '/api'
 }
 
