@@ -234,42 +234,80 @@ create_superuser() {
     log_info "Controleren of superuser bestaat..."
     
     # Wacht tot backend ready is
-    sleep 5
+    log_info "Wachten tot backend beschikbaar is..."
+    for i in {1..30}; do
+        if docker compose exec -T backend python manage.py check &>/dev/null; then
+            break
+        fi
+        sleep 2
+    done
     
-    # Check of er al users zijn
-    USER_COUNT=$(docker compose exec -T backend python manage.py shell -c "from apps.accounts.models import User; print(User.objects.filter(is_superuser=True).count())" 2>/dev/null || echo "0")
+    # Check of er al superusers zijn
+    USER_COUNT=$(docker compose exec -T backend python manage.py shell -c "from apps.accounts.models import User; print(User.objects.filter(is_superuser=True).count())" 2>/dev/null | tr -d '[:space:]' || echo "error")
     
-    if [ "$USER_COUNT" = "0" ]; then
+    if [ "$USER_COUNT" = "0" ] || [ "$USER_COUNT" = "error" ]; then
         echo ""
         log_info "Geen superuser gevonden. Aanmaken..."
+        echo ""
         read -p "Admin email: " ADMIN_EMAIL
         read -p "Admin voornaam: " ADMIN_VOORNAAM
         read -p "Admin achternaam: " ADMIN_ACHTERNAAM
-        read -s -p "Admin wachtwoord: " ADMIN_PASSWORD
-        echo ""
         
-        # Sla admin email op in secrets file voor latere referentie
-        echo "" >> "$ENV_FILE"
-        echo "# Admin gebruiker (aangemaakt tijdens installatie)" >> "$ENV_FILE"
-        echo "ADMIN_EMAIL=$ADMIN_EMAIL" >> "$ENV_FILE"
+        # Wachtwoord met bevestiging
+        while true; do
+            read -s -p "Admin wachtwoord: " ADMIN_PASSWORD
+            echo ""
+            read -s -p "Bevestig wachtwoord: " ADMIN_PASSWORD2
+            echo ""
+            if [ "$ADMIN_PASSWORD" = "$ADMIN_PASSWORD2" ]; then
+                break
+            else
+                log_error "Wachtwoorden komen niet overeen. Probeer opnieuw."
+            fi
+        done
         
+        # Genereer username van email
+        ADMIN_USERNAME=$(echo "$ADMIN_EMAIL" | cut -d'@' -f1)
+        
+        # Maak superuser aan met createsuperuser commando
+        log_info "Superuser aanmaken..."
+        
+        # Gebruik environment variables voor createsuperuser
+        docker compose exec -T -e DJANGO_SUPERUSER_EMAIL="$ADMIN_EMAIL" \
+            -e DJANGO_SUPERUSER_USERNAME="$ADMIN_USERNAME" \
+            -e DJANGO_SUPERUSER_PASSWORD="$ADMIN_PASSWORD" \
+            backend python manage.py createsuperuser --noinput 2>/dev/null
+        
+        # Update voornaam en achternaam
         docker compose exec -T backend python manage.py shell << EOF
 from apps.accounts.models import User
-User.objects.create_superuser(
-    email='$ADMIN_EMAIL',
-    username='$ADMIN_EMAIL'.split('@')[0],
-    password='$ADMIN_PASSWORD',
-    voornaam='$ADMIN_VOORNAAM',
-    achternaam='$ADMIN_ACHTERNAAM'
-)
-print('Superuser aangemaakt!')
+try:
+    user = User.objects.get(email='$ADMIN_EMAIL')
+    user.voornaam = '$ADMIN_VOORNAAM'
+    user.achternaam = '$ADMIN_ACHTERNAAM'
+    user.is_active = True
+    user.save()
+    print('Superuser bijgewerkt!')
+except Exception as e:
+    print(f'Fout: {e}')
 EOF
-        log_success "Superuser aangemaakt: $ADMIN_EMAIL"
         
-        # Export voor show_completion functie
-        export CREATED_ADMIN_EMAIL="$ADMIN_EMAIL"
+        if [ $? -eq 0 ]; then
+            log_success "Superuser aangemaakt: $ADMIN_EMAIL"
+            
+            # Sla admin email op in secrets file voor latere referentie
+            echo "" >> "$ENV_FILE"
+            echo "# Admin gebruiker (aangemaakt tijdens installatie)" >> "$ENV_FILE"
+            echo "ADMIN_EMAIL=$ADMIN_EMAIL" >> "$ENV_FILE"
+            
+            # Export voor show_completion functie
+            export CREATED_ADMIN_EMAIL="$ADMIN_EMAIL"
+        else
+            log_error "Superuser aanmaken mislukt. Probeer handmatig:"
+            echo "  sudo docker compose exec -it backend python manage.py createsuperuser"
+        fi
     else
-        log_success "Superuser bestaat al"
+        log_success "Superuser bestaat al ($USER_COUNT gevonden)"
     fi
 }
 
