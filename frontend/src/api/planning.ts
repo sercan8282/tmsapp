@@ -133,6 +133,7 @@ export interface MyPlanningEntry {
   kenteken: string
   voertuig_type: string
   bedrijf: string
+  ritnummer: string
   weeknummer: number
   jaar: number
 }

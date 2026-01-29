@@ -162,6 +162,9 @@ function ChauffeurPlanningView() {
                     Voertuig
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ritnummer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Type
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -180,6 +183,9 @@ function ChauffeurPlanningView() {
                         <TruckIcon className="h-5 w-5 text-gray-400 mr-2" />
                         <span className="font-mono font-medium">{entry.kenteken}</span>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="font-mono text-gray-600">{entry.ritnummer || '-'}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                       {entry.voertuig_type}
@@ -208,9 +214,15 @@ function ChauffeurPlanningView() {
                   </span>
                 </div>
                 
-                <div className="text-sm text-gray-600">
-                  <span className="text-gray-500">Type:</span>{' '}
-                  <span className="font-medium">{entry.voertuig_type}</span>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-gray-600">
+                    <span className="text-gray-500">Ritnummer:</span>{' '}
+                    <span className="font-mono font-medium">{entry.ritnummer || '-'}</span>
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="text-gray-500">Type:</span>{' '}
+                    <span className="font-medium">{entry.voertuig_type}</span>
+                  </div>
                 </div>
               </div>
             ))}

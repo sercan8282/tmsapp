@@ -15,6 +15,7 @@ class PlanningEntrySerializer(serializers.ModelSerializer):
             'id', 'planning', 'vehicle', 'dag', 'chauffeur',
             'vehicle_kenteken', 'vehicle_type', 'vehicle_ritnummer',
             'chauffeur_naam', 'dag_display', 'telefoon', 'adr',
+            'ritnummer',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
