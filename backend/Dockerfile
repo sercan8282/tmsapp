@@ -23,6 +23,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     shared-mime-info \
     curl \
+    # OCR dependencies
+    tesseract-ocr \
+    tesseract-ocr-nld \
+    tesseract-ocr-eng \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -33,8 +38,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy project files
 COPY . /app/
 
-# Create necessary directories including fonts
-RUN mkdir -p /app/staticfiles /app/media/fonts /app/media/branding /app/logs
+# Create necessary directories including fonts and OCR temp
+RUN mkdir -p /app/staticfiles /app/media/fonts /app/media/branding /app/media/imports /app/media/temp/ocr /app/logs
 
 # Copy entrypoint script and fix line endings (Windows -> Linux)
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh

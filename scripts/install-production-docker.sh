@@ -274,7 +274,7 @@ create_directories() {
     mkdir -p $DOCKER_DIR/tms/{backend,frontend,media,staticfiles,logs,backups}
     
     # Media subdirectories for uploads
-    mkdir -p $DOCKER_DIR/tms/media/{fonts,branding}
+    mkdir -p $DOCKER_DIR/tms/media/{fonts,branding,imports,temp/ocr}
     
     # Nginx Proxy Manager subdirectories
     mkdir -p $DOCKER_DIR/nginx-proxy/{data,letsencrypt}
@@ -296,6 +296,8 @@ create_directories() {
     chmod 755 $DOCKER_DIR/tms/media
     chmod 755 $DOCKER_DIR/tms/media/fonts
     chmod 755 $DOCKER_DIR/tms/media/branding
+    chmod 755 $DOCKER_DIR/tms/media/imports
+    chmod 755 $DOCKER_DIR/tms/media/temp
     chmod 755 $DOCKER_DIR/tms/staticfiles
     chmod 755 $DOCKER_DIR/nginx-proxy/letsencrypt
     
@@ -708,6 +710,10 @@ RUN apt-get update && apt-get install -y \
     libgdk-pixbuf2.0-0 \
     libffi-dev \
     shared-mime-info \
+    tesseract-ocr \
+    tesseract-ocr-nld \
+    tesseract-ocr-eng \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -717,8 +723,8 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 # Copy application
 COPY . .
 
-# Create directories including fonts and branding
-RUN mkdir -p logs media/fonts media/branding staticfiles
+# Create directories including fonts, branding and OCR temp
+RUN mkdir -p logs media/fonts media/branding media/imports media/temp/ocr staticfiles
 
 # Collect static files
 RUN python manage.py collectstatic --noinput || true
