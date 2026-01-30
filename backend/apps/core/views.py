@@ -19,6 +19,21 @@ from django.core.cache import cache
 from django.utils import timezone
 from datetime import timedelta
 
+
+def safe_str(value):
+    """Convert value to safe ASCII string (handle Unicode characters)."""
+    if value is None:
+        return ''
+    s = str(value)
+    replacements = {
+        '\u0130': 'I', '\u0131': 'i', '\u015e': 'S', '\u015f': 's',
+        '\u011e': 'G', '\u011f': 'g', '\u00c7': 'C', '\u00e7': 'c',
+        '\u00d6': 'O', '\u00f6': 'o', '\u00dc': 'U', '\u00fc': 'u',
+    }
+    for char, replacement in replacements.items():
+        s = s.replace(char, replacement)
+    return s.encode('ascii', 'replace').decode('ascii')
+
 from .models import AppSettings, CustomFont
 from .serializers import (
     AppSettingsSerializer, 
@@ -262,11 +277,14 @@ class AdminSettingsViewSet(ViewSet):
                 fail_silently=False,
             )
             
+            # Sanitize from_email for ASCII compatibility
+            from_email = safe_str(settings.smtp_from_email or settings.smtp_username)
+            
             # Create and send email
             email = EmailMessage(
                 subject='TMS - Test E-mail',
-                body='Dit is een test e-mail vanuit TMS om de e-mail configuratie te verifiëren.\n\nAls je deze e-mail ontvangt, werken de e-mail instellingen correct!',
-                from_email=settings.smtp_from_email or settings.smtp_username,
+                body='Dit is een test e-mail vanuit TMS om de e-mail configuratie te verifieren.\n\nAls je deze e-mail ontvangt, werken de e-mail instellingen correct!',
+                from_email=from_email,
                 to=[to_email],
                 connection=connection,
             )
