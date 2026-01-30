@@ -258,10 +258,11 @@ class WeekPlanningViewSet(viewsets.ModelViewSet):
             )
             
             # Create email with PDF attachment
+            bedrijf_naam_safe = self._safe_str(planning.bedrijf.naam)
             subject = f'Planning week {planning.weeknummer}'
             body = f"""Beste,
 
-Hierbij de planning voor week {planning.weeknummer} ({planning.jaar}) van {planning.bedrijf.naam}.
+Hierbij de planning voor week {planning.weeknummer} ({planning.jaar}) van {bedrijf_naam_safe}.
 
 Met vriendelijke groet,
 TMS
@@ -275,13 +276,13 @@ TMS
                 connection=connection,
             )
             
-            # Attach PDF
-            filename = f'Planning_week_{planning.weeknummer}_{planning.jaar}_{planning.bedrijf.naam}.pdf'
+            # Attach PDF - use safe filename
+            filename = f'Planning_week_{planning.weeknummer}_{planning.jaar}_{bedrijf_naam_safe}.pdf'
             email.attach(filename, pdf_buffer.getvalue(), 'application/pdf')
             email.send(fail_silently=False)
             
             logger.info(
-                f"Planning emailed: {planning.bedrijf.naam} Week {planning.weeknummer}/{planning.jaar} "
+                f"Planning emailed: {bedrijf_naam_safe} Week {planning.weeknummer}/{planning.jaar} "
                 f"to {to_email} by user {request.user.email}"
             )
             
