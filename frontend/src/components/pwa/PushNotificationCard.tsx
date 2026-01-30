@@ -1,6 +1,6 @@
 /**
  * Push Notification Subscribe Card
- * Allows users to subscribe/unsubscribe from push notifications
+ * Allows users to subscribe to push notifications (unsubscribe is admin-only)
  */
 import { useState } from 'react'
 import {
@@ -22,7 +22,6 @@ export default function PushNotificationCard() {
     error,
     pushConfig,
     subscribe,
-    unsubscribe,
   } = usePushNotifications()
 
   const [deviceName, setDeviceName] = useState('')
@@ -38,12 +37,6 @@ export default function PushNotificationCard() {
     if (success) {
       setShowDeviceInput(false)
       setDeviceName('')
-    }
-  }
-
-  const handleUnsubscribe = async () => {
-    if (window.confirm('Weet je zeker dat je geen push notificaties meer wilt ontvangen?')) {
-      await unsubscribe()
     }
   }
 
@@ -139,18 +132,9 @@ export default function PushNotificationCard() {
 
           <div className="mt-4 flex gap-2">
             {isSubscribed ? (
-              <button
-                onClick={handleUnsubscribe}
-                disabled={isLoading}
-                className="btn-secondary text-sm"
-              >
-                {isLoading ? (
-                  <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <BellSlashIcon className="h-4 w-4 mr-2" />
-                )}
-                Uitschrijven
-              </button>
+              <div className="text-sm text-gray-500 italic">
+                Je bent ingeschreven voor notificaties op dit apparaat.
+              </div>
             ) : (
               <>
                 <button

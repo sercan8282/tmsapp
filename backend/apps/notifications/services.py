@@ -113,6 +113,36 @@ class PushNotificationService:
             sent_by=sent_by,
         )
     
+    def send_to_group(
+        self,
+        group,
+        title: str,
+        body: str,
+        icon: Optional[str] = None,
+        url: Optional[str] = None,
+        data: Optional[Dict[str, Any]] = None,
+        sent_by=None,
+    ) -> Dict[str, int]:
+        """
+        Send push notification to all members of a notification group.
+        """
+        # Get all active subscriptions for group members
+        subscriptions = PushSubscription.objects.filter(
+            user__in=group.members.all(),
+            is_active=True
+        )
+        
+        return self._send_to_subscriptions(
+            subscriptions=list(subscriptions),
+            title=title,
+            body=body,
+            icon=icon,
+            url=url,
+            data=data,
+            group=group,
+            sent_by=sent_by,
+        )
+    
     def _send_to_subscriptions(
         self,
         subscriptions: List[PushSubscription],
@@ -123,6 +153,7 @@ class PushNotificationService:
         data: Optional[Dict[str, Any]] = None,
         recipient=None,
         send_to_all: bool = False,
+        group=None,
         sent_by=None,
     ) -> Dict[str, int]:
         """
@@ -154,9 +185,10 @@ class PushNotificationService:
             success_count, failure_count = self._send_firebase(subscriptions, payload)
         
         # Log notification
-        PushNotification.objects.create(
+        notification_log = PushNotification.objects.create(
             recipient=recipient,
             send_to_all=send_to_all,
+            group=group,
             title=title,
             body=body,
             icon=icon,
@@ -167,10 +199,58 @@ class PushNotificationService:
             failure_count=failure_count,
         )
         
+        # Create UserNotification records for inbox
+        self._create_user_notifications(notification_log, subscriptions, recipient, send_to_all, group)
+        
         return {
             'success_count': success_count,
             'failure_count': failure_count,
+            'notification_id': str(notification_log.id),
         }
+    
+    def _create_user_notifications(
+        self,
+        notification_log: PushNotification,
+        subscriptions: List[PushSubscription],
+        recipient=None,
+        send_to_all: bool = False,
+        group=None,
+    ):
+        """
+        Create UserNotification records for all recipients.
+        This enables the notification inbox and read receipts.
+        """
+        from .models import UserNotification
+        
+        # Collect unique users from subscriptions
+        users_notified = set()
+        
+        if recipient:
+            users_notified.add(recipient)
+        elif send_to_all:
+            # Get all users with active subscriptions
+            users_notified.update(sub.user for sub in subscriptions)
+        elif group:
+            # Get all group members (even if they don't have subscriptions)
+            users_notified.update(group.members.all())
+        else:
+            # From subscriptions
+            users_notified.update(sub.user for sub in subscriptions)
+        
+        # Bulk create UserNotification records
+        user_notifications = [
+            UserNotification(
+                notification=notification_log,
+                user=user,
+            )
+            for user in users_notified
+        ]
+        
+        if user_notifications:
+            UserNotification.objects.bulk_create(
+                user_notifications,
+                ignore_conflicts=True  # Avoid duplicates
+            )
     
     def _send_webpush(
         self,
@@ -365,3 +445,39 @@ def send_push_notification(
         )
     else:
         return {'success_count': 0, 'failure_count': 0, 'error': 'no_target'}
+
+
+def send_to_group(
+    group,
+    title: str = "",
+    body: str = "",
+    icon: str = None,
+    url: str = None,
+    data: Dict[str, Any] = None,
+    sent_by=None,
+) -> Dict[str, int]:
+    """
+    Convenience function to send push notifications to a group.
+    
+    Args:
+        group: NotificationGroup to send to
+        title: Notification title
+        body: Notification body
+        icon: Optional icon URL
+        url: Optional click URL
+        data: Optional extra data
+        sent_by: User who triggered the notification
+    
+    Returns:
+        Dict with success_count and failure_count
+    """
+    service = get_push_service()
+    return service.send_to_group(
+        group=group,
+        title=title,
+        body=body,
+        icon=icon,
+        url=url,
+        data=data,
+        sent_by=sent_by,
+    )

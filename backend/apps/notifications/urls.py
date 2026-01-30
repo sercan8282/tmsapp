@@ -11,11 +11,20 @@ from .views import (
     PushSubscriptionViewSet,
     SendPushNotificationView,
     PushNotificationLogViewSet,
+    NotificationGroupViewSet,
+    NotificationScheduleViewSet,
+    AvailableUsersView,
+    NotificationInboxViewSet,
+    SentNotificationsViewSet,
 )
 
 router = DefaultRouter()
 router.register(r'subscriptions', PushSubscriptionViewSet, basename='push-subscription')
 router.register(r'logs', PushNotificationLogViewSet, basename='push-log')
+router.register(r'groups', NotificationGroupViewSet, basename='notification-group')
+router.register(r'schedules', NotificationScheduleViewSet, basename='notification-schedule')
+router.register(r'inbox', NotificationInboxViewSet, basename='notification-inbox')
+router.register(r'sent', SentNotificationsViewSet, basename='sent-notifications')
 
 urlpatterns = [
     # Admin settings
@@ -27,6 +36,9 @@ urlpatterns = [
     
     # Send notifications
     path('send/', SendPushNotificationView.as_view(), name='send-push'),
+    
+    # Available users for group assignment
+    path('available-users/', AvailableUsersView.as_view(), name='available-users'),
     
     # Router URLs
     path('', include(router.urls)),

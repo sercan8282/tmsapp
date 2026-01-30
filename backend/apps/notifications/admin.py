@@ -2,7 +2,13 @@
 Admin configuration for push notifications.
 """
 from django.contrib import admin
-from .models import PushSettings, PushSubscription, PushNotification
+from .models import (
+    PushSettings, 
+    PushSubscription, 
+    PushNotification,
+    NotificationGroup,
+    NotificationSchedule,
+)
 
 
 @admin.register(PushSettings)
@@ -71,9 +77,9 @@ class PushSubscriptionAdmin(admin.ModelAdmin):
 
 @admin.register(PushNotification)
 class PushNotificationAdmin(admin.ModelAdmin):
-    list_display = ['title', 'recipient', 'send_to_all', 'success_count', 'failure_count', 'sent_at', 'sent_by']
-    list_filter = ['send_to_all', 'sent_at']
-    search_fields = ['title', 'body', 'recipient__email']
+    list_display = ['title', 'recipient', 'group', 'send_to_all', 'success_count', 'failure_count', 'sent_at', 'sent_by']
+    list_filter = ['send_to_all', 'sent_at', 'group']
+    search_fields = ['title', 'body', 'recipient__email', 'group__name']
     readonly_fields = ['id', 'sent_at', 'success_count', 'failure_count']
     
     fieldsets = (
@@ -81,13 +87,80 @@ class PushNotificationAdmin(admin.ModelAdmin):
             'fields': ('title', 'body', 'icon', 'url')
         }),
         ('Target', {
-            'fields': ('recipient', 'send_to_all'),
+            'fields': ('recipient', 'group', 'send_to_all'),
         }),
         ('Results', {
             'fields': ('success_count', 'failure_count', 'sent_at', 'sent_by'),
         }),
         ('Extra Data', {
             'fields': ('data',),
+            'classes': ('collapse',),
+        }),
+    )
+
+
+@admin.register(NotificationGroup)
+class NotificationGroupAdmin(admin.ModelAdmin):
+    list_display = ['name', 'company', 'is_active', 'member_count', 'schedule_count', 'created_at']
+    list_filter = ['is_active', 'company', 'created_at']
+    search_fields = ['name', 'description', 'company__name']
+    filter_horizontal = ['members']
+    readonly_fields = ['id', 'created_at', 'updated_at', 'member_count', 'schedule_count']
+    
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'description', 'is_active')
+        }),
+        ('Company', {
+            'fields': ('company',),
+            'description': 'Optional: Link this group to a specific company.'
+        }),
+        ('Members', {
+            'fields': ('members',),
+        }),
+        ('Statistics', {
+            'fields': ('member_count', 'schedule_count'),
+            'classes': ('collapse',),
+        }),
+        ('Timestamps', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+    
+    def member_count(self, obj):
+        return obj.members.count()
+    member_count.short_description = 'Members'
+    
+    def schedule_count(self, obj):
+        return obj.schedules.count()
+    schedule_count.short_description = 'Schedules'
+
+
+@admin.register(NotificationSchedule)
+class NotificationScheduleAdmin(admin.ModelAdmin):
+    list_display = ['title', 'group', 'frequency', 'send_time', 'is_active', 'next_send_at', 'last_sent_at']
+    list_filter = ['is_active', 'frequency', 'group', 'created_at']
+    search_fields = ['title', 'body', 'group__name']
+    readonly_fields = ['id', 'created_at', 'updated_at', 'last_sent_at', 'next_send_at']
+    
+    fieldsets = (
+        (None, {
+            'fields': ('group', 'is_active')
+        }),
+        ('Schedule', {
+            'fields': ('frequency', 'weekly_day', 'custom_days', 'send_time'),
+            'description': 'Configure when notifications should be sent.'
+        }),
+        ('Notification Content', {
+            'fields': ('title', 'body', 'icon', 'url'),
+        }),
+        ('Timing Info', {
+            'fields': ('next_send_at', 'last_sent_at'),
+            'classes': ('collapse',),
+        }),
+        ('Timestamps', {
+            'fields': ('id', 'created_at', 'updated_at'),
             'classes': ('collapse',),
         }),
     )
