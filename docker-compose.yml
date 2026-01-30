@@ -63,6 +63,9 @@ services:
       dockerfile: Dockerfile
     container_name: tms_backend
     restart: always
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       - DJANGO_SETTINGS_MODULE=tms.settings.production
       - SECRET_KEY=${SECRET_KEY:?Secret key is verplicht}
