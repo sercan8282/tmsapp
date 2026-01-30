@@ -29,14 +29,24 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = TimeEntry.objects.select_related('user')
         
-        # Admins and managers see all, others see only their own
+        # Admins and managers see all SUBMITTED entries, others see only their own
         if user.is_superuser or user.rol in ['admin', 'gebruiker']:
-            # Optional filter by user
+            # Admins only see submitted entries (not concept entries from chauffeurs)
+            # Unless they explicitly filter by status or are viewing their own entries
             user_filter = self.request.query_params.get('user')
+            status_filter = self.request.query_params.get('status')
+            
             if user_filter:
+                # If filtering by specific user, show all their entries
                 queryset = queryset.filter(user_id=user_filter)
+            elif status_filter:
+                # If explicit status filter, respect it
+                pass
+            else:
+                # Default: only show submitted entries to admins
+                queryset = queryset.filter(status=TimeEntryStatus.INGEDIEND)
         else:
-            # Chauffeurs only see their own
+            # Chauffeurs only see their own (all statuses)
             queryset = queryset.filter(user=user)
         
         # Filter by year if provided
