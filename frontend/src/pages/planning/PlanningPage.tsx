@@ -422,13 +422,20 @@ function AdminPlanningView() {
     // Columns: Weeknummer, Dag, Route, Chauffeur, Telefoonnummer, ADR, Kenteken
     const tableData: string[][] = []
     
-    // Sort entries by day order
+    // Sort entries by ritnummer first, then by day
     const dayOrder = { ma: 1, di: 2, wo: 3, do: 4, vr: 5 }
     const sortedEntries = [...planning.entries].sort((a, b) => {
-      const dayDiff = dayOrder[a.dag] - dayOrder[b.dag]
-      if (dayDiff !== 0) return dayDiff
-      // Then sort by kenteken
-      return a.vehicle_kenteken.localeCompare(b.vehicle_kenteken)
+      // First sort by ritnummer (numeric)
+      const numA = parseInt(a.vehicle_ritnummer, 10)
+      const numB = parseInt(b.vehicle_ritnummer, 10)
+      if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+        return numA - numB
+      }
+      // Then by ritnummer string
+      const ritCompare = (a.vehicle_ritnummer || '').localeCompare(b.vehicle_ritnummer || '')
+      if (ritCompare !== 0) return ritCompare
+      // Finally by day
+      return dayOrder[a.dag] - dayOrder[b.dag]
     })
 
     for (const entry of sortedEntries) {
@@ -516,10 +523,22 @@ function AdminPlanningView() {
       vehicleMap.get(entry.vehicle)!.entries.set(entry.dag, entry)
     }
     
-    return Array.from(vehicleMap.entries()).map(([vehicleId, data]) => ({
-      vehicleId,
-      ...data
-    }))
+    // Sort by ritnummer (numeric sort, lowest first)
+    return Array.from(vehicleMap.entries())
+      .map(([vehicleId, data]) => ({
+        vehicleId,
+        ...data
+      }))
+      .sort((a, b) => {
+        // Try numeric sort first
+        const numA = parseInt(a.ritnummer, 10)
+        const numB = parseInt(b.ritnummer, 10)
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return numA - numB
+        }
+        // Fall back to string sort
+        return (a.ritnummer || '').localeCompare(b.ritnummer || '')
+      })
   }, [planning])
 
   // Get drivers for company

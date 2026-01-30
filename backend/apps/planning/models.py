@@ -78,7 +78,7 @@ class PlanningEntry(models.Model):
     class Meta:
         verbose_name = 'Planningsregel'
         verbose_name_plural = 'Planningsregels'
-        ordering = ['dag']
+        ordering = ['vehicle__ritnummer', 'dag']
     
     def __str__(self):
         return f"{self.vehicle.kenteken} - {self.get_dag_display()}"
