@@ -120,10 +120,26 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
             f"Week {weeknummer} submitted: {count} entries by {request.user.email}"
         )
         
-        return Response({
+        # Calculate and add overtime to leave balance
+        overtime_added = None
+        try:
+            from apps.leave.signals import update_user_overtime
+            jaar_int = int(jaar) if jaar else entries.first().datum.year
+            overtime = update_user_overtime(request.user, weeknummer, jaar_int)
+            if overtime > 0:
+                overtime_added = str(overtime)
+                logger.info(f"Overtime added: {overtime}h for {request.user.email}")
+        except Exception as e:
+            logger.warning(f"Could not calculate overtime: {e}")
+        
+        response_data = {
             'message': f'{count} uren ingediend voor week {weeknummer}.',
             'count': count
-        })
+        }
+        if overtime_added:
+            response_data['overtime_added'] = overtime_added
+        
+        return Response(response_data)
     
     @action(detail=False, methods=['get'])
     def week_summary(self, request):

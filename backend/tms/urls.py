@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/time-entries/', include('apps.timetracking.urls')),
     path('api/planning/', include('apps.planning.urls')),
     path('api/invoicing/', include('apps.invoicing.urls')),
+    path('api/leave/', include('apps.leave.urls')),
 ]
 
 # Serve media files in development

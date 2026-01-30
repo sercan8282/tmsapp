@@ -56,6 +56,13 @@ import RevenuePage from '@/pages/revenue/RevenuePage'
 // Invoice Import (OCR)
 import { InvoiceImportPage, InvoiceImportDetailPage } from '@/pages/imports'
 
+// Leave management
+import LeaveOverviewPage from '@/pages/leave/LeaveOverviewPage'
+import LeaveRequestPage from '@/pages/leave/LeaveRequestPage'
+import LeaveCalendarPage from '@/pages/leave/LeaveCalendarPage'
+import LeaveSettingsPage from '@/pages/settings/LeaveSettingsPage'
+import LeaveRequestsAdminPage from '@/pages/leave/LeaveRequestsAdminPage'
+
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, pendingMfaSetup } = useAuthStore()
@@ -212,6 +219,13 @@ function App() {
         {/* Invoice Import (OCR) */}
         <Route path="/imports" element={<AdminRoute><InvoiceImportPage /></AdminRoute>} />
         <Route path="/imports/:id" element={<AdminRoute><InvoiceImportDetailPage /></AdminRoute>} />
+
+        {/* Leave management */}
+        <Route path="/leave" element={<LeaveOverviewPage />} />
+        <Route path="/leave/request" element={<LeaveRequestPage />} />
+        <Route path="/leave/calendar" element={<LeaveCalendarPage />} />
+        <Route path="/settings/leave" element={<AdminRoute><LeaveSettingsPage /></AdminRoute>} />
+        <Route path="/settings/leave-requests" element={<AdminRoute><LeaveRequestsAdminPage /></AdminRoute>} />
       </Route>
       
       {/* Catch all - redirect to home */}

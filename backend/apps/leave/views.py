@@ -1,0 +1,409 @@
+"""Views for leave management."""
+from decimal import Decimal
+from datetime import date, timedelta
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.db.models import Q
+from django.utils import timezone
+
+from .models import (
+    GlobalLeaveSettings, 
+    LeaveBalance, 
+    LeaveRequest, 
+    LeaveRequestStatus,
+    LeaveType,
+)
+from .serializers import (
+    GlobalLeaveSettingsSerializer,
+    LeaveBalanceSerializer,
+    LeaveBalanceAdminUpdateSerializer,
+    LeaveRequestSerializer,
+    LeaveRequestCreateSerializer,
+    LeaveRequestAdminActionSerializer,
+    CalendarLeaveEntrySerializer,
+    ConcurrentLeaveCheckSerializer,
+)
+
+
+class GlobalLeaveSettingsViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for global leave settings.
+    Only admins can view/edit.
+    """
+    serializer_class = GlobalLeaveSettingsSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return GlobalLeaveSettings.objects.all()
+    
+    def list(self, request):
+        """Return the singleton settings object."""
+        settings_obj = GlobalLeaveSettings.get_settings()
+        serializer = self.get_serializer(settings_obj)
+        return Response(serializer.data)
+    
+    def create(self, request):
+        """Update settings (create not allowed, use update)."""
+        return Response(
+            {'error': 'Gebruik PUT/PATCH om instellingen bij te werken.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+    
+    @action(detail=False, methods=['put', 'patch'])
+    def update_settings(self, request):
+        """Update the global settings."""
+        if not (request.user.is_superuser or request.user.rol == 'admin'):
+            return Response(
+                {'error': 'Alleen admins kunnen instellingen wijzigen.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        settings_obj = GlobalLeaveSettings.get_settings()
+        serializer = self.get_serializer(settings_obj, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class LeaveBalanceViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for leave balances.
+    - Users can view their own balance
+    - Admins can view/edit all balances
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action in ['update', 'partial_update']:
+            return LeaveBalanceAdminUpdateSerializer
+        return LeaveBalanceSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or user.rol == 'admin':
+            return LeaveBalance.objects.select_related('user').all()
+        return LeaveBalance.objects.filter(user=user)
+    
+    def list(self, request):
+        """List all balances (admin) or own balance (user)."""
+        queryset = self.get_queryset()
+        serializer = LeaveBalanceSerializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def my_balance(self, request):
+        """Get current user's leave balance."""
+        try:
+            balance = LeaveBalance.objects.get(user=request.user)
+        except LeaveBalance.DoesNotExist:
+            # Create balance if it doesn't exist
+            settings_obj = GlobalLeaveSettings.get_settings()
+            balance = LeaveBalance.objects.create(
+                user=request.user,
+                vacation_hours=settings_obj.default_leave_hours
+            )
+        
+        serializer = LeaveBalanceSerializer(balance)
+        return Response(serializer.data)
+    
+    def update(self, request, *args, **kwargs):
+        """Only admins can update balances."""
+        if not (request.user.is_superuser or request.user.rol == 'admin'):
+            return Response(
+                {'error': 'Alleen admins kunnen verlofsaldo aanpassen.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Only admins can update balances."""
+        if not (request.user.is_superuser or request.user.rol == 'admin'):
+            return Response(
+                {'error': 'Alleen admins kunnen verlofsaldo aanpassen.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+
+class LeaveRequestViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for leave requests.
+    - Users can create/view their own requests
+    - Admins can view all and approve/reject
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return LeaveRequestCreateSerializer
+        return LeaveRequestSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        queryset = LeaveRequest.objects.select_related('user', 'reviewed_by')
+        
+        if user.is_superuser or user.rol == 'admin':
+            # Admins see all requests
+            pass
+        else:
+            # Users see only their own
+            queryset = queryset.filter(user=user)
+        
+        # Filter by status if provided
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        # Filter by user if provided (admin only)
+        user_filter = self.request.query_params.get('user')
+        if user_filter and (user.is_superuser or user.rol == 'admin'):
+            queryset = queryset.filter(user_id=user_filter)
+        
+        return queryset
+    
+    def create(self, request, *args, **kwargs):
+        """Create a new leave request."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save()
+        
+        # Return full serializer
+        return Response(
+            LeaveRequestSerializer(instance).data,
+            status=status.HTTP_201_CREATED
+        )
+    
+    @action(detail=False, methods=['get'])
+    def my_requests(self, request):
+        """Get current user's leave requests."""
+        queryset = LeaveRequest.objects.filter(user=request.user).order_by('-created_at')
+        serializer = LeaveRequestSerializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def pending(self, request):
+        """Get all pending requests (admin only)."""
+        if not (request.user.is_superuser or request.user.rol == 'admin'):
+            return Response(
+                {'error': 'Alleen admins kunnen alle aanvragen zien.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        queryset = LeaveRequest.objects.filter(
+            status=LeaveRequestStatus.PENDING
+        ).select_related('user').order_by('created_at')
+        
+        serializer = LeaveRequestSerializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def admin_action(self, request, pk=None):
+        """Admin action to approve/reject/delete a request."""
+        if not (request.user.is_superuser or request.user.rol == 'admin'):
+            return Response(
+                {'error': 'Alleen admins kunnen aanvragen beheren.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        leave_request = self.get_object()
+        action_serializer = LeaveRequestAdminActionSerializer(data=request.data)
+        action_serializer.is_valid(raise_exception=True)
+        
+        action_type = action_serializer.validated_data['action']
+        admin_comment = action_serializer.validated_data.get('admin_comment', '')
+        
+        if action_type == 'approve':
+            return self._approve_request(request, leave_request, admin_comment)
+        elif action_type == 'reject':
+            return self._reject_request(request, leave_request, admin_comment)
+        elif action_type == 'delete':
+            return self._delete_request(request, leave_request)
+        
+        return Response({'error': 'Ongeldige actie.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def _approve_request(self, request, leave_request, admin_comment):
+        """Approve a leave request and deduct hours."""
+        if leave_request.status != LeaveRequestStatus.PENDING:
+            return Response(
+                {'error': 'Alleen aanvragen in afwachting kunnen worden goedgekeurd.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get the user's balance
+        try:
+            balance = leave_request.user.leave_balance
+        except LeaveBalance.DoesNotExist:
+            return Response(
+                {'error': 'Medewerker heeft geen verlofsaldo.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Calculate and apply deductions
+        deductions = leave_request.calculate_deductions()
+        
+        # Validate sufficient balance
+        if deductions['vacation_deduct'] > balance.vacation_hours:
+            return Response(
+                {'error': f"Onvoldoende verlofuren. Nodig: {deductions['vacation_deduct']}u, beschikbaar: {balance.vacation_hours}u"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if deductions['overtime_deduct'] > balance.available_overtime_for_leave:
+            return Response(
+                {'error': f"Onvoldoende overuren. Nodig: {deductions['overtime_deduct']}u, beschikbaar: {balance.available_overtime_for_leave}u"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Apply deductions
+        if deductions['vacation_deduct'] > 0:
+            balance.deduct_vacation(deductions['vacation_deduct'])
+        
+        if deductions['overtime_deduct'] > 0:
+            balance.deduct_overtime(deductions['overtime_deduct'])
+        
+        if deductions['special_free'] > 0:
+            month_key = leave_request.get_month_key()
+            balance.add_special_leave_used(month_key, deductions['special_free'])
+        
+        # Update request status
+        leave_request.status = LeaveRequestStatus.APPROVED
+        leave_request.admin_comment = admin_comment
+        leave_request.reviewed_by = request.user
+        leave_request.reviewed_at = timezone.now()
+        leave_request.save()
+        
+        return Response({
+            'message': 'Verlofaanvraag goedgekeurd.',
+            'deductions': {
+                'vacation': str(deductions['vacation_deduct']),
+                'overtime': str(deductions['overtime_deduct']),
+                'special_free': str(deductions['special_free']),
+            }
+        })
+    
+    def _reject_request(self, request, leave_request, admin_comment):
+        """Reject a leave request."""
+        if leave_request.status != LeaveRequestStatus.PENDING:
+            return Response(
+                {'error': 'Alleen aanvragen in afwachting kunnen worden afgewezen.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        leave_request.status = LeaveRequestStatus.REJECTED
+        leave_request.admin_comment = admin_comment
+        leave_request.reviewed_by = request.user
+        leave_request.reviewed_at = timezone.now()
+        leave_request.save()
+        
+        return Response({'message': 'Verlofaanvraag afgewezen.'})
+    
+    def _delete_request(self, request, leave_request):
+        """Delete a leave request and refund hours if approved."""
+        # If it was approved, refund the hours
+        if leave_request.status == LeaveRequestStatus.APPROVED:
+            try:
+                balance = leave_request.user.leave_balance
+                deductions = leave_request.calculate_deductions()
+                
+                # Refund deductions
+                if deductions['vacation_deduct'] > 0:
+                    balance.vacation_hours += deductions['vacation_deduct']
+                    balance.save(update_fields=['vacation_hours', 'updated_at'])
+                
+                if deductions['overtime_deduct'] > 0:
+                    balance.overtime_hours += deductions['overtime_deduct']
+                    balance.save(update_fields=['overtime_hours', 'updated_at'])
+                
+                # Note: special_free hours are not refunded as they're "use it or lose it"
+            except LeaveBalance.DoesNotExist:
+                pass
+        
+        leave_request.delete()
+        return Response({'message': 'Verlofaanvraag verwijderd.'})
+    
+    @action(detail=False, methods=['get'])
+    def calendar(self, request):
+        """
+        Get approved leave for calendar view.
+        Query params: start_date, end_date
+        """
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        if not start_date:
+            start_date = date.today().replace(day=1)
+        else:
+            start_date = date.fromisoformat(start_date)
+        
+        if not end_date:
+            # Default to 3 months ahead
+            end_date = start_date + timedelta(days=90)
+        else:
+            end_date = date.fromisoformat(end_date)
+        
+        # Get approved leave requests in date range
+        queryset = LeaveRequest.objects.filter(
+            status=LeaveRequestStatus.APPROVED,
+            start_date__lte=end_date,
+            end_date__gte=start_date,
+        ).select_related('user').order_by('start_date')
+        
+        # Serialize for calendar
+        entries = []
+        for req in queryset:
+            entries.append({
+                'id': req.id,
+                'user_id': req.user_id,
+                'user_naam': req.user.full_name,
+                'leave_type': req.leave_type,
+                'leave_type_display': req.get_leave_type_display(),
+                'start_date': req.start_date,
+                'end_date': req.end_date,
+                'hours': req.hours_requested,
+                'status': req.status,
+            })
+        
+        return Response(entries)
+    
+    @action(detail=False, methods=['get'])
+    def check_concurrent(self, request):
+        """
+        Check how many employees have approved leave for a date range.
+        Query params: start_date, end_date
+        """
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        if not start_date or not end_date:
+            return Response(
+                {'error': 'start_date en end_date zijn verplicht.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        start_date = date.fromisoformat(start_date)
+        end_date = date.fromisoformat(end_date)
+        
+        # Get settings for max concurrent
+        settings_obj = GlobalLeaveSettings.get_settings()
+        max_concurrent = settings_obj.max_concurrent_leave
+        
+        # Find overlapping approved leave
+        overlapping = LeaveRequest.objects.filter(
+            status=LeaveRequestStatus.APPROVED,
+            start_date__lte=end_date,
+            end_date__gte=start_date,
+        ).exclude(user=request.user).select_related('user')
+        
+        concurrent_users = list(set(req.user.full_name for req in overlapping))
+        concurrent_count = len(concurrent_users)
+        
+        return Response({
+            'start_date': start_date,
+            'end_date': end_date,
+            'concurrent_count': concurrent_count,
+            'max_concurrent': max_concurrent,
+            'warning': concurrent_count >= max_concurrent,
+            'employees_on_leave': concurrent_users,
+        })
