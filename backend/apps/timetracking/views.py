@@ -207,7 +207,11 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         
         # Filter based on permissions
         if not (user.is_superuser or user.rol in ['admin', 'gebruiker']):
+            # Chauffeurs see all their own entries
             queryset = queryset.filter(user=user)
+        else:
+            # Admins only see submitted entries (not concept entries from chauffeurs)
+            queryset = queryset.filter(status=TimeEntryStatus.INGEDIEND)
         
         # Optional user filter for admins
         user_filter = request.query_params.get('user')
