@@ -266,12 +266,15 @@ class AdminSettingsViewSet(ViewSet):
             )
         
         try:
+            # Sanitize credentials for ASCII compatibility
+            smtp_username = safe_str(settings.smtp_username) if settings.smtp_username else ''
+            
             # Create custom connection with database settings
             connection = get_connection(
                 backend='django.core.mail.backends.smtp.EmailBackend',
                 host=settings.smtp_host,
                 port=settings.smtp_port,
-                username=settings.smtp_username or '',
+                username=smtp_username,
                 password=settings.smtp_password or '',
                 use_tls=settings.smtp_use_tls,
                 fail_silently=False,
