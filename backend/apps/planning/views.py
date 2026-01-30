@@ -26,6 +26,32 @@ from .serializers import (
 logger = logging.getLogger('accounts.security')
 
 
+def safe_str(value):
+    """Convert value to safe ASCII string (handle Unicode characters)."""
+    if value is None:
+        return '-'
+    s = str(value)
+    # Replace problematic characters with ASCII equivalents
+    replacements = {
+        '\u0130': 'I',  # Turkish dotted capital I (İ)
+        '\u0131': 'i',  # Turkish dotless lowercase i (ı)
+        '\u015e': 'S',  # Turkish S with cedilla (Ş)
+        '\u015f': 's',  # Turkish s with cedilla (ş)
+        '\u011e': 'G',  # Turkish G with breve (Ğ)
+        '\u011f': 'g',  # Turkish g with breve (ğ)
+        '\u00c7': 'C',  # C with cedilla (Ç)
+        '\u00e7': 'c',  # c with cedilla (ç)
+        '\u00d6': 'O',  # O with umlaut (Ö)
+        '\u00f6': 'o',  # o with umlaut (ö)
+        '\u00dc': 'U',  # U with umlaut (Ü)
+        '\u00fc': 'u',  # u with umlaut (ü)
+    }
+    for char, replacement in replacements.items():
+        s = s.replace(char, replacement)
+    # Remove any remaining non-ASCII characters
+    return s.encode('ascii', 'replace').decode('ascii')
+
+
 class WeekPlanningViewSet(viewsets.ModelViewSet):
     """
     ViewSet voor weekplanningen.
@@ -258,7 +284,7 @@ class WeekPlanningViewSet(viewsets.ModelViewSet):
             )
             
             # Create email with PDF attachment
-            bedrijf_naam_safe = self._safe_str(planning.bedrijf.naam)
+            bedrijf_naam_safe = safe_str(planning.bedrijf.naam)
             subject = f'Planning week {planning.weeknummer}'
             body = f"""Beste,
 
@@ -296,32 +322,6 @@ TMS
                 {'error': f'E-mail verzenden mislukt: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
-    def _safe_str(self, value):
-        """Convert value to safe string for PDF (handle Unicode)."""
-        if value is None:
-            return '-'
-        # Convert to string and normalize Unicode characters
-        s = str(value)
-        # Replace problematic characters with ASCII equivalents
-        replacements = {
-            '\u0130': 'I',  # Turkish dotted capital I
-            '\u0131': 'i',  # Turkish dotless lowercase i
-            '\u015e': 'S',  # Turkish S with cedilla
-            '\u015f': 's',  # Turkish s with cedilla
-            '\u011e': 'G',  # Turkish G with breve
-            '\u011f': 'g',  # Turkish g with breve
-            '\u00c7': 'C',  # C with cedilla
-            '\u00e7': 'c',  # c with cedilla
-            '\u00d6': 'O',  # O with umlaut
-            '\u00f6': 'o',  # o with umlaut
-            '\u00dc': 'U',  # U with umlaut
-            '\u00fc': 'u',  # u with umlaut
-        }
-        for char, replacement in replacements.items():
-            s = s.replace(char, replacement)
-        # Remove any remaining non-ASCII characters
-        return s.encode('ascii', 'replace').decode('ascii')
 
     def _generate_planning_pdf(self, planning):
         """Generate PDF for planning."""
@@ -345,7 +345,7 @@ TMS
             fontSize=16,
             spaceAfter=12
         )
-        bedrijf_naam = self._safe_str(planning.bedrijf.naam)
+        bedrijf_naam = safe_str(planning.bedrijf.naam)
         title = Paragraph(
             f"Planning Week {planning.weeknummer} - {planning.jaar}<br/>{bedrijf_naam}",
             title_style
@@ -374,12 +374,12 @@ TMS
         # Table rows
         for entry in sorted_entries:
             table_data.append([
-                self._safe_str(entry.vehicle.ritnummer) if entry.vehicle else '-',
+                safe_str(entry.vehicle.ritnummer) if entry.vehicle else '-',
                 day_names.get(entry.dag, entry.dag),
-                self._safe_str(entry.vehicle.kenteken) if entry.vehicle else '-',
-                self._safe_str(entry.vehicle.type_wagen) if entry.vehicle else '-',
-                self._safe_str(entry.chauffeur.naam) if entry.chauffeur else '-',
-                self._safe_str(entry.telefoon) if entry.telefoon else '-',
+                safe_str(entry.vehicle.kenteken) if entry.vehicle else '-',
+                safe_str(entry.vehicle.type_wagen) if entry.vehicle else '-',
+                safe_str(entry.chauffeur.naam) if entry.chauffeur else '-',
+                safe_str(entry.telefoon) if entry.telefoon else '-',
                 'Ja' if entry.adr else 'Nee'
             ])
         
