@@ -107,6 +107,7 @@ export default defineConfig({
               cacheableResponse: {
                 statuses: [0, 200],
               },
+              networkTimeoutSeconds: 10, // Fallback to cache after 10s
             },
           },
           {
@@ -162,9 +163,13 @@ export default defineConfig({
         ],
         // Precache belangrijke routes
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        // Skip waiting en claim clients direct
+        // Skip waiting en claim clients direct - crucial for iOS
         skipWaiting: true,
         clientsClaim: true,
+        // Clean old caches on activate - helps iOS
+        cleanupOutdatedCaches: true,
+        // Navigation preload for faster page loads
+        navigationPreload: true,
       },
       devOptions: {
         enabled: false, // Disabled - causes issues with API proxy

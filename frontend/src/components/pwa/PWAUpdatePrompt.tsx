@@ -1,26 +1,45 @@
 /**
  * PWA Update Prompt Component
  * Shows a prompt when a new version of the app is available
+ * 
+ * iOS Safari specific handling:
+ * - iOS doesn't check for updates in background like Android
+ * - We need to check on visibility change and focus events
+ * - Also check more frequently (every 5 minutes when active)
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
+// Detect iOS
+const isIOS = () => {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
 export default function PWAUpdatePrompt() {
   const [showPrompt, setShowPrompt] = useState(false)
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null)
   
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegisteredSW(swUrl, registration) {
+    onRegisteredSW(swUrl, reg) {
       console.log('Service Worker registered:', swUrl)
+      setRegistration(reg || null)
       
-      // Check for updates every hour
-      if (registration) {
+      if (reg) {
+        // Initial update check
+        reg.update()
+        
+        // Check for updates periodically
+        // iOS: every 5 minutes when active
+        // Android: every hour
+        const interval = isIOS() ? 5 * 60 * 1000 : 60 * 60 * 1000
         setInterval(() => {
-          registration.update()
-        }, 60 * 60 * 1000)
+          reg.update()
+        }, interval)
       }
     },
     onRegisterError(error) {
@@ -28,11 +47,69 @@ export default function PWAUpdatePrompt() {
     },
   })
 
+  // Check for updates when app becomes visible (crucial for iOS)
+  const checkForUpdates = useCallback(() => {
+    if (registration) {
+      console.log('Checking for service worker updates...')
+      registration.update()
+    }
+  }, [registration])
+
+  useEffect(() => {
+    // iOS specific: check for updates on visibility change
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkForUpdates()
+      }
+    }
+
+    // iOS specific: check for updates on focus
+    const handleFocus = () => {
+      checkForUpdates()
+    }
+
+    // iOS specific: check for updates when app is resumed from background
+    const handlePageShow = (event: PageTransitionEvent) => {
+      // persisted means the page was restored from bfcache
+      if (event.persisted) {
+        checkForUpdates()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('pageshow', handlePageShow)
+
+    // Also check on initial load for iOS
+    if (isIOS()) {
+      // Small delay to ensure SW is registered
+      setTimeout(checkForUpdates, 1000)
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('pageshow', handlePageShow)
+    }
+  }, [checkForUpdates])
+
   useEffect(() => {
     if (needRefresh) {
       setShowPrompt(true)
+      
+      // On iOS, auto-update after 3 seconds if user doesn't interact
+      // This ensures the app always gets the latest version
+      if (isIOS()) {
+        const timeout = setTimeout(() => {
+          if (needRefresh) {
+            console.log('Auto-updating on iOS...')
+            updateServiceWorker(true)
+          }
+        }, 3000)
+        return () => clearTimeout(timeout)
+      }
     }
-  }, [needRefresh])
+  }, [needRefresh, updateServiceWorker])
 
   const handleUpdate = () => {
     updateServiceWorker(true)
@@ -60,7 +137,10 @@ export default function PWAUpdatePrompt() {
               Update beschikbaar
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              Er is een nieuwe versie van TMS beschikbaar. Herlaad om de nieuwste versie te gebruiken.
+              {isIOS() 
+                ? 'Nieuwe versie wordt geladen...'
+                : 'Er is een nieuwe versie van TMS beschikbaar. Herlaad om de nieuwste versie te gebruiken.'
+              }
             </p>
             <div className="mt-3 flex gap-2">
               <button
@@ -69,20 +149,24 @@ export default function PWAUpdatePrompt() {
               >
                 Nu updaten
               </button>
-              <button
-                onClick={handleDismiss}
-                className="btn-secondary text-sm py-1.5 px-3"
-              >
-                Later
-              </button>
+              {!isIOS() && (
+                <button
+                  onClick={handleDismiss}
+                  className="btn-secondary text-sm py-1.5 px-3"
+                >
+                  Later
+                </button>
+              )}
             </div>
           </div>
-          <button
-            onClick={handleDismiss}
-            className="flex-shrink-0 text-gray-400 hover:text-gray-500"
-          >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
+          {!isIOS() && (
+            <button
+              onClick={handleDismiss}
+              className="flex-shrink-0 text-gray-400 hover:text-gray-500"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </div>
     </div>
