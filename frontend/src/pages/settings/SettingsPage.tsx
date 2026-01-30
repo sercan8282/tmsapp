@@ -24,12 +24,14 @@ import {
   ServerIcon,
   LanguageIcon,
   SparklesIcon,
+  BellIcon,
 } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
 import { settingsApi } from '@/api/settings'
 import { useAppStore } from '@/stores/appStore'
 import { useServerConfigStore } from '@/stores/serverConfigStore'
 import ThemeSelector from '@/components/settings/ThemeSelector'
+import PushSettingsTab from '@/components/settings/PushSettingsTab'
 import type { AppSettingsAdmin } from '@/types'
 import { CalendarDaysIcon } from '@heroicons/react/24/outline'
 
@@ -41,6 +43,7 @@ const tabs = [
   { id: 'company', name: 'Bedrijfsgegevens', icon: BuildingOfficeIcon },
   { id: 'invoice', name: 'Factuur', icon: DocumentTextIcon },
   { id: 'email', name: 'E-mail', icon: EnvelopeIcon },
+  { id: 'push', name: 'Push Notificaties', icon: BellIcon },
   { id: 'ai', name: 'AI Extractie', icon: SparklesIcon },
   { id: 'server', name: 'Server', icon: ServerIcon },
   { id: 'leave', name: 'Verlof', icon: CalendarDaysIcon, link: '/settings/leave' },
@@ -862,6 +865,17 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Push Notifications Tab */}
+          {activeTab === 'push' && (
+            <PushSettingsTab
+              onSuccess={(msg) => {
+                setSuccess(msg)
+                setTimeout(() => setSuccess(null), 3000)
+              }}
+              onError={(msg) => setError(msg)}
+            />
           )}
 
           {/* AI Tab */}

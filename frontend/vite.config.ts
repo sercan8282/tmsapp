@@ -170,6 +170,8 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         // Navigation preload for faster page loads
         navigationPreload: true,
+        // Import push notification handlers
+        importScripts: ['/sw-push.js'],
       },
       devOptions: {
         enabled: false, // Disabled - causes issues with API proxy
