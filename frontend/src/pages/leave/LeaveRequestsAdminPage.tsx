@@ -1,11 +1,9 @@
 /**
  * Leave Requests Admin Page
- * Admin interface for approving/rejecting leave requests
+ * Admin interface for approving/rejecting/editing leave requests
  */
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import {
-  ArrowLeftIcon,
   CheckIcon,
   XMarkIcon,
   TrashIcon,
@@ -13,11 +11,14 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline'
 import {
-  getPendingLeaveRequests,
+  getAllLeaveRequests,
   adminLeaveAction,
+  adminUpdateLeaveRequest,
   LeaveRequest,
+  LeaveRequestCreate,
   LEAVE_TYPE_OPTIONS,
 } from '@/api/leave'
 
@@ -54,6 +55,11 @@ export default function LeaveRequestsAdminPage() {
   const [isProcessing, setIsProcessing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  
+  // Edit modal state
+  const [editingRequest, setEditingRequest] = useState<LeaveRequest | null>(null)
+  const [editForm, setEditForm] = useState<Partial<LeaveRequestCreate>>({})
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     fetchRequests()
@@ -71,7 +77,9 @@ export default function LeaveRequestsAdminPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const data = await getPendingLeaveRequests()
+      const data = await getAllLeaveRequests()
+      // Sort by created_at descending (newest first)
+      data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       setRequests(data)
     } catch (err: any) {
       setError(err.message || 'Er is iets misgegaan')
@@ -106,12 +114,47 @@ export default function LeaveRequestsAdminPage() {
     }
   }
 
+  const openEditModal = (request: LeaveRequest) => {
+    setEditingRequest(request)
+    setEditForm({
+      leave_type: request.leave_type,
+      start_date: request.start_date,
+      end_date: request.end_date,
+      hours_requested: Number(request.hours_requested || request.hours),
+      reason: request.reason || request.notes || '',
+    })
+  }
+
+  const closeEditModal = () => {
+    setEditingRequest(null)
+    setEditForm({})
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingRequest) return
+    
+    setIsSaving(true)
+    setError(null)
+    try {
+      await adminUpdateLeaveRequest(editingRequest.id, editForm)
+      await fetchRequests()
+      closeEditModal()
+      showSuccess('Verlofaanvraag bijgewerkt')
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.message || 'Kon niet opslaan')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const getLeaveTypeLabel = (type: string): string => {
     const option = LEAVE_TYPE_OPTIONS.find(o => o.value === type)
     return option?.label || type
   }
 
   const pendingCount = requests.filter(r => r.status === 'pending').length
+  const approvedCount = requests.filter(r => r.status === 'approved').length
+  const rejectedCount = requests.filter(r => r.status === 'rejected').length
 
   if (isLoading) {
     return (
@@ -126,14 +169,7 @@ export default function LeaveRequestsAdminPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <Link
-            to="/settings"
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-2"
-          >
-            <ArrowLeftIcon className="w-4 h-4 mr-2" />
-            Terug naar instellingen
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Verlofaanvragen Beheren</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Verlofaanvragen</h1>
           <p className="text-gray-500">
             {pendingCount > 0 ? (
               <span className="text-yellow-600 font-medium">{pendingCount} aanvragen wachten op goedkeuring</span>
@@ -162,10 +198,10 @@ export default function LeaveRequestsAdminPage() {
           <FunnelIcon className="w-5 h-5 text-gray-400" />
           <div className="flex flex-wrap gap-2">
             {[
-              { value: 'all', label: 'Alle' },
-              { value: 'pending', label: 'In afwachting' },
-              { value: 'approved', label: 'Goedgekeurd' },
-              { value: 'rejected', label: 'Afgewezen' },
+              { value: 'all', label: 'Alle', count: requests.length },
+              { value: 'pending', label: 'In afwachting', count: pendingCount },
+              { value: 'approved', label: 'Goedgekeurd', count: approvedCount },
+              { value: 'rejected', label: 'Afgewezen', count: rejectedCount },
             ].map((filter) => (
               <button
                 key={filter.value}
@@ -177,11 +213,15 @@ export default function LeaveRequestsAdminPage() {
                 }`}
               >
                 {filter.label}
-                {filter.value === 'pending' && pendingCount > 0 && (
-                  <span className="ml-1.5 bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                    {pendingCount}
-                  </span>
-                )}
+                <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
+                  statusFilter === filter.value 
+                    ? 'bg-white/20' 
+                    : filter.value === 'pending' && filter.count > 0
+                      ? 'bg-yellow-500 text-white'
+                      : 'bg-gray-200'
+                }`}>
+                  {filter.count}
+                </span>
               </button>
             ))}
           </div>
@@ -230,12 +270,17 @@ export default function LeaveRequestsAdminPage() {
                         </div>
                         <div>
                           <span className="text-gray-500">Uren:</span>{' '}
-                          <span className="text-gray-900 font-medium">{request.hours} uur</span>
+                          <span className="text-gray-900 font-medium">{request.hours || request.hours_requested} uur</span>
                         </div>
                       </div>
-                      {request.notes && (
+                      {(request.notes || request.reason) && (
                         <p className="text-sm text-gray-600 mt-2">
-                          <span className="text-gray-500">Opmerking:</span> {request.notes}
+                          <span className="text-gray-500">Opmerking:</span> {request.notes || request.reason}
+                        </p>
+                      )}
+                      {request.admin_comment && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          <span className="text-gray-500">Admin opmerking:</span> {request.admin_comment}
                         </p>
                       )}
                       <p className="text-xs text-gray-400 mt-2">
@@ -244,40 +289,54 @@ export default function LeaveRequestsAdminPage() {
                     </div>
 
                     {/* Actions */}
-                    {request.status === 'pending' && (
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      {/* Edit button - visible for pending and approved */}
+                      {(request.status === 'pending' || request.status === 'approved') && (
                         <button
-                          onClick={() => handleAction(request.id, 'approve')}
-                          disabled={isCurrentProcessing}
-                          className="btn btn-primary flex items-center gap-2"
-                        >
-                          <CheckIcon className="w-4 h-4" />
-                          Goedkeuren
-                        </button>
-                        <button
-                          onClick={() => handleAction(request.id, 'reject')}
-                          disabled={isCurrentProcessing}
+                          onClick={() => openEditModal(request)}
                           className="btn btn-secondary flex items-center gap-2"
+                          title="Bewerken"
                         >
-                          <XMarkIcon className="w-4 h-4" />
-                          Afwijzen
+                          <PencilIcon className="w-4 h-4" />
+                          Bewerken
                         </button>
-                      </div>
-                    )}
-                    {request.status === 'approved' && (
-                      <button
-                        onClick={() => {
-                          if (confirm('Weet je zeker dat je dit goedgekeurde verlof wilt verwijderen? De uren worden teruggestort.')) {
-                            handleAction(request.id, 'delete')
-                          }
-                        }}
-                        disabled={isCurrentProcessing}
-                        className="btn btn-secondary flex items-center gap-2 text-red-600 hover:text-red-700"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                        Verwijderen
-                      </button>
-                    )}
+                      )}
+                      
+                      {request.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleAction(request.id, 'approve')}
+                            disabled={isCurrentProcessing}
+                            className="btn btn-primary flex items-center gap-2"
+                          >
+                            <CheckIcon className="w-4 h-4" />
+                            Goedkeuren
+                          </button>
+                          <button
+                            onClick={() => handleAction(request.id, 'reject')}
+                            disabled={isCurrentProcessing}
+                            className="btn btn-secondary flex items-center gap-2"
+                          >
+                            <XMarkIcon className="w-4 h-4" />
+                            Afwijzen
+                          </button>
+                        </>
+                      )}
+                      {request.status === 'approved' && (
+                        <button
+                          onClick={() => {
+                            if (confirm('Weet je zeker dat je dit goedgekeurde verlof wilt verwijderen? De uren worden teruggestort.')) {
+                              handleAction(request.id, 'delete')
+                            }
+                          }}
+                          disabled={isCurrentProcessing}
+                          className="btn btn-secondary flex items-center gap-2 text-red-600 hover:text-red-700"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                          Verwijderen
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
@@ -285,6 +344,114 @@ export default function LeaveRequestsAdminPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingRequest && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/30" onClick={closeEditModal} />
+            <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Verlofaanvraag bewerken
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">
+                {editingRequest.user_naam}
+              </p>
+              
+              <div className="space-y-4">
+                {/* Leave Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Type verlof
+                  </label>
+                  <select
+                    value={editForm.leave_type || ''}
+                    onChange={(e) => setEditForm({ ...editForm, leave_type: e.target.value as any })}
+                    className="input w-full"
+                  >
+                    {LEAVE_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Startdatum
+                    </label>
+                    <input
+                      type="date"
+                      value={editForm.start_date || ''}
+                      onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })}
+                      className="input w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Einddatum
+                    </label>
+                    <input
+                      type="date"
+                      value={editForm.end_date || ''}
+                      onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })}
+                      className="input w-full"
+                    />
+                  </div>
+                </div>
+
+                {/* Hours */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Aantal uren
+                  </label>
+                  <input
+                    type="number"
+                    value={editForm.hours_requested || 0}
+                    onChange={(e) => setEditForm({ ...editForm, hours_requested: parseFloat(e.target.value) || 0 })}
+                    min="0.5"
+                    step="0.5"
+                    className="input w-full"
+                  />
+                </div>
+
+                {/* Reason */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Opmerking
+                  </label>
+                  <textarea
+                    value={editForm.reason || ''}
+                    onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
+                    rows={2}
+                    className="input w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={closeEditModal}
+                  className="btn btn-secondary"
+                  disabled={isSaving}
+                >
+                  Annuleren
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="btn btn-primary"
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Opslaan...' : 'Opslaan'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

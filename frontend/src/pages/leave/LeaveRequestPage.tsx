@@ -19,6 +19,63 @@ import {
   ConcurrentLeaveCheck,
 } from '@/api/leave'
 
+const HOURS_PER_DAY = 8
+
+/**
+ * Calculate the number of work days between two dates (inclusive)
+ * Excludes weekends (Saturday and Sunday)
+ */
+function calculateWorkDays(startDate: string, endDate: string): number {
+  if (!startDate || !endDate) return 0
+  
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  
+  if (start > end) return 0
+  
+  let workDays = 0
+  const current = new Date(start)
+  
+  while (current <= end) {
+    const dayOfWeek = current.getDay()
+    // 0 = Sunday, 6 = Saturday
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      workDays++
+    }
+    current.setDate(current.getDate() + 1)
+  }
+  
+  return workDays
+}
+
+/**
+ * Calculate end date based on start date and hours
+ * Returns the date string in YYYY-MM-DD format
+ */
+function calculateEndDate(startDate: string, hours: number): string {
+  if (!startDate || hours <= 0) return startDate || ''
+  
+  const fullDays = Math.floor(hours / HOURS_PER_DAY)
+  const remainingHours = hours % HOURS_PER_DAY
+  
+  // Start from the start date and count work days
+  const current = new Date(startDate)
+  let workDaysCounted = 0
+  const totalWorkDaysNeeded = remainingHours > 0 ? fullDays + 1 : Math.max(fullDays, 1)
+  
+  while (workDaysCounted < totalWorkDaysNeeded) {
+    const dayOfWeek = current.getDay()
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      workDaysCounted++
+      if (workDaysCounted === totalWorkDaysNeeded) break
+    }
+    current.setDate(current.getDate() + 1)
+  }
+  
+  // Format as YYYY-MM-DD
+  return current.toISOString().split('T')[0]
+}
+
 export default function LeaveRequestPage() {
   const navigate = useNavigate()
   const [balance, setBalance] = useState<LeaveBalance | null>(null)
@@ -37,6 +94,9 @@ export default function LeaveRequestPage() {
     reason: '',
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  
+  // Track whether user is manually editing hours vs auto-calculated
+  const [isManualHours, setIsManualHours] = useState(false)
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -53,6 +113,27 @@ export default function LeaveRequestPage() {
     fetchBalance()
   }, [])
 
+  // Auto-calculate hours when dates change (if not manually set)
+  useEffect(() => {
+    if (formData.start_date && formData.end_date && !isManualHours) {
+      const workDays = calculateWorkDays(formData.start_date, formData.end_date)
+      const calculatedHours = workDays * HOURS_PER_DAY
+      if (calculatedHours !== formData.hours_requested) {
+        setFormData(prev => ({ ...prev, hours_requested: calculatedHours }))
+      }
+    }
+  }, [formData.start_date, formData.end_date, isManualHours])
+
+  // Auto-calculate end date when hours change manually
+  useEffect(() => {
+    if (formData.start_date && isManualHours && formData.hours_requested > 0) {
+      const newEndDate = calculateEndDate(formData.start_date, formData.hours_requested)
+      if (newEndDate !== formData.end_date) {
+        setFormData(prev => ({ ...prev, end_date: newEndDate }))
+      }
+    }
+  }, [formData.hours_requested, formData.start_date, isManualHours])
+
   // Check concurrent leave when dates change
   useEffect(() => {
     if (formData.start_date && formData.end_date) {
@@ -62,13 +143,37 @@ export default function LeaveRequestPage() {
     }
   }, [formData.start_date, formData.end_date])
 
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setIsManualHours(false) // Reset manual hours flag when date changes
+    
+    if (name === 'start_date' && value) {
+      // If setting start date and no end date, default end date to start date
+      setFormData(prev => ({
+        ...prev,
+        start_date: value,
+        end_date: prev.end_date || value,
+      }))
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }))
+    }
+    setFormErrors(prev => ({ ...prev, [name]: '' }))
+  }
+
+  const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value) || 0
+    setIsManualHours(true) // User is manually setting hours
+    setFormData(prev => ({ ...prev, hours_requested: value }))
+    setFormErrors(prev => ({ ...prev, hours_requested: '' }))
+  }
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'hours_requested' ? parseFloat(value) || 0 : value,
+      [name]: value,
     }))
     setFormErrors((prev) => ({ ...prev, [name]: '' }))
   }
@@ -87,14 +192,14 @@ export default function LeaveRequestPage() {
     
     // Check balance
     if (balance && formData.leave_type === 'vakantie') {
-      if (formData.hours_requested > balance.vacation_hours) {
-        errors.hours_requested = `Onvoldoende verlofuren (beschikbaar: ${balance.vacation_hours.toFixed(1)}u)`
+      if (formData.hours_requested > Number(balance.vacation_hours)) {
+        errors.hours_requested = `Onvoldoende verlofuren (beschikbaar: ${Number(balance.vacation_hours).toFixed(1)}u)`
       }
     }
     
     if (balance && formData.leave_type === 'overuren') {
-      if (formData.hours_requested > balance.available_overtime_for_leave) {
-        errors.hours_requested = `Onvoldoende overuren (beschikbaar: ${balance.available_overtime_for_leave.toFixed(1)}u)`
+      if (formData.hours_requested > Number(balance.available_overtime_for_leave)) {
+        errors.hours_requested = `Onvoldoende overuren (beschikbaar: ${Number(balance.available_overtime_for_leave).toFixed(1)}u)`
       }
     }
     
@@ -167,13 +272,13 @@ export default function LeaveRequestPage() {
           <div className="card p-4">
             <p className="text-sm text-gray-500">Verlofuren beschikbaar</p>
             <p className="text-2xl font-bold text-primary-600">
-              {balance.vacation_hours.toFixed(1)}u
+              {Number(balance.vacation_hours).toFixed(1)}u
             </p>
           </div>
           <div className="card p-4">
             <p className="text-sm text-gray-500">Overuren opneembaar</p>
             <p className="text-2xl font-bold text-green-600">
-              {balance.available_overtime_for_leave.toFixed(1)}u
+              {Number(balance.available_overtime_for_leave).toFixed(1)}u
             </p>
           </div>
         </div>
@@ -240,7 +345,7 @@ export default function LeaveRequestPage() {
               type="date"
               name="start_date"
               value={formData.start_date}
-              onChange={handleChange}
+              onChange={handleDateChange}
               className={`input w-full ${formErrors.start_date ? 'border-red-500' : ''}`}
             />
             {formErrors.start_date && (
@@ -255,7 +360,7 @@ export default function LeaveRequestPage() {
               type="date"
               name="end_date"
               value={formData.end_date}
-              onChange={handleChange}
+              onChange={handleDateChange}
               className={`input w-full ${formErrors.end_date ? 'border-red-500' : ''}`}
             />
             {formErrors.end_date && (
@@ -273,7 +378,7 @@ export default function LeaveRequestPage() {
             type="number"
             name="hours_requested"
             value={formData.hours_requested}
-            onChange={handleChange}
+            onChange={handleHoursChange}
             min="0.5"
             step="0.5"
             className={`input w-full ${formErrors.hours_requested ? 'border-red-500' : ''}`}
@@ -282,7 +387,14 @@ export default function LeaveRequestPage() {
             <p className="text-red-500 text-xs mt-1">{formErrors.hours_requested}</p>
           )}
           <p className="text-xs text-gray-500 mt-1">
-            Bijv. 8 uur voor een volle dag, 4 uur voor een halve dag
+            {formData.hours_requested > 0 && formData.start_date && (
+              <>
+                {Math.floor(formData.hours_requested / HOURS_PER_DAY)} dag(en)
+                {formData.hours_requested % HOURS_PER_DAY > 0 && ` en ${formData.hours_requested % HOURS_PER_DAY} uur`}
+                {' • '}
+              </>
+            )}
+            Uren worden automatisch berekend op basis van werkdagen (8 uur/dag). Je kunt dit aanpassen voor gedeeltelijk verlof.
           </p>
         </div>
 

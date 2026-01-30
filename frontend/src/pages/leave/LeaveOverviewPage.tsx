@@ -124,7 +124,7 @@ export default function LeaveOverviewPage() {
               <div>
                 <p className="text-sm text-gray-500">Verlofuren</p>
                 <p className="text-3xl font-bold text-primary-600">
-                  {balance.vacation_hours.toFixed(1)}
+                  {Number(balance.vacation_hours).toFixed(1)}
                 </p>
                 <p className="text-xs text-gray-400">uur beschikbaar</p>
               </div>
@@ -140,7 +140,7 @@ export default function LeaveOverviewPage() {
               <div>
                 <p className="text-sm text-gray-500">Overuren</p>
                 <p className="text-3xl font-bold text-green-600">
-                  {balance.overtime_hours.toFixed(1)}
+                  {Number(balance.overtime_hours).toFixed(1)}
                 </p>
                 <p className="text-xs text-gray-400">totaal opgebouwd</p>
               </div>
@@ -156,7 +156,7 @@ export default function LeaveOverviewPage() {
               <div>
                 <p className="text-sm text-gray-500">Overuren opneembaar</p>
                 <p className="text-3xl font-bold text-blue-600">
-                  {balance.available_overtime_for_leave.toFixed(1)}
+                  {Number(balance.available_overtime_for_leave).toFixed(1)}
                 </p>
                 <p className="text-xs text-gray-400">uur als verlof</p>
               </div>

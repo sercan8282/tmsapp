@@ -92,6 +92,33 @@ class LeaveBalanceViewSet(viewsets.ModelViewSet):
         serializer = LeaveBalanceSerializer(queryset, many=True)
         return Response(serializer.data)
     
+    def retrieve(self, request, *args, **kwargs):
+        """Get a balance - users can only see their own."""
+        balance = self.get_object()
+        if balance.user != request.user and not (request.user.is_superuser or request.user.rol == 'admin'):
+            return Response(
+                {'error': 'Je hebt geen toegang tot dit verlofsaldo.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        serializer = self.get_serializer(balance)
+        return Response(serializer.data)
+    
+    def create(self, request, *args, **kwargs):
+        """Only admins can create balances manually."""
+        if not (request.user.is_superuser or request.user.rol == 'admin'):
+            return Response(
+                {'error': 'Verlofsaldo wordt automatisch aangemaakt.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().create(request, *args, **kwargs)
+    
+    def destroy(self, request, *args, **kwargs):
+        """Disable deletion of balances."""
+        return Response(
+            {'error': 'Verlofsaldo kan niet worden verwijderd.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+    
     @action(detail=False, methods=['get'])
     def my_balance(self, request):
         """Get current user's leave balance."""
@@ -174,6 +201,80 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
             LeaveRequestSerializer(instance).data,
             status=status.HTTP_201_CREATED
         )
+    
+    def update(self, request, *args, **kwargs):
+        """
+        Update a leave request.
+        Users can only update their own PENDING requests.
+        Admins use admin_update endpoint for full control.
+        """
+        leave_request = self.get_object()
+        
+        # Security: Check ownership
+        if leave_request.user != request.user:
+            if not (request.user.is_superuser or request.user.rol == 'admin'):
+                return Response(
+                    {'error': 'Je kunt alleen je eigen verlofaanvragen wijzigen.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        # Users can only edit their own PENDING requests
+        if leave_request.user == request.user and leave_request.status != LeaveRequestStatus.PENDING:
+            return Response(
+                {'error': 'Je kunt alleen aanvragen in afwachting wijzigen.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        return super().update(request, *args, **kwargs)
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Partial update - same security as update."""
+        return self.update(request, *args, **kwargs)
+    
+    def destroy(self, request, *args, **kwargs):
+        """
+        Delete/cancel a leave request.
+        Users can only cancel their own PENDING requests.
+        Admins can delete any request via admin_action.
+        """
+        leave_request = self.get_object()
+        
+        # Security: Only owner can cancel, and only if pending
+        if leave_request.user != request.user:
+            return Response(
+                {'error': 'Je kunt alleen je eigen verlofaanvragen annuleren.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if leave_request.status != LeaveRequestStatus.PENDING:
+            return Response(
+                {'error': 'Je kunt alleen aanvragen in afwachting annuleren. Neem contact op met admin voor goedgekeurde aanvragen.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update status to cancelled instead of hard delete
+        leave_request.status = LeaveRequestStatus.CANCELLED
+        leave_request.save()
+        
+        return Response({'message': 'Verlofaanvraag geannuleerd.'}, status=status.HTTP_200_OK)
+    
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Get a single leave request.
+        Users can only see their own requests, admins can see all.
+        """
+        leave_request = self.get_object()
+        
+        # Security: Check if user has permission to view
+        if leave_request.user != request.user:
+            if not (request.user.is_superuser or request.user.rol == 'admin'):
+                return Response(
+                    {'error': 'Je hebt geen toegang tot deze verlofaanvraag.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        serializer = self.get_serializer(leave_request)
+        return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def my_requests(self, request):
@@ -322,6 +423,62 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         
         leave_request.delete()
         return Response({'message': 'Verlofaanvraag verwijderd.'})
+    
+    @action(detail=True, methods=['patch'])
+    def admin_update(self, request, pk=None):
+        """Admin action to update a leave request (edit dates, hours, type)."""
+        if not (request.user.is_superuser or request.user.rol == 'admin'):
+            return Response(
+                {'error': 'Alleen admins kunnen aanvragen bewerken.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        leave_request = self.get_object()
+        
+        # Only allow editing pending or approved requests
+        if leave_request.status not in [LeaveRequestStatus.PENDING, LeaveRequestStatus.APPROVED]:
+            return Response(
+                {'error': 'Alleen aanvragen in afwachting of goedgekeurde aanvragen kunnen worden bewerkt.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # If approved, we need to recalculate balance adjustments
+        was_approved = leave_request.status == LeaveRequestStatus.APPROVED
+        old_deductions = leave_request.calculate_deductions() if was_approved else None
+        
+        # Update allowed fields
+        allowed_fields = ['leave_type', 'start_date', 'end_date', 'hours_requested', 'reason']
+        for field in allowed_fields:
+            if field in request.data:
+                setattr(leave_request, field, request.data[field])
+        
+        leave_request.save()
+        
+        # If was approved, adjust balance for the difference
+        if was_approved and old_deductions:
+            try:
+                balance = leave_request.user.leave_balance
+                new_deductions = leave_request.calculate_deductions()
+                
+                # Calculate difference and adjust
+                vacation_diff = Decimal(str(new_deductions['vacation_deduct'])) - Decimal(str(old_deductions['vacation_deduct']))
+                overtime_diff = Decimal(str(new_deductions['overtime_deduct'])) - Decimal(str(old_deductions['overtime_deduct']))
+                
+                if vacation_diff != 0:
+                    balance.vacation_hours -= vacation_diff
+                    balance.save(update_fields=['vacation_hours', 'updated_at'])
+                
+                if overtime_diff != 0:
+                    balance.overtime_hours -= overtime_diff
+                    balance.save(update_fields=['overtime_hours', 'updated_at'])
+                    
+            except LeaveBalance.DoesNotExist:
+                pass
+        
+        return Response({
+            'message': 'Verlofaanvraag bijgewerkt.',
+            'data': LeaveRequestSerializer(leave_request).data
+        })
     
     @action(detail=False, methods=['get'])
     def calendar(self, request):

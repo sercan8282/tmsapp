@@ -150,7 +150,8 @@ export async function updateLeaveBalance(
 
 export async function getMyLeaveRequests(): Promise<LeaveRequest[]> {
   const response = await api.get('/leave/requests/my_requests/')
-  return response.data
+  const data = response.data
+  return Array.isArray(data) ? data : (data.results || [])
 }
 
 export async function getAllLeaveRequests(filters?: {
@@ -162,16 +163,27 @@ export async function getAllLeaveRequests(filters?: {
   if (filters?.user) params.append('user', filters.user)
   
   const response = await api.get(`/leave/requests/?${params.toString()}`)
-  return response.data
+  // Handle both paginated and non-paginated responses
+  const data = response.data
+  return Array.isArray(data) ? data : (data.results || [])
 }
 
 export async function getPendingLeaveRequests(): Promise<LeaveRequest[]> {
   const response = await api.get('/leave/requests/pending/')
-  return response.data
+  const data = response.data
+  return Array.isArray(data) ? data : (data.results || [])
 }
 
 export async function createLeaveRequest(data: LeaveRequestCreate): Promise<LeaveRequest> {
   const response = await api.post('/leave/requests/', data)
+  return response.data
+}
+
+export async function adminUpdateLeaveRequest(
+  id: string,
+  data: Partial<LeaveRequestCreate>
+): Promise<LeaveRequest> {
+  const response = await api.patch(`/leave/requests/${id}/`, data)
   return response.data
 }
 

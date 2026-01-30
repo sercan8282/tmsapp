@@ -297,6 +297,10 @@ export interface Invoice {
   created_by: string
   created_by_naam: string
   sent_at: string | null
+  week_number: number | null
+  week_year: number | null
+  chauffeur: string | null
+  chauffeur_naam: string | null
   lines: InvoiceLine[]
   created_at: string
   updated_at: string

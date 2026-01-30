@@ -101,6 +101,22 @@ class Invoice(models.Model):
         related_name='created_invoices',
         verbose_name='Aangemaakt door'
     )
+    # Week and chauffeur tracking (for time entry based invoices)
+    week_number = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        verbose_name='Weeknummer'
+    )
+    week_year = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        verbose_name='Jaar (voor week)'
+    )
+    chauffeur = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='chauffeur_invoices',
+        verbose_name='Chauffeur'
+    )
     sent_at = models.DateTimeField(null=True, blank=True, verbose_name='Verzonden op')
     
     created_at = models.DateTimeField(auto_now_add=True)

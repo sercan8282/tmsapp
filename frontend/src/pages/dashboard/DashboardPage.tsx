@@ -27,7 +27,7 @@ function ChauffeurDashboard({ user }: { user: any }) {
       </div>
       
       {/* Quick actions for chauffeur */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-8">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         <Link
           to="/time-entries"
           className="card p-6 hover:shadow-md transition-shadow text-center"
@@ -64,6 +64,19 @@ function ChauffeurDashboard({ user }: { user: any }) {
             </div>
             <h3 className="font-semibold text-gray-900">Planning</h3>
             <p className="text-sm text-gray-500 mt-1">Bekijk je ingeplande ritten</p>
+          </div>
+        </Link>
+
+        <Link
+          to="/leave"
+          className="card p-6 hover:shadow-md transition-shadow text-center"
+        >
+          <div className="flex flex-col items-center">
+            <div className="p-4 rounded-full bg-orange-100 mb-4">
+              <CalendarDaysIcon className="h-8 w-8 text-orange-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900">Verlof</h3>
+            <p className="text-sm text-gray-500 mt-1">Vraag verlof aan</p>
           </div>
         </Link>
       </div>
@@ -184,9 +197,12 @@ function AdminDashboard({ user }: { user: any }) {
       {/* Quick actions */}
       <div className="mt-8">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Snelle acties</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Link to="/time-entries" className="btn-primary text-center">
             + Uren registreren
+          </Link>
+          <Link to="/leave" className="btn-secondary text-center">
+            Verlof aanvragen
           </Link>
           <Link to="/planning" className="btn-secondary text-center">
             + Nieuwe planning

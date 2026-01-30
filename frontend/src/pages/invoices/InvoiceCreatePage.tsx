@@ -627,6 +627,11 @@ export default function InvoiceCreatePage() {
   const [opmerkingen, setOpmerkingen] = useState('')
   const [lines, setLines] = useState<InvoiceLineData[]>([])
   
+  // Week/Chauffeur tracking (from imported time entries)
+  const [weekNumber, setWeekNumber] = useState<number | null>(null)
+  const [weekYear, setWeekYear] = useState<number | null>(null)
+  const [chauffeur, setChauffeur] = useState<string | null>(null)
+  
   // UI state
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -738,6 +743,14 @@ export default function InvoiceCreatePage() {
 
   // Import time entries with automatic KM and DOT calculations
   const handleImportEntries = (entries: TimeEntry[]) => {
+    // Extract week/chauffeur from first entry (all entries in a group have same week/chauffeur)
+    if (entries.length > 0) {
+      const firstEntry = entries[0]
+      setWeekNumber(firstEntry.weeknummer)
+      setWeekYear(new Date(firstEntry.datum).getFullYear())
+      setChauffeur(firstEntry.user)
+    }
+    
     // Calculate totals from all entries
     let totalKm = 0
     let totalUren = 0
@@ -893,8 +906,8 @@ export default function InvoiceCreatePage() {
     setError(null)
 
     try {
-      // Create invoice
-      const invoice = await createInvoice({
+      // Create invoice with optional week/chauffeur tracking
+      const invoiceData: any = {
         template: selectedTemplate.id,
         bedrijf: selectedCompany,
         type: invoiceType,
@@ -902,7 +915,20 @@ export default function InvoiceCreatePage() {
         vervaldatum,
         btw_percentage: totalsConfig.btwPercentage,
         opmerkingen,
-      })
+      }
+      
+      // Add week/chauffeur if available (from imported time entries)
+      if (weekNumber !== null) {
+        invoiceData.week_number = weekNumber
+      }
+      if (weekYear !== null) {
+        invoiceData.week_year = weekYear
+      }
+      if (chauffeur !== null) {
+        invoiceData.chauffeur = chauffeur
+      }
+      
+      const invoice = await createInvoice(invoiceData)
 
       // Create invoice lines
       const totaalColumn = columns.find(c => c.type === 'berekend') || columns[columns.length - 1]

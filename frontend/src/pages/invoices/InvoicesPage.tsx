@@ -435,6 +435,32 @@ export default function InvoicesPage() {
                     )}
                   </div>
                 </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('week_number')}
+                >
+                  <div className="flex items-center gap-1">
+                    Week
+                    {filters.ordering?.includes('week_number') && (
+                      filters.ordering.startsWith('-') 
+                        ? <ChevronDownIcon className="h-4 w-4" />
+                        : <ChevronUpIcon className="h-4 w-4" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('chauffeur__first_name')}
+                >
+                  <div className="flex items-center gap-1">
+                    Chauffeur
+                    {filters.ordering?.includes('chauffeur') && (
+                      filters.ordering.startsWith('-') 
+                        ? <ChevronDownIcon className="h-4 w-4" />
+                        : <ChevronUpIcon className="h-4 w-4" />
+                    )}
+                  </div>
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Type
                 </th>
@@ -465,13 +491,13 @@ export default function InvoicesPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={!isReadOnly ? 8 : 7} className="px-6 py-8 text-center">
+                  <td colSpan={!isReadOnly ? 10 : 9} className="px-6 py-8 text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
                   </td>
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={!isReadOnly ? 8 : 7} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={!isReadOnly ? 10 : 9} className="px-6 py-8 text-center text-gray-500">
                     Geen facturen gevonden
                   </td>
                 </tr>
@@ -499,6 +525,19 @@ export default function InvoicesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-900">
                       {invoice.bedrijf_naam}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {invoice.week_number ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                          W{invoice.week_number}
+                          {invoice.week_year && <span className="text-gray-400 ml-1">'{String(invoice.week_year).slice(-2)}</span>}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {invoice.chauffeur_naam || <span className="text-gray-300">-</span>}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-500 capitalize">
                       {invoice.type}
@@ -669,8 +708,17 @@ export default function InvoicesPage() {
                 </div>
                 
                 {/* Card Meta */}
-                <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mb-3">
                   <span className="capitalize">{invoice.type}</span>
+                  {invoice.week_number && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                      W{invoice.week_number}
+                      {invoice.week_year && <span className="text-gray-400 ml-1">'{String(invoice.week_year).slice(-2)}</span>}
+                    </span>
+                  )}
+                  {invoice.chauffeur_naam && (
+                    <span>{invoice.chauffeur_naam}</span>
+                  )}
                 </div>
                 
                 {/* Action Buttons */}

@@ -17,6 +17,7 @@ import {
   UserCircleIcon,
   ChevronDownIcon,
   ClipboardDocumentListIcon,
+  ClipboardDocumentCheckIcon,
   KeyIcon,
   CurrencyEuroIcon,
   ArrowUpTrayIcon,
@@ -46,6 +47,7 @@ const navigation: NavItem[] = [
   { name: 'Ingediende Uren', href: '/submitted-hours', icon: ClipboardDocumentListIcon, roles: ['admin', 'gebruiker'] },
   { name: 'Planning', href: '/planning', icon: CalendarIcon },  // All roles (filtered by backend)
   { name: 'Verlof', href: '/leave', icon: CalendarDaysIcon },  // All roles
+  { name: 'Verlofaanvragen', href: '/leave/admin', icon: ClipboardDocumentCheckIcon, roles: ['admin'] },
   { name: 'Facturen', href: '/invoices', icon: DocumentTextIcon, roles: ['admin', 'gebruiker'] },
   { name: 'Factuur Templates', href: '/invoices/templates', icon: DocumentDuplicateIcon, roles: ['admin'] },
   { name: 'Factuur Import', href: '/imports', icon: ArrowUpTrayIcon, roles: ['admin', 'gebruiker'] },

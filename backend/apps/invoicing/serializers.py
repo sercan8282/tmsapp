@@ -54,6 +54,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     bedrijf_naam = serializers.CharField(source='bedrijf.naam', read_only=True)
     template_naam = serializers.CharField(source='template.naam', read_only=True)
     created_by_naam = serializers.CharField(source='created_by.full_name', read_only=True)
+    chauffeur_naam = serializers.CharField(source='chauffeur.full_name', read_only=True, allow_null=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     
@@ -66,6 +67,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'subtotaal', 'btw_percentage', 'btw_bedrag', 'totaal',
             'opmerkingen', 'pdf_file',
             'created_by', 'created_by_naam', 'sent_at',
+            'week_number', 'week_year', 'chauffeur', 'chauffeur_naam',
             'lines', 'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -77,7 +79,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
 class InvoiceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invoice
-        fields = ['template', 'bedrijf', 'type', 'factuurdatum', 'vervaldatum', 'btw_percentage', 'opmerkingen']
+        fields = ['template', 'bedrijf', 'type', 'factuurdatum', 'vervaldatum', 'btw_percentage', 'opmerkingen', 'week_number', 'week_year', 'chauffeur']
     
     def validate_factuurdatum(self, value):
         from datetime import date, timedelta

@@ -1,6 +1,8 @@
 /**
  * Leave Calendar Page
- * Visual calendar showing who is on leave when
+ * Gantt-style timeline view showing who is on leave when
+ * - Employees listed vertically on the left
+ * - Horizontal timeline with colored bars for leave periods
  */
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
@@ -8,49 +10,52 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ArrowLeftIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline'
 import {
   getLeaveCalendar,
   CalendarLeaveEntry,
 } from '@/api/leave'
 
-// Color palette for different users
-const USER_COLORS = [
-  { bg: 'bg-blue-200', text: 'text-blue-800', border: 'border-blue-300' },
-  { bg: 'bg-green-200', text: 'text-green-800', border: 'border-green-300' },
-  { bg: 'bg-purple-200', text: 'text-purple-800', border: 'border-purple-300' },
-  { bg: 'bg-orange-200', text: 'text-orange-800', border: 'border-orange-300' },
-  { bg: 'bg-pink-200', text: 'text-pink-800', border: 'border-pink-300' },
-  { bg: 'bg-teal-200', text: 'text-teal-800', border: 'border-teal-300' },
-  { bg: 'bg-indigo-200', text: 'text-indigo-800', border: 'border-indigo-300' },
-  { bg: 'bg-yellow-200', text: 'text-yellow-800', border: 'border-yellow-300' },
-  { bg: 'bg-red-200', text: 'text-red-800', border: 'border-red-300' },
-  { bg: 'bg-cyan-200', text: 'text-cyan-800', border: 'border-cyan-300' },
-]
+// Color palette for different leave types
+const LEAVE_TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  vakantie: { bg: 'bg-blue-400', border: 'border-blue-500', text: 'text-blue-900' },
+  overuren: { bg: 'bg-green-400', border: 'border-green-500', text: 'text-green-900' },
+  bijzonder_tandarts: { bg: 'bg-purple-400', border: 'border-purple-500', text: 'text-purple-900' },
+  bijzonder_huisarts: { bg: 'bg-orange-400', border: 'border-orange-500', text: 'text-orange-900' },
+}
 
-function getColorForUser(userId: string, userColorMap: Map<string, number>): typeof USER_COLORS[0] {
-  if (!userColorMap.has(userId)) {
-    userColorMap.set(userId, userColorMap.size % USER_COLORS.length)
-  }
-  return USER_COLORS[userColorMap.get(userId)!]
+function getLeaveTypeColor(type: string) {
+  return LEAVE_TYPE_COLORS[type] || { bg: 'bg-gray-400', border: 'border-gray-500', text: 'text-gray-900' }
 }
 
 export default function LeaveCalendarPage() {
   const [entries, setEntries] = useState<CalendarLeaveEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(new Date())
-  
-  // Map user IDs to colors
-  const userColorMap = useMemo(() => new Map<string, number>(), [])
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
 
+  // Get first and last day of month
+  const firstDayOfMonth = useMemo(() => new Date(year, month, 1), [year, month])
+  const lastDayOfMonth = useMemo(() => new Date(year, month + 1, 0), [year, month])
+  const daysInMonth = lastDayOfMonth.getDate()
+
+  // Generate array of dates for the month
+  const monthDates = useMemo(() => {
+    const dates: Date[] = []
+    for (let i = 1; i <= daysInMonth; i++) {
+      dates.push(new Date(year, month, i))
+    }
+    return dates
+  }, [year, month, daysInMonth])
+
   useEffect(() => {
     const fetchCalendar = async () => {
       setIsLoading(true)
-      const startDate = new Date(year, month, 1).toISOString().split('T')[0]
-      const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0]
+      const startDate = firstDayOfMonth.toISOString().split('T')[0]
+      const endDate = lastDayOfMonth.toISOString().split('T')[0]
       
       try {
         const data = await getLeaveCalendar(startDate, endDate)
@@ -62,7 +67,7 @@ export default function LeaveCalendarPage() {
       }
     }
     fetchCalendar()
-  }, [year, month])
+  }, [firstDayOfMonth, lastDayOfMonth])
 
   const goToPreviousMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1))
@@ -76,39 +81,22 @@ export default function LeaveCalendarPage() {
     setCurrentDate(new Date())
   }
 
-  // Generate calendar days
-  const calendarDays = useMemo(() => {
-    const firstDayOfMonth = new Date(year, month, 1)
-    const lastDayOfMonth = new Date(year, month + 1, 0)
-    const daysInMonth = lastDayOfMonth.getDate()
+  // Group entries by user
+  const userEntries = useMemo(() => {
+    const grouped = new Map<string, { naam: string; entries: CalendarLeaveEntry[] }>()
     
-    // Get the day of week (0 = Sunday, 1 = Monday, etc.)
-    // We want Monday as first day, so adjust
-    let startDay = firstDayOfMonth.getDay() - 1
-    if (startDay < 0) startDay = 6
-    
-    const days: { date: Date | null; isCurrentMonth: boolean }[] = []
-    
-    // Add empty cells for days before the first of the month
-    for (let i = 0; i < startDay; i++) {
-      days.push({ date: null, isCurrentMonth: false })
-    }
-    
-    // Add days of the month
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push({ date: new Date(year, month, i), isCurrentMonth: true })
-    }
-    
-    return days
-  }, [year, month])
-
-  // Get leave entries for a specific date
-  const getEntriesForDate = (date: Date): CalendarLeaveEntry[] => {
-    const dateStr = date.toISOString().split('T')[0]
-    return entries.filter(entry => {
-      return dateStr >= entry.start_date && dateStr <= entry.end_date
+    entries.forEach(entry => {
+      if (!grouped.has(entry.user_id)) {
+        grouped.set(entry.user_id, { naam: entry.user_naam, entries: [] })
+      }
+      grouped.get(entry.user_id)!.entries.push(entry)
     })
-  }
+    
+    // Sort by name
+    return Array.from(grouped.entries()).sort((a, b) => 
+      a[1].naam.localeCompare(b[1].naam)
+    )
+  }, [entries])
 
   const monthNames = [
     'Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni',
@@ -117,6 +105,26 @@ export default function LeaveCalendarPage() {
 
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
+
+  // Calculate bar position and width for a leave entry
+  const getBarStyle = (entry: CalendarLeaveEntry) => {
+    const startDate = new Date(entry.start_date)
+    const endDate = new Date(entry.end_date)
+    
+    // Clamp to current month
+    const effectiveStart = startDate < firstDayOfMonth ? firstDayOfMonth : startDate
+    const effectiveEnd = endDate > lastDayOfMonth ? lastDayOfMonth : endDate
+    
+    const startDay = effectiveStart.getDate()
+    const endDay = effectiveEnd.getDate()
+    
+    // Calculate left position (0-100%)
+    const left = ((startDay - 1) / daysInMonth) * 100
+    // Calculate width (span of days)
+    const width = ((endDay - startDay + 1) / daysInMonth) * 100
+    
+    return { left: `${left}%`, width: `${width}%` }
+  }
 
   return (
     <div className="space-y-6">
@@ -131,7 +139,7 @@ export default function LeaveCalendarPage() {
             Terug naar overzicht
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Verlofkalender</h1>
-          <p className="text-gray-500">Overzicht van goedgekeurd verlof</p>
+          <p className="text-gray-500">Overzicht van goedgekeurd verlof per medewerker</p>
         </div>
       </div>
 
@@ -148,6 +156,12 @@ export default function LeaveCalendarPage() {
             <h2 className="text-xl font-semibold text-gray-900">
               {monthNames[month]} {year}
             </h2>
+            <button
+              onClick={goToCurrentMonth}
+              className="text-sm text-primary-600 hover:text-primary-700 mt-1"
+            >
+              Huidige maand
+            </button>
           </div>
           <button
             onClick={goToNextMonth}
@@ -156,104 +170,122 @@ export default function LeaveCalendarPage() {
             <ChevronRightIcon className="w-5 h-5" />
           </button>
         </div>
-        
-        <button
-          onClick={goToCurrentMonth}
-          className="text-sm text-primary-600 hover:text-primary-700 mb-4"
-        >
-          Huidige maand
-        </button>
+
+        {/* Legend */}
+        <div className="flex flex-wrap gap-4 mb-4 pb-4 border-b">
+          {Object.entries(LEAVE_TYPE_COLORS).map(([type, colors]) => (
+            <div key={type} className="flex items-center gap-2">
+              <div className={`w-4 h-4 rounded ${colors.bg}`} />
+              <span className="text-sm text-gray-600 capitalize">
+                {type === 'vakantie' ? 'Vakantie' : 
+                 type === 'overuren' ? 'Overuren' :
+                 type === 'bijzonder_tandarts' ? 'Tandarts' : 'Huisarts'}
+              </span>
+            </div>
+          ))}
+        </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
           </div>
+        ) : userEntries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+            <CalendarDaysIcon className="w-12 h-12 text-gray-300 mb-4" />
+            <p>Geen verlof gepland deze maand</p>
+          </div>
         ) : (
-          <>
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
-              {/* Day headers */}
-              {['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'].map((day) => (
-                <div
-                  key={day}
-                  className="bg-gray-100 px-2 py-3 text-center text-sm font-medium text-gray-700"
-                >
-                  {day}
+          <div className="overflow-x-auto">
+            {/* Timeline Grid */}
+            <div className="min-w-[800px]">
+              {/* Day Headers */}
+              <div className="flex border-b border-gray-200">
+                {/* Employee name column */}
+                <div className="w-40 flex-shrink-0 px-3 py-2 bg-gray-50 font-medium text-sm text-gray-700 sticky left-0 z-10">
+                  Medewerker
                 </div>
-              ))}
-              
-              {/* Calendar days */}
-              {calendarDays.map((day, idx) => {
-                if (!day.date) {
-                  return <div key={idx} className="bg-gray-50 min-h-[100px]" />
-                }
-                
-                const dateStr = day.date.toISOString().split('T')[0]
-                const dayEntries = getEntriesForDate(day.date)
-                const isToday = dateStr === todayStr
-                const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
-                
-                return (
-                  <div
-                    key={idx}
-                    className={`bg-white min-h-[100px] p-1 ${isWeekend ? 'bg-gray-50' : ''}`}
-                  >
-                    <div
-                      className={`text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full ${
-                        isToday ? 'bg-primary-600 text-white' : 'text-gray-700'
-                      }`}
-                    >
-                      {day.date.getDate()}
-                    </div>
-                    <div className="space-y-1">
-                      {dayEntries.slice(0, 3).map((entry) => {
-                        const colors = getColorForUser(entry.user_id, userColorMap)
-                        return (
-                          <div
-                            key={entry.id}
-                            className={`text-xs px-1 py-0.5 rounded truncate ${colors.bg} ${colors.text}`}
-                            title={`${entry.user_naam} - ${entry.leave_type_display}`}
-                          >
-                            {entry.user_naam.split(' ')[0]}
-                          </div>
-                        )
-                      })}
-                      {dayEntries.length > 3 && (
-                        <div className="text-xs text-gray-500 px-1">
-                          +{dayEntries.length - 3} meer
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Legend */}
-            {entries.length > 0 && (
-              <div className="mt-4 pt-4 border-t">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Legenda</h3>
-                <div className="flex flex-wrap gap-2">
-                  {Array.from(new Set(entries.map(e => e.user_id))).map((userId) => {
-                    const entry = entries.find(e => e.user_id === userId)!
-                    const colors = getColorForUser(userId, userColorMap)
+                {/* Day columns */}
+                <div className="flex-1 flex">
+                  {monthDates.map((date, idx) => {
+                    const dateStr = date.toISOString().split('T')[0]
+                    const isToday = dateStr === todayStr
+                    const isWeekend = date.getDay() === 0 || date.getDay() === 6
+                    const dayNames = ['Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za']
+                    
                     return (
                       <div
-                        key={userId}
-                        className={`text-xs px-2 py-1 rounded ${colors.bg} ${colors.text}`}
+                        key={idx}
+                        className={`flex-1 min-w-[28px] px-0.5 py-1 text-center text-xs border-l border-gray-100 ${
+                          isWeekend ? 'bg-gray-50' : ''
+                        } ${isToday ? 'bg-primary-50' : ''}`}
                       >
-                        {entry.user_naam}
+                        <div className={`font-medium ${isToday ? 'text-primary-600' : 'text-gray-400'}`}>
+                          {dayNames[date.getDay()]}
+                        </div>
+                        <div className={`${isToday ? 'text-primary-700 font-bold' : 'text-gray-600'}`}>
+                          {date.getDate()}
+                        </div>
                       </div>
                     )
                   })}
                 </div>
               </div>
-            )}
-          </>
+
+              {/* Employee Rows */}
+              {userEntries.map(([userId, { naam, entries: userLeaveEntries }]) => (
+                <div key={userId} className="flex border-b border-gray-100 hover:bg-gray-50">
+                  {/* Employee name */}
+                  <div className="w-40 flex-shrink-0 px-3 py-3 font-medium text-sm text-gray-900 truncate sticky left-0 bg-white z-10">
+                    {naam}
+                  </div>
+                  {/* Timeline bar area */}
+                  <div className="flex-1 relative h-12">
+                    {/* Background grid lines */}
+                    <div className="absolute inset-0 flex">
+                      {monthDates.map((date, idx) => {
+                        const isWeekend = date.getDay() === 0 || date.getDay() === 6
+                        const dateStr = date.toISOString().split('T')[0]
+                        const isToday = dateStr === todayStr
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex-1 min-w-[28px] border-l border-gray-100 ${
+                              isWeekend ? 'bg-gray-50/50' : ''
+                            } ${isToday ? 'bg-primary-50/50' : ''}`}
+                          />
+                        )
+                      })}
+                    </div>
+                    
+                    {/* Leave bars */}
+                    <div className="absolute inset-0 py-2 px-0.5">
+                      {userLeaveEntries.map((entry) => {
+                        const style = getBarStyle(entry)
+                        const colors = getLeaveTypeColor(entry.leave_type)
+                        
+                        return (
+                          <div
+                            key={entry.id}
+                            className={`absolute top-2 h-8 ${colors.bg} ${colors.border} border rounded-md shadow-sm cursor-pointer hover:opacity-90 transition-opacity flex items-center justify-center overflow-hidden`}
+                            style={{ left: style.left, width: style.width, minWidth: '24px' }}
+                            title={`${entry.user_naam}: ${entry.leave_type_display}\n${new Date(entry.start_date).toLocaleDateString('nl-NL')} - ${new Date(entry.end_date).toLocaleDateString('nl-NL')}\n${entry.hours} uur`}
+                          >
+                            <span className={`text-xs font-medium ${colors.text} truncate px-1`}>
+                              {entry.hours}u
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* List View */}
+      {/* Summary List */}
       {entries.length > 0 && (
         <div className="card">
           <div className="px-6 py-4 border-b">
@@ -263,7 +295,7 @@ export default function LeaveCalendarPage() {
           </div>
           <div className="divide-y">
             {entries.map((entry) => {
-              const colors = getColorForUser(entry.user_id, userColorMap)
+              const colors = getLeaveTypeColor(entry.leave_type)
               return (
                 <div key={entry.id} className="px-6 py-3 flex items-center justify-between">
                   <div className="flex items-center gap-3">

@@ -224,8 +224,8 @@ function App() {
         <Route path="/leave" element={<LeaveOverviewPage />} />
         <Route path="/leave/request" element={<LeaveRequestPage />} />
         <Route path="/leave/calendar" element={<LeaveCalendarPage />} />
+        <Route path="/leave/admin" element={<AdminRoute><LeaveRequestsAdminPage /></AdminRoute>} />
         <Route path="/settings/leave" element={<AdminRoute><LeaveSettingsPage /></AdminRoute>} />
-        <Route path="/settings/leave-requests" element={<AdminRoute><LeaveRequestsAdminPage /></AdminRoute>} />
       </Route>
       
       {/* Catch all - redirect to home */}
