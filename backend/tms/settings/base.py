@@ -43,6 +43,7 @@ LOCAL_APPS = [
     'apps.invoicing',
     'apps.invoicing.ocr',
     'apps.leave',
+    'apps.notifications',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

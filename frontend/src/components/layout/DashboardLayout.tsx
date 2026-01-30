@@ -28,6 +28,7 @@ import { useAppStore } from '@/stores/appStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { AppSettings } from '@/types'
 import clsx from '@/utils/clsx'
+import NotificationBell from '@/components/notifications/NotificationBell'
 
 interface NavItem {
   name: string
@@ -154,8 +155,11 @@ export default function DashboardLayout() {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1" />
             
-            {/* Profile dropdown */}
+            {/* Notification Bell & Profile dropdown */}
             <div className="flex items-center gap-x-2 sm:gap-x-4 lg:gap-x-6">
+              {/* Notification Bell */}
+              <NotificationBell />
+              
               <Menu as="div" className="relative">
                 <Menu.Button className="flex items-center p-1.5 hover:bg-gray-50 rounded-lg touch-target">
                   <UserCircleIcon className="h-8 w-8 text-gray-400" />
