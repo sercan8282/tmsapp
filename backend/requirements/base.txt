@@ -20,6 +20,7 @@ Pillow>=10.0,<11.0
 
 # PDF Generation
 WeasyPrint>=60.0,<61.0
+reportlab>=4.0,<5.0
 
 # Email
 django-anymail[mailgun,sendgrid]>=10.0,<11.0
@@ -27,9 +28,6 @@ django-anymail[mailgun,sendgrid]>=10.0,<11.0
 # Security
 bleach>=6.0,<7.0
 cryptography>=42.0,<43.0
-
-# Push Notifications
-pywebpush>=1.14,<2.0
 
 # Utils
 django-filter>=23.0,<24.0
