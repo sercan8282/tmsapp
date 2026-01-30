@@ -29,6 +29,7 @@ import { useThemeStore } from '@/stores/themeStore'
 import { AppSettings } from '@/types'
 import clsx from '@/utils/clsx'
 import NotificationBell from '@/components/notifications/NotificationBell'
+import PushNotificationPrompt from '@/components/pwa/PushNotificationPrompt'
 
 interface NavItem {
   name: string
@@ -227,6 +228,9 @@ export default function DashboardLayout() {
           </div>
         </main>
       </div>
+
+      {/* Push Notification Prompt - shows after login if not subscribed */}
+      <PushNotificationPrompt delay={3000} />
     </div>
   )
 }
