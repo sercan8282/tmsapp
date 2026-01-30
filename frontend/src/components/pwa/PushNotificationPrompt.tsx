@@ -38,26 +38,57 @@ export default function PushNotificationPrompt({ delay = 2000 }: PushNotificatio
   } = usePushNotifications()
 
   useEffect(() => {
+    // DEBUG: Log all conditions
+    console.log('[PushPrompt] Checking conditions:', {
+      isLoading,
+      isSubscribed,
+      isSupported,
+      pushConfigured: pushConfig?.is_configured,
+      permission,
+      dismissed: localStorage.getItem(PROMPT_DISMISSED_KEY)
+    })
+    
     // Don't show if still loading or already subscribed
-    if (isLoading || isSubscribed) return
+    if (isLoading) {
+      console.log('[PushPrompt] Still loading, waiting...')
+      return
+    }
+    if (isSubscribed) {
+      console.log('[PushPrompt] Already subscribed, not showing')
+      return
+    }
     
     // Don't show if push not supported or not configured
-    if (!isSupported || !pushConfig?.is_configured) return
+    if (!isSupported) {
+      console.log('[PushPrompt] Push not supported on this device/browser')
+      return
+    }
+    if (!pushConfig?.is_configured) {
+      console.log('[PushPrompt] Push not configured on server')
+      return
+    }
     
     // Don't show if permission was already denied (user needs to fix in browser settings)
-    if (permission === 'denied') return
+    if (permission === 'denied') {
+      console.log('[PushPrompt] Permission denied, user must enable in browser settings')
+      return
+    }
     
     // Check if user dismissed the prompt recently
     const dismissedAt = localStorage.getItem(PROMPT_DISMISSED_KEY)
     if (dismissedAt) {
       const dismissedTime = parseInt(dismissedAt, 10)
       if (Date.now() - dismissedTime < PROMPT_DISMISSED_DURATION) {
+        console.log('[PushPrompt] Dismissed recently, not showing')
         return // Still within dismiss period
       }
     }
     
+    console.log('[PushPrompt] All conditions met, showing prompt in', delay, 'ms')
+    
     // Show prompt after delay
     const timer = setTimeout(() => {
+      console.log('[PushPrompt] Opening prompt now!')
       setIsOpen(true)
     }, delay)
     
