@@ -272,12 +272,16 @@ class WeekPlanningViewSet(viewsets.ModelViewSet):
             # Generate PDF
             pdf_buffer = self._generate_planning_pdf(planning)
             
+            # Sanitize SMTP credentials for ASCII compatibility
+            smtp_username = safe_str(settings.smtp_username) if settings.smtp_username else ''
+            from_email = safe_str(settings.smtp_from_email or settings.smtp_username)
+            
             # Create email connection
             connection = get_connection(
                 backend='django.core.mail.backends.smtp.EmailBackend',
                 host=settings.smtp_host,
                 port=settings.smtp_port,
-                username=settings.smtp_username or '',
+                username=smtp_username,
                 password=settings.smtp_password or '',
                 use_tls=settings.smtp_use_tls,
                 fail_silently=False,
@@ -297,7 +301,7 @@ TMS
             email = EmailMessage(
                 subject=subject,
                 body=body,
-                from_email=settings.smtp_from_email or settings.smtp_username,
+                from_email=from_email,
                 to=[to_email],
                 connection=connection,
             )
