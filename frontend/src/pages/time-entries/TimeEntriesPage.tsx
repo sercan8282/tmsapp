@@ -13,6 +13,7 @@ import {
   CalendarDaysIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
 import { TimeEntry } from '@/types'
 import { 
@@ -538,6 +539,11 @@ export default function TimeEntriesPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const pageSize = 10
 
+  // Admin search filters
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('')
+  const [searchWeek, setSearchWeek] = useState<number | null>(null)
+
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -575,6 +581,15 @@ export default function TimeEntriesPage() {
     fetchVehicles()
   }, [])
 
+  // Debounce search query for live search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   // Fetch entries
   const fetchEntries = useCallback(async () => {
     setIsLoading(true)
@@ -584,15 +599,20 @@ export default function TimeEntriesPage() {
       const filters: TimeEntryFilters = {
         page,
         page_size: pageSize,
-        weeknummer: selectedWeek,
+        weeknummer: searchWeek !== null ? searchWeek : selectedWeek,
         jaar: selectedYear,
         ordering: sortDirection === 'asc' ? sortField : `-${sortField}`,
       }
       if (statusFilter !== 'all') filters.status = statusFilter
+      // Admin: search by chauffeur name
+      if (isAdmin && debouncedSearch) {
+        filters.search = debouncedSearch
+      }
       
+      const weekToSummarize = searchWeek !== null ? searchWeek : selectedWeek
       const [entriesResponse, summaryResponse] = await Promise.all([
         getTimeEntries(filters),
-        getWeekSummary(selectedWeek, selectedYear),
+        getWeekSummary(weekToSummarize, selectedYear),
       ])
       
       setEntries(entriesResponse.results || [])
@@ -604,7 +624,7 @@ export default function TimeEntriesPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, pageSize, selectedWeek, selectedYear, statusFilter, sortField, sortDirection])
+  }, [page, pageSize, selectedWeek, selectedYear, statusFilter, sortField, sortDirection, isAdmin, debouncedSearch, searchWeek])
 
   useEffect(() => {
     fetchEntries()
@@ -881,10 +901,134 @@ export default function TimeEntriesPage() {
         </div>
       </div>
 
+      {/* Admin Search Panel */}
+      {isAdmin && (
+        <div className="card p-4 mb-6 bg-blue-50 border-blue-200">
+          <div className="flex items-center gap-2 mb-3">
+            <MagnifyingGlassIcon className="w-5 h-5 text-blue-600" />
+            <span className="font-semibold text-blue-900">Admin zoeken</span>
+          </div>
+          
+          {/* Desktop admin search */}
+          <div className="hidden sm:flex items-center gap-4">
+            {/* Chauffeur search input */}
+            <div className="relative flex-1 max-w-xs">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Zoek chauffeur..."
+                className="input pl-9 w-full"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Week number search */}
+            <div className="flex items-center gap-2">
+              <CalendarDaysIcon className="w-4 h-4 text-gray-500" />
+              <select
+                value={searchWeek !== null ? searchWeek : ''}
+                onChange={(e) => { 
+                  const val = e.target.value
+                  setSearchWeek(val === '' ? null : parseInt(val))
+                  setPage(1)
+                }}
+                className="input w-32"
+              >
+                <option value="">Huidige week</option>
+                {Array.from({ length: 52 }, (_, i) => i + 1).map(week => (
+                  <option key={week} value={week}>Week {week}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Clear filters */}
+            {(searchQuery || searchWeek !== null) && (
+              <button
+                onClick={() => { 
+                  setSearchQuery('')
+                  setSearchWeek(null)
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                <XMarkIcon className="w-4 h-4" />
+                Wis filters
+              </button>
+            )}
+
+            {/* Active filters indicator */}
+            {(debouncedSearch || searchWeek !== null) && (
+              <span className="text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
+                {[
+                  debouncedSearch ? `"${debouncedSearch}"` : null,
+                  searchWeek !== null ? `Week ${searchWeek}` : null
+                ].filter(Boolean).join(' • ')}
+              </span>
+            )}
+          </div>
+
+          {/* Mobile admin search */}
+          <div className="sm:hidden space-y-3">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Zoek chauffeur..."
+                className="input pl-9 w-full text-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <select
+              value={searchWeek !== null ? searchWeek : ''}
+              onChange={(e) => { 
+                const val = e.target.value
+                setSearchWeek(val === '' ? null : parseInt(val))
+                setPage(1)
+              }}
+              className="input w-full text-sm"
+            >
+              <option value="">Huidige week</option>
+              {Array.from({ length: 52 }, (_, i) => i + 1).map(week => (
+                <option key={week} value={week}>Week {week}</option>
+              ))}
+            </select>
+            {(searchQuery || searchWeek !== null) && (
+              <button
+                onClick={() => { 
+                  setSearchQuery('')
+                  setSearchWeek(null)
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                <XMarkIcon className="w-4 h-4" />
+                Wis filters
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Week Summary */}
       <WeekSummaryCard
         summary={weekSummary}
-        weeknummer={selectedWeek}
+        weeknummer={searchWeek !== null ? searchWeek : selectedWeek}
         jaar={selectedYear}
         onSubmit={() => setShowSubmitModal(true)}
         isSubmitting={isActionLoading}
@@ -902,13 +1046,15 @@ export default function TimeEntriesPage() {
         ) : entries.length === 0 ? (
           <div className="px-4 py-12 text-center text-gray-500">
             <ClockIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-            <p>Geen urenregistraties voor week {selectedWeek}</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="mt-2 text-primary-600 hover:text-primary-700"
-            >
-              Voeg je eerste registratie toe
-            </button>
+            <p>Geen urenregistraties gevonden{searchWeek !== null ? ` voor week ${searchWeek}` : ` voor week ${selectedWeek}`}{debouncedSearch ? ` met "${debouncedSearch}"` : ''}</p>
+            {!debouncedSearch && !searchWeek && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-2 text-primary-600 hover:text-primary-700"
+              >
+                Voeg je eerste registratie toe
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -922,6 +1068,9 @@ export default function TimeEntriesPage() {
                       onClick={() => handleSort('datum')}
                     >
                       Datum <SortIcon field="datum" />
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Chauffeur
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                       Ritnummer
@@ -958,6 +1107,7 @@ export default function TimeEntriesPage() {
                           })}
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-gray-900 text-sm">{entry.user_naam}</td>
                       <td className="px-4 py-3 text-gray-600 font-mono">{entry.ritnummer}</td>
                       <td className="px-4 py-3 text-gray-600 font-mono">{entry.kenteken}</td>
                       <td className="px-4 py-3 text-gray-600">
@@ -1017,7 +1167,7 @@ export default function TimeEntriesPage() {
                           month: 'short' 
                         })}
                       </h3>
-                      <p className="text-xs text-gray-500 font-mono">{entry.ritnummer}</p>
+                      <p className="text-xs text-gray-500">{entry.user_naam}</p>
                     </div>
                     {entry.status === 'concept' ? (
                       <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
@@ -1031,6 +1181,10 @@ export default function TimeEntriesPage() {
                   </div>
                   
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
+                    <div>
+                      <span className="text-gray-500">Ritnr: </span>
+                      <span className="font-mono font-medium">{entry.ritnummer}</span>
+                    </div>
                     <div>
                       <span className="text-gray-500">Kenteken: </span>
                       <span className="font-mono font-medium">{entry.kenteken}</span>

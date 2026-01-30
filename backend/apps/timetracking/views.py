@@ -21,7 +21,7 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
     serializer_class = TimeEntrySerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ['status', 'weeknummer', 'ritnummer', 'datum']
-    search_fields = ['ritnummer', 'kenteken']
+    search_fields = ['ritnummer', 'kenteken', 'user__voornaam', 'user__achternaam', 'user__email']
     ordering_fields = ['datum', 'weeknummer', 'created_at']
     ordering = ['-datum', '-aanvang']
     
