@@ -66,6 +66,8 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+    extra_hosts:
+      - "smtp.office365.com:40.99.149.98"
     environment:
       - DJANGO_SETTINGS_MODULE=tms.settings.production
       - SECRET_KEY=${SECRET_KEY:?Secret key is verplicht}
