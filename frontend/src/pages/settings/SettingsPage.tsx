@@ -31,7 +31,7 @@ import { useAppStore } from '@/stores/appStore'
 import { useServerConfigStore } from '@/stores/serverConfigStore'
 import ThemeSelector from '@/components/settings/ThemeSelector'
 import type { AppSettingsAdmin } from '@/types'
-import { CalendarDaysIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline'
+import { CalendarDaysIcon } from '@heroicons/react/24/outline'
 
 // Tab configuration
 const tabs = [
@@ -44,7 +44,6 @@ const tabs = [
   { id: 'ai', name: 'AI Extractie', icon: SparklesIcon },
   { id: 'server', name: 'Server', icon: ServerIcon },
   { id: 'leave', name: 'Verlof', icon: CalendarDaysIcon, link: '/settings/leave' },
-  { id: 'leave-requests', name: 'Verlofaanvragen', icon: ClipboardDocumentCheckIcon, link: '/settings/leave-requests' },
 ]
 
 export default function SettingsPage() {
