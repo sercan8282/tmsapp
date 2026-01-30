@@ -5,6 +5,21 @@ from rest_framework import serializers
 from .models import AppSettings, CustomFont
 
 
+def safe_str(value):
+    """Convert value to safe ASCII string (handle Unicode characters like Turkish İ)."""
+    if value is None:
+        return None
+    s = str(value)
+    replacements = {
+        '\u0130': 'I', '\u0131': 'i', '\u015e': 'S', '\u015f': 's',
+        '\u011e': 'G', '\u011f': 'g', '\u00c7': 'C', '\u00e7': 'c',
+        '\u00d6': 'O', '\u00f6': 'o', '\u00dc': 'U', '\u00fc': 'u',
+    }
+    for char, replacement in replacements.items():
+        s = s.replace(char, replacement)
+    return s
+
+
 class CustomFontSerializer(serializers.ModelSerializer):
     """Serializer for custom fonts."""
     font_url = serializers.SerializerMethodField()
@@ -157,6 +172,14 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.favicon.url)
             return obj.favicon.url
         return None
+    
+    def validate(self, data):
+        """Sanitize SMTP fields to remove Turkish/Unicode characters."""
+        if 'smtp_username' in data and data['smtp_username']:
+            data['smtp_username'] = safe_str(data['smtp_username'])
+        if 'smtp_from_email' in data and data['smtp_from_email']:
+            data['smtp_from_email'] = safe_str(data['smtp_from_email'])
+        return data
 
 
 class EmailTestSerializer(serializers.Serializer):

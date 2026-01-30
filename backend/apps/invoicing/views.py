@@ -27,6 +27,21 @@ from .serializers import (
 logger = logging.getLogger('accounts.security')
 
 
+def safe_str(value):
+    """Convert value to safe ASCII string (handle Unicode characters)."""
+    if value is None:
+        return ''
+    s = str(value)
+    replacements = {
+        '\u0130': 'I', '\u0131': 'i', '\u015e': 'S', '\u015f': 's',
+        '\u011e': 'G', '\u011f': 'g', '\u00c7': 'C', '\u00e7': 'c',
+        '\u00d6': 'O', '\u00f6': 'o', '\u00dc': 'U', '\u00fc': 'u',
+    }
+    for char, replacement in replacements.items():
+        s = s.replace(char, replacement)
+    return s
+
+
 class InvoiceTemplateViewSet(viewsets.ModelViewSet):
     """
     ViewSet voor factuur templates.
@@ -526,11 +541,15 @@ Met vriendelijke groet,
             # Create custom SMTP connection using database settings
             from django.core.mail import get_connection
             
+            # Sanitize SMTP credentials for ASCII compatibility
+            smtp_username = safe_str(settings.smtp_username) if settings.smtp_username else ''
+            from_email = safe_str(settings.smtp_from_email or settings.smtp_username)
+            
             connection = get_connection(
                 backend='django.core.mail.backends.smtp.EmailBackend',
                 host=settings.smtp_host,
                 port=settings.smtp_port,
-                username=settings.smtp_username,
+                username=smtp_username,
                 password=settings.smtp_password,
                 use_tls=settings.smtp_use_tls,
                 fail_silently=False,
@@ -539,7 +558,7 @@ Met vriendelijke groet,
             email = EmailMessage(
                 subject=subject,
                 body=body,
-                from_email=settings.smtp_from_email or settings.smtp_username,
+                from_email=from_email,
                 to=[recipient_email],
                 connection=connection,
             )
