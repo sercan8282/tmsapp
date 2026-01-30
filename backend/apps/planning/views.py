@@ -296,6 +296,32 @@ TMS
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    def _safe_str(self, value):
+        """Convert value to safe string for PDF (handle Unicode)."""
+        if value is None:
+            return '-'
+        # Convert to string and normalize Unicode characters
+        s = str(value)
+        # Replace problematic characters with ASCII equivalents
+        replacements = {
+            '\u0130': 'I',  # Turkish dotted capital I
+            '\u0131': 'i',  # Turkish dotless lowercase i
+            '\u015e': 'S',  # Turkish S with cedilla
+            '\u015f': 's',  # Turkish s with cedilla
+            '\u011e': 'G',  # Turkish G with breve
+            '\u011f': 'g',  # Turkish g with breve
+            '\u00c7': 'C',  # C with cedilla
+            '\u00e7': 'c',  # c with cedilla
+            '\u00d6': 'O',  # O with umlaut
+            '\u00f6': 'o',  # o with umlaut
+            '\u00dc': 'U',  # U with umlaut
+            '\u00fc': 'u',  # u with umlaut
+        }
+        for char, replacement in replacements.items():
+            s = s.replace(char, replacement)
+        # Remove any remaining non-ASCII characters
+        return s.encode('ascii', 'replace').decode('ascii')
+
     def _generate_planning_pdf(self, planning):
         """Generate PDF for planning."""
         buffer = io.BytesIO()
@@ -318,8 +344,9 @@ TMS
             fontSize=16,
             spaceAfter=12
         )
+        bedrijf_naam = self._safe_str(planning.bedrijf.naam)
         title = Paragraph(
-            f"Planning Week {planning.weeknummer} - {planning.jaar}<br/>{planning.bedrijf.naam}",
+            f"Planning Week {planning.weeknummer} - {planning.jaar}<br/>{bedrijf_naam}",
             title_style
         )
         elements.append(title)
@@ -346,12 +373,12 @@ TMS
         # Table rows
         for entry in sorted_entries:
             table_data.append([
-                entry.vehicle.ritnummer if entry.vehicle else '-',
+                self._safe_str(entry.vehicle.ritnummer) if entry.vehicle else '-',
                 day_names.get(entry.dag, entry.dag),
-                entry.vehicle.kenteken if entry.vehicle else '-',
-                entry.vehicle.type_wagen if entry.vehicle else '-',
-                entry.chauffeur.naam if entry.chauffeur else '-',
-                entry.telefoon or '-',
+                self._safe_str(entry.vehicle.kenteken) if entry.vehicle else '-',
+                self._safe_str(entry.vehicle.type_wagen) if entry.vehicle else '-',
+                self._safe_str(entry.chauffeur.naam) if entry.chauffeur else '-',
+                self._safe_str(entry.telefoon) if entry.telefoon else '-',
                 'Ja' if entry.adr else 'Nee'
             ])
         
