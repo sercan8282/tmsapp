@@ -13,6 +13,7 @@ import {
   TruckIcon,
   UserIcon,
   DocumentArrowDownIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -26,6 +27,7 @@ import {
   copyToNextWeek,
   updatePlanningEntry,
   getMyPlanning,
+  sendPlanningEmail,
   MyPlanningEntry,
 } from '@/api/planning'
 import { getCompanies } from '@/api/companies'
@@ -251,6 +253,11 @@ function AdminPlanningView() {
   // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailAddress, setEmailAddress] = useState('')
+  const [emailSending, setEmailSending] = useState(false)
+  const [emailSuccess, setEmailSuccess] = useState<string | null>(null)
+  const [emailError, setEmailError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -382,6 +389,30 @@ function AdminPlanningView() {
       setError(err.response?.data?.error || 'Kon planning niet kopiëren')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSendEmail = async () => {
+    if (!planning || !emailAddress) return
+    
+    try {
+      setEmailSending(true)
+      setEmailError(null)
+      setEmailSuccess(null)
+      
+      const result = await sendPlanningEmail(planning.id, emailAddress)
+      setEmailSuccess(result.message)
+      
+      // Close modal after 2 seconds on success
+      setTimeout(() => {
+        setShowEmailModal(false)
+        setEmailAddress('')
+        setEmailSuccess(null)
+      }, 2000)
+    } catch (err: any) {
+      setEmailError(err.response?.data?.error || 'Kon e-mail niet verzenden')
+    } finally {
+      setEmailSending(false)
     }
   }
 
@@ -567,6 +598,18 @@ function AdminPlanningView() {
             >
               <DocumentArrowDownIcon className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Exporteer PDF</span>
+            </button>
+            <button
+              onClick={() => {
+                setEmailAddress('')
+                setEmailError(null)
+                setEmailSuccess(null)
+                setShowEmailModal(true)
+              }}
+              className="btn-secondary text-sm px-3 py-2"
+            >
+              <EnvelopeIcon className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Planning mailen</span>
             </button>
             {!isReadOnly && (
               <>
@@ -1022,6 +1065,99 @@ function AdminPlanningView() {
                     >
                       {saving ? 'Bezig...' : 'Verwijderen'}
                     </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* Email Modal */}
+      <Transition appear show={showEmailModal} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setShowEmailModal(false)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black bg-opacity-25" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 shadow-xl transition-all">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-primary-100">
+                      <EnvelopeIcon className="h-6 w-6 text-primary-600" />
+                    </div>
+                    <Dialog.Title className="text-lg font-semibold text-gray-900">
+                      Planning mailen
+                    </Dialog.Title>
+                  </div>
+                  
+                  <p className="text-sm text-gray-500 mb-4">
+                    De planning voor week {currentWeek} wordt als PDF bijlage verzonden.
+                  </p>
+
+                  {emailSuccess ? (
+                    <div className="rounded-md bg-green-50 p-4 mb-4">
+                      <p className="text-sm text-green-700">{emailSuccess}</p>
+                    </div>
+                  ) : (
+                    <>
+                      {emailError && (
+                        <div className="rounded-md bg-red-50 p-4 mb-4">
+                          <p className="text-sm text-red-700">{emailError}</p>
+                        </div>
+                      )}
+                      
+                      <div className="mb-4">
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                          E-mailadres
+                        </label>
+                        <input
+                          type="email"
+                          id="email"
+                          value={emailAddress}
+                          onChange={(e) => setEmailAddress(e.target.value)}
+                          placeholder="ontvanger@voorbeeld.nl"
+                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmailModal(false)}
+                      className="btn-secondary"
+                    >
+                      {emailSuccess ? 'Sluiten' : 'Annuleren'}
+                    </button>
+                    {!emailSuccess && (
+                      <button
+                        onClick={handleSendEmail}
+                        disabled={emailSending || !emailAddress}
+                        className="btn-primary"
+                      >
+                        {emailSending ? 'Verzenden...' : 'Verzenden'}
+                      </button>
+                    )}
                   </div>
                 </Dialog.Panel>
               </Transition.Child>

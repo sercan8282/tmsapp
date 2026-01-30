@@ -153,3 +153,11 @@ export async function getMyPlanning(weeknummer: number, jaar: number): Promise<M
   const response = await api.get(`/planning/weeks/my_planning/?weeknummer=${weeknummer}&jaar=${jaar}`)
   return response.data
 }
+
+/**
+ * Send planning as PDF via email
+ */
+export async function sendPlanningEmail(id: string, email: string): Promise<{ message: string }> {
+  const response = await api.post(`/planning/weeks/${id}/send_email/`, { email })
+  return response.data
+}

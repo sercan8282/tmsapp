@@ -1,11 +1,19 @@
 import logging
+import io
 from datetime import date
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.core.mail import EmailMessage, get_connection
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 from apps.core.permissions import IsAdminOrManager
+from apps.core.models import AppSettings
 from apps.fleet.models import Vehicle
 from apps.drivers.models import Driver
 from .models import WeekPlanning, PlanningEntry, Weekday
@@ -212,6 +220,166 @@ class WeekPlanningViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(new_planning)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['post'])
+    def send_email(self, request, pk=None):
+        """Send planning as PDF via email."""
+        planning = self.get_object()
+        
+        # Get email address from request
+        to_email = request.data.get('email')
+        if not to_email:
+            return Response(
+                {'error': 'E-mailadres is verplicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get SMTP settings
+        settings = AppSettings.get_settings()
+        if not settings.smtp_host:
+            return Response(
+                {'error': 'SMTP is niet geconfigureerd. Vul eerst de e-mail instellingen in.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Generate PDF
+            pdf_buffer = self._generate_planning_pdf(planning)
+            
+            # Create email connection
+            connection = get_connection(
+                backend='django.core.mail.backends.smtp.EmailBackend',
+                host=settings.smtp_host,
+                port=settings.smtp_port,
+                username=settings.smtp_username or '',
+                password=settings.smtp_password or '',
+                use_tls=settings.smtp_use_tls,
+                fail_silently=False,
+            )
+            
+            # Create email with PDF attachment
+            subject = f'Planning week {planning.weeknummer}'
+            body = f"""Beste,
+
+Hierbij de planning voor week {planning.weeknummer} ({planning.jaar}) van {planning.bedrijf.naam}.
+
+Met vriendelijke groet,
+TMS
+"""
+            
+            email = EmailMessage(
+                subject=subject,
+                body=body,
+                from_email=settings.smtp_from_email or settings.smtp_username,
+                to=[to_email],
+                connection=connection,
+            )
+            
+            # Attach PDF
+            filename = f'Planning_week_{planning.weeknummer}_{planning.jaar}_{planning.bedrijf.naam}.pdf'
+            email.attach(filename, pdf_buffer.getvalue(), 'application/pdf')
+            email.send(fail_silently=False)
+            
+            logger.info(
+                f"Planning emailed: {planning.bedrijf.naam} Week {planning.weeknummer}/{planning.jaar} "
+                f"to {to_email} by user {request.user.email}"
+            )
+            
+            return Response({
+                'message': f'Planning succesvol verzonden naar {to_email}'
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to email planning: {str(e)}")
+            return Response(
+                {'error': f'E-mail verzenden mislukt: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def _generate_planning_pdf(self, planning):
+        """Generate PDF for planning."""
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(A4),
+            leftMargin=1*cm,
+            rightMargin=1*cm,
+            topMargin=1*cm,
+            bottomMargin=1*cm
+        )
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Title
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=12
+        )
+        title = Paragraph(
+            f"Planning Week {planning.weeknummer} - {planning.jaar}<br/>{planning.bedrijf.naam}",
+            title_style
+        )
+        elements.append(title)
+        elements.append(Spacer(1, 0.5*cm))
+        
+        # Day names mapping
+        day_names = {
+            'ma': 'Maandag', 'di': 'Dinsdag', 'wo': 'Woensdag', 
+            'do': 'Donderdag', 'vr': 'Vrijdag'
+        }
+        day_order = {'ma': 1, 'di': 2, 'wo': 3, 'do': 4, 'vr': 5}
+        
+        # Get entries sorted by ritnummer and day
+        entries = planning.entries.select_related('vehicle', 'chauffeur').all()
+        sorted_entries = sorted(entries, key=lambda e: (
+            int(e.vehicle.ritnummer) if e.vehicle.ritnummer and e.vehicle.ritnummer.isdigit() else 9999,
+            e.vehicle.ritnummer or '',
+            day_order.get(e.dag, 99)
+        ))
+        
+        # Table header
+        table_data = [['Ritnummer', 'Dag', 'Kenteken', 'Type', 'Chauffeur', 'Telefoon', 'ADR']]
+        
+        # Table rows
+        for entry in sorted_entries:
+            table_data.append([
+                entry.vehicle.ritnummer if entry.vehicle else '-',
+                day_names.get(entry.dag, entry.dag),
+                entry.vehicle.kenteken if entry.vehicle else '-',
+                entry.vehicle.type_wagen if entry.vehicle else '-',
+                entry.chauffeur.naam if entry.chauffeur else '-',
+                entry.telefoon or '-',
+                'Ja' if entry.adr else 'Nee'
+            ])
+        
+        # Create table
+        table = Table(table_data, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f7fa')]),
+        ]))
+        
+        elements.append(table)
+        
+        # Build PDF
+        doc.build(elements)
+        buffer.seek(0)
+        return buffer
 
 
 class PlanningEntryViewSet(viewsets.ModelViewSet):
