@@ -93,6 +93,7 @@ services:
         condition: service_healthy
     networks:
       - tms_internal
+      - tms_external
     expose:
       - "8000"
 
