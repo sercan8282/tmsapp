@@ -178,6 +178,10 @@ LOGGING = {
             'format': '{asctime} [{levelname}] {name} - {message}',
             'style': '{',
         },
+        'audit': {
+            'format': '{asctime} | {levelname} | {name} | {message}',
+            'style': '{',
+        },
     },
     'handlers': {
         'console': {
@@ -194,6 +198,11 @@ LOGGING = {
             'filename': BASE_DIR / 'logs' / 'security.log',
             'formatter': 'security',
         },
+        'audit_file': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'audit.log',
+            'formatter': 'audit',
+        },
     },
     'root': {
         'handlers': ['console'],
@@ -207,6 +216,11 @@ LOGGING = {
         },
         'accounts.security': {
             'handlers': ['console', 'security_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'apps.leave.audit': {
+            'handlers': ['console', 'audit_file', 'security_file'],
             'level': 'INFO',
             'propagate': False,
         },

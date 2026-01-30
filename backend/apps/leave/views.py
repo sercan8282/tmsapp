@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from django.db.models import Q
 from django.utils import timezone
 
+from .audit import log_leave_action, get_client_ip, LeaveAuditAction
 from .models import (
     GlobalLeaveSettings, 
     LeaveBalance, 
@@ -61,9 +62,34 @@ class GlobalLeaveSettingsViewSet(viewsets.ModelViewSet):
             )
         
         settings_obj = GlobalLeaveSettings.get_settings()
+        
+        # Store old values for audit logging
+        old_values = {
+            'default_leave_hours': str(settings_obj.default_leave_hours),
+            'max_concurrent_leave': settings_obj.max_concurrent_leave,
+            'special_leave_monthly_limit': str(settings_obj.special_leave_monthly_limit),
+        }
+        
         serializer = self.get_serializer(settings_obj, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        
+        # Audit log
+        log_leave_action(
+            action=LeaveAuditAction.SETTINGS_UPDATED,
+            admin_user=request.user,
+            details={
+                'old_values': old_values,
+                'new_values': {
+                    'default_leave_hours': str(settings_obj.default_leave_hours),
+                    'max_concurrent_leave': settings_obj.max_concurrent_leave,
+                    'special_leave_monthly_limit': str(settings_obj.special_leave_monthly_limit),
+                },
+                'update_data': request.data,
+            },
+            ip_address=get_client_ip(request)
+        )
+        
         return Response(serializer.data)
 
 
@@ -142,7 +168,35 @@ class LeaveBalanceViewSet(viewsets.ModelViewSet):
                 {'error': 'Alleen admins kunnen verlofsaldo aanpassen.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        return super().update(request, *args, **kwargs)
+        
+        # Get the balance before update for audit logging
+        balance = self.get_object()
+        old_values = {
+            'vacation_hours': str(balance.vacation_hours),
+            'overtime_hours': str(balance.overtime_hours),
+        }
+        
+        response = super().update(request, *args, **kwargs)
+        
+        # Audit log the balance update
+        balance.refresh_from_db()
+        log_leave_action(
+            action=LeaveAuditAction.BALANCE_UPDATED,
+            admin_user=request.user,
+            target_user=balance.user,
+            leave_balance=balance,
+            details={
+                'old_values': old_values,
+                'new_values': {
+                    'vacation_hours': str(balance.vacation_hours),
+                    'overtime_hours': str(balance.overtime_hours),
+                },
+                'update_data': request.data,
+            },
+            ip_address=get_client_ip(request)
+        )
+        
+        return response
     
     def partial_update(self, request, *args, **kwargs):
         """Only admins can update balances."""
@@ -151,7 +205,35 @@ class LeaveBalanceViewSet(viewsets.ModelViewSet):
                 {'error': 'Alleen admins kunnen verlofsaldo aanpassen.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        return super().partial_update(request, *args, **kwargs)
+        
+        # Get the balance before update for audit logging
+        balance = self.get_object()
+        old_values = {
+            'vacation_hours': str(balance.vacation_hours),
+            'overtime_hours': str(balance.overtime_hours),
+        }
+        
+        response = super().partial_update(request, *args, **kwargs)
+        
+        # Audit log the balance update
+        balance.refresh_from_db()
+        log_leave_action(
+            action=LeaveAuditAction.BALANCE_UPDATED,
+            admin_user=request.user,
+            target_user=balance.user,
+            leave_balance=balance,
+            details={
+                'old_values': old_values,
+                'new_values': {
+                    'vacation_hours': str(balance.vacation_hours),
+                    'overtime_hours': str(balance.overtime_hours),
+                },
+                'update_data': request.data,
+            },
+            ip_address=get_client_ip(request)
+        )
+        
+        return response
 
 
 class LeaveRequestViewSet(viewsets.ModelViewSet):
@@ -375,6 +457,23 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         leave_request.reviewed_at = timezone.now()
         leave_request.save()
         
+        # Audit log
+        log_leave_action(
+            action=LeaveAuditAction.REQUEST_APPROVED,
+            admin_user=request.user,
+            target_user=leave_request.user,
+            leave_request=leave_request,
+            details={
+                'admin_comment': admin_comment,
+                'deductions': {
+                    'vacation': str(deductions['vacation_deduct']),
+                    'overtime': str(deductions['overtime_deduct']),
+                    'special_free': str(deductions['special_free']),
+                }
+            },
+            ip_address=get_client_ip(request)
+        )
+        
         return Response({
             'message': 'Verlofaanvraag goedgekeurd.',
             'deductions': {
@@ -398,10 +497,30 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         leave_request.reviewed_at = timezone.now()
         leave_request.save()
         
+        # Audit log
+        log_leave_action(
+            action=LeaveAuditAction.REQUEST_REJECTED,
+            admin_user=request.user,
+            target_user=leave_request.user,
+            leave_request=leave_request,
+            details={'admin_comment': admin_comment},
+            ip_address=get_client_ip(request)
+        )
+        
         return Response({'message': 'Verlofaanvraag afgewezen.'})
     
     def _delete_request(self, request, leave_request):
         """Delete a leave request and refund hours if approved."""
+        # Store info before deletion for logging
+        leave_info = {
+            'id': leave_request.id,
+            'leave_type': leave_request.leave_type,
+            'start_date': str(leave_request.start_date),
+            'end_date': str(leave_request.end_date),
+            'status_before_delete': leave_request.status,
+        }
+        target_user = leave_request.user
+        
         # If it was approved, refund the hours
         if leave_request.status == LeaveRequestStatus.APPROVED:
             try:
@@ -412,16 +531,28 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
                 if deductions['vacation_deduct'] > 0:
                     balance.vacation_hours += deductions['vacation_deduct']
                     balance.save(update_fields=['vacation_hours', 'updated_at'])
+                    leave_info['refunded_vacation'] = str(deductions['vacation_deduct'])
                 
                 if deductions['overtime_deduct'] > 0:
                     balance.overtime_hours += deductions['overtime_deduct']
                     balance.save(update_fields=['overtime_hours', 'updated_at'])
+                    leave_info['refunded_overtime'] = str(deductions['overtime_deduct'])
                 
                 # Note: special_free hours are not refunded as they're "use it or lose it"
             except LeaveBalance.DoesNotExist:
                 pass
         
         leave_request.delete()
+        
+        # Audit log
+        log_leave_action(
+            action=LeaveAuditAction.REQUEST_DELETED,
+            admin_user=request.user,
+            target_user=target_user,
+            details=leave_info,
+            ip_address=get_client_ip(request)
+        )
+        
         return Response({'message': 'Verlofaanvraag verwijderd.'})
     
     @action(detail=True, methods=['patch'])
@@ -442,6 +573,16 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Store old values for audit logging
+        old_values = {
+            'leave_type': leave_request.leave_type,
+            'start_date': str(leave_request.start_date),
+            'end_date': str(leave_request.end_date),
+            'hours_requested': str(leave_request.hours_requested),
+            'reason': leave_request.reason,
+            'status': leave_request.status,
+        }
+        
         # If approved, we need to recalculate balance adjustments
         was_approved = leave_request.status == LeaveRequestStatus.APPROVED
         old_deductions = leave_request.calculate_deductions() if was_approved else None
@@ -455,6 +596,7 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         leave_request.save()
         
         # If was approved, adjust balance for the difference
+        balance_adjustments = {}
         if was_approved and old_deductions:
             try:
                 balance = leave_request.user.leave_balance
@@ -467,13 +609,36 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
                 if vacation_diff != 0:
                     balance.vacation_hours -= vacation_diff
                     balance.save(update_fields=['vacation_hours', 'updated_at'])
+                    balance_adjustments['vacation_diff'] = str(vacation_diff)
                 
                 if overtime_diff != 0:
                     balance.overtime_hours -= overtime_diff
                     balance.save(update_fields=['overtime_hours', 'updated_at'])
+                    balance_adjustments['overtime_diff'] = str(overtime_diff)
                     
             except LeaveBalance.DoesNotExist:
                 pass
+        
+        # Audit log
+        log_leave_action(
+            action=LeaveAuditAction.REQUEST_UPDATED,
+            admin_user=request.user,
+            target_user=leave_request.user,
+            leave_request=leave_request,
+            details={
+                'old_values': old_values,
+                'new_values': {
+                    'leave_type': leave_request.leave_type,
+                    'start_date': str(leave_request.start_date),
+                    'end_date': str(leave_request.end_date),
+                    'hours_requested': str(leave_request.hours_requested),
+                    'reason': leave_request.reason,
+                },
+                'update_data': request.data,
+                'balance_adjustments': balance_adjustments if balance_adjustments else None,
+            },
+            ip_address=get_client_ip(request)
+        )
         
         return Response({
             'message': 'Verlofaanvraag bijgewerkt.',
