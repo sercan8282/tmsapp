@@ -60,6 +60,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# Allow embedding in iframes from same origin (needed for PDF preview)
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
 ROOT_URLCONF = 'tms.urls'
 
 TEMPLATES = [
@@ -137,6 +140,8 @@ REST_FRAMEWORK = {
         'password_reset': '3/hour', # Password reset: 3 per hour
         'mfa_verify': '10/minute',  # MFA verification: 10 per minute
         'burst': '60/minute',       # Burst protection: 60 per minute
+        'document_email': '10/hour',  # Document email: 10 per hour
+        'document_sign': '30/hour',   # Document signing: 30 per hour
     },
 }
 

@@ -35,12 +35,14 @@ class SignedDocumentListSerializer(serializers.ModelSerializer):
     
     def get_uploaded_by_name(self, obj):
         if obj.uploaded_by:
-            return obj.uploaded_by.full_name or obj.uploaded_by.email
+            name = obj.uploaded_by.full_name.strip() if obj.uploaded_by.full_name else ''
+            return name if name else obj.uploaded_by.email
         return None
     
     def get_signed_by_name(self, obj):
         if obj.signed_by:
-            return obj.signed_by.full_name or obj.signed_by.email
+            name = obj.signed_by.full_name.strip() if obj.signed_by.full_name else ''
+            return name if name else obj.signed_by.email
         return None
 
 
@@ -72,12 +74,14 @@ class SignedDocumentDetailSerializer(serializers.ModelSerializer):
     
     def get_uploaded_by_name(self, obj):
         if obj.uploaded_by:
-            return obj.uploaded_by.full_name or obj.uploaded_by.email
+            name = obj.uploaded_by.full_name.strip() if obj.uploaded_by.full_name else ''
+            return name if name else obj.uploaded_by.email
         return None
     
     def get_signed_by_name(self, obj):
         if obj.signed_by:
-            return obj.signed_by.full_name or obj.signed_by.email
+            name = obj.signed_by.full_name.strip() if obj.signed_by.full_name else ''
+            return name if name else obj.signed_by.email
         return None
     
     def get_original_file_url(self, obj):
@@ -101,12 +105,30 @@ class DocumentUploadSerializer(serializers.Serializer):
     """Serializer voor document upload."""
     file = serializers.FileField()
     title = serializers.CharField(max_length=255)
-    description = serializers.CharField(required=False, allow_blank=True)
+    description = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+    
+    def validate_title(self, value):
+        """Sanitize title to prevent XSS."""
+        import re
+        # Remove potentially dangerous characters
+        value = re.sub(r'[<>"\']', '', value)
+        return value.strip()
     
     def validate_file(self, value):
-        # Alleen PDF bestanden toestaan
+        # Alleen PDF bestanden toestaan - check extension
         if not value.name.lower().endswith('.pdf'):
             raise serializers.ValidationError('Alleen PDF bestanden zijn toegestaan.')
+        
+        # Check MIME type (content type)
+        if hasattr(value, 'content_type') and value.content_type != 'application/pdf':
+            raise serializers.ValidationError('Alleen PDF bestanden zijn toegestaan.')
+        
+        # Check magic bytes (PDF signature)
+        value.seek(0)
+        header = value.read(8)
+        value.seek(0)
+        if not header.startswith(b'%PDF'):
+            raise serializers.ValidationError('Ongeldig PDF bestand.')
         
         # Max 20MB
         max_size = 20 * 1024 * 1024
@@ -119,18 +141,22 @@ class DocumentUploadSerializer(serializers.Serializer):
 class SignDocumentSerializer(serializers.Serializer):
     """Serializer voor het ondertekenen van een document."""
     signature_image = serializers.CharField(
-        help_text='Base64 encoded PNG afbeelding van de handtekening'
+        help_text='Base64 encoded PNG afbeelding van de handtekening',
+        max_length=500000,  # ~375KB base64 = ~280KB image, ruim voldoende voor handtekening
     )
     page = serializers.IntegerField(
         min_value=1,
+        max_value=1000,  # Reasonable max page limit
         help_text='Paginanummer waar de handtekening moet komen (1-indexed)'
     )
     x = serializers.FloatField(
         min_value=0,
+        max_value=100,
         help_text='X positie in percentage van pagina breedte (0-100)'
     )
     y = serializers.FloatField(
         min_value=0,
+        max_value=100,
         help_text='Y positie in percentage van pagina hoogte (0-100)'
     )
     width = serializers.FloatField(
@@ -149,9 +175,36 @@ class SignDocumentSerializer(serializers.Serializer):
         help_text='Naam voor opgeslagen handtekening'
     )
     
+    def validate_signature_image(self, value):
+        """Validate base64 signature image."""
+        import re
+        # Check if it's a valid base64 data URI or raw base64
+        if value.startswith('data:'):
+            # Validate data URI format
+            if not re.match(r'^data:image/(png|jpeg|jpg);base64,', value):
+                raise serializers.ValidationError('Ongeldig afbeeldingsformaat. Alleen PNG en JPEG zijn toegestaan.')
+        return value
+    
     def validate(self, data):
         if data.get('save_signature') and not data.get('signature_name'):
             raise serializers.ValidationError({
                 'signature_name': 'Naam is verplicht als je de handtekening wilt opslaan.'
             })
         return data
+
+
+class EmailDocumentSerializer(serializers.Serializer):
+    """Serializer voor het e-mailen van een ondertekend document."""
+    email = serializers.EmailField(
+        help_text='E-mailadres van de ontvanger'
+    )
+    subject = serializers.CharField(
+        max_length=255,
+        required=False,
+        help_text='Onderwerp van de e-mail (optioneel)'
+    )
+    message = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text='Bericht in de e-mail (optioneel)'
+    )

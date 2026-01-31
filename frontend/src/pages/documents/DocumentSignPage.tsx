@@ -81,10 +81,11 @@ export default function DocumentSignPage() {
         getPdfInfo(id!),
       ]);
       
-      if (docData.status === 'signed') {
-        navigate(`/documents/${id}`);
-        return;
-      }
+      // Verwijder de redirect - sta toe om documenten opnieuw te ondertekenen
+      // if (docData.status === 'signed') {
+      //   navigate(`/documents/${id}`);
+      //   return;
+      // }
       
       setDocument(docData);
       setPdfInfo(infoData);

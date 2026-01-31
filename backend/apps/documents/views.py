@@ -4,21 +4,24 @@ Views voor documenten en handtekeningen.
 import logging
 from datetime import datetime
 
+from django.db import models
 from django.http import HttpResponse, FileResponse
 from django.core.files.base import ContentFile
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
+from apps.core.throttling import DocumentEmailRateThrottle, DocumentSignRateThrottle
 from .models import SignedDocument, SavedSignature
 from .serializers import (
     SignedDocumentListSerializer,
     SignedDocumentDetailSerializer,
     DocumentUploadSerializer,
     SignDocumentSerializer,
-    SavedSignatureSerializer
+    SavedSignatureSerializer,
+    EmailDocumentSerializer
 )
 from .services import (
     decode_base64_image,
@@ -39,9 +42,19 @@ class SignedDocumentViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     
     def get_queryset(self):
+        """Filter to only show documents the user has access to."""
+        user = self.request.user
+        # Admin users can see all documents
+        if user.is_staff or user.is_superuser:
+            return SignedDocument.objects.select_related(
+                'uploaded_by', 'signed_by'
+            ).all()
+        # Regular users can only see their own uploaded documents
         return SignedDocument.objects.select_related(
             'uploaded_by', 'signed_by'
-        ).all()
+        ).filter(
+            models.Q(uploaded_by=user) | models.Q(signed_by=user)
+        )
     
     def get_serializer_class(self):
         if self.action == 'list':
@@ -138,17 +151,19 @@ class SignedDocumentViewSet(viewsets.ModelViewSet):
         return HttpResponse(image_bytes, content_type='image/png')
     
     @action(detail=True, methods=['post'])
+    @throttle_classes([DocumentSignRateThrottle])
     def sign(self, request, pk=None):
         """
         Onderteken een document.
         """
         document = self.get_object()
         
-        if document.status == 'signed':
-            return Response(
-                {'error': 'Document is al ondertekend'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Verwijder de check zodat documenten opnieuw ondertekend kunnen worden
+        # if document.status == 'signed':
+        #     return Response(
+        #         {'error': 'Document is al ondertekend'},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
         
         if not document.is_pdf:
             return Response(
@@ -230,6 +245,20 @@ class SignedDocumentViewSet(viewsets.ModelViewSet):
             SignedDocumentDetailSerializer(document, context={'request': request}).data
         )
     
+    def _sanitize_filename(self, filename: str) -> str:
+        \"\"\"Sanitize filename to prevent header injection and path traversal.\"\"\"
+        import re
+        import os
+        # Remove path components
+        filename = os.path.basename(filename)
+        # Remove or replace dangerous characters
+        filename = re.sub(r'[\\\\/:*?"<>|\\r\\n]', '_', filename)
+        # Limit length
+        if len(filename) > 200:
+            name, ext = os.path.splitext(filename)
+            filename = name[:200-len(ext)] + ext
+        return filename or 'document.pdf'
+    
     @action(detail=True, methods=['get'])
     def download(self, request, pk=None):
         """
@@ -243,11 +272,12 @@ class SignedDocumentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        safe_filename = self._sanitize_filename(document.original_filename)
         response = FileResponse(
             document.signed_file.open('rb'),
             content_type='application/pdf'
         )
-        response['Content-Disposition'] = f'attachment; filename="{document.original_filename}"'
+        response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
         return response
     
     @action(detail=True, methods=['get'])
@@ -257,12 +287,114 @@ class SignedDocumentViewSet(viewsets.ModelViewSet):
         """
         document = self.get_object()
         
+        safe_filename = self._sanitize_filename(document.original_filename)
         response = FileResponse(
             document.original_file.open('rb'),
             content_type='application/pdf'
         )
-        response['Content-Disposition'] = f'attachment; filename="{document.original_filename}"'
+        response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
         return response
+    
+    @action(detail=True, methods=['post'])
+    @throttle_classes([DocumentEmailRateThrottle])
+    def send_email(self, request, pk=None):
+        """
+        Verstuur het ondertekende document via e-mail.
+        """
+        from django.core.mail import EmailMessage, get_connection
+        from apps.core.models import AppSettings
+        
+        document = self.get_object()
+        
+        if document.status != 'signed' or not document.signed_file:
+            return Response(
+                {'error': 'Document is nog niet ondertekend'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = EmailDocumentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        
+        recipient_email = data['email']
+        
+        # Get app settings for SMTP
+        settings = AppSettings.get_settings()
+        
+        if not settings.smtp_host:
+            return Response(
+                {'error': 'SMTP instellingen zijn niet geconfigureerd. Ga naar Instellingen om e-mail te configureren.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Build subject
+        subject = data.get('subject') or f'Ondertekend document: {document.title}'
+        
+        # Build email body
+        user_message = data.get('message', '').strip()
+        signature = settings.email_signature or ''
+        signature_block = f"\n\n{signature}" if signature else ''
+        
+        body = f"""Geachte,
+
+Hierbij ontvangt u het ondertekende document "{document.title}".
+
+Document: {document.original_filename}
+Ondertekend door: {document.signed_by.full_name if document.signed_by else 'Onbekend'}
+Ondertekend op: {document.signed_at.strftime('%d-%m-%Y %H:%M') if document.signed_at else '-'}
+
+{f"Bericht: {user_message}" if user_message else ""}
+
+Met vriendelijke groet,
+{settings.company_name or ''}
+{settings.company_email or ''}{signature_block}
+"""
+        
+        try:
+            # Create custom SMTP connection using database settings
+            connection = get_connection(
+                backend='django.core.mail.backends.smtp.EmailBackend',
+                host=settings.smtp_host,
+                port=settings.smtp_port,
+                username=settings.smtp_username or '',
+                password=settings.smtp_password,
+                use_tls=settings.smtp_use_tls,
+                fail_silently=False,
+            )
+            
+            from_email = settings.smtp_from_email or settings.smtp_username
+            
+            email = EmailMessage(
+                subject=subject,
+                body=body,
+                from_email=from_email,
+                to=[recipient_email],
+                connection=connection,
+            )
+            
+            # Attach the signed PDF
+            document.signed_file.seek(0)
+            pdf_content = document.signed_file.read()
+            filename = f"ondertekend_{document.original_filename}"
+            email.attach(filename, pdf_content, 'application/pdf')
+            
+            email.send()
+            
+            logger.info(
+                f"Signed document email sent: {document.title} to {recipient_email} "
+                f"by user {request.user.email}"
+            )
+            
+            return Response({
+                'message': f'Document succesvol verzonden naar {recipient_email}'
+            })
+            
+        except Exception as e:
+            logger.error(f"Email send failed for document {document.id}: {str(e)}")
+            return Response(
+                {'error': f'E-mail verzenden mislukt: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class SavedSignatureViewSet(viewsets.ModelViewSet):

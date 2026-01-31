@@ -76,9 +76,16 @@ export interface SignDocumentRequest {
 
 // === Documents API ===
 
+interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 export async function getDocuments(): Promise<SignedDocumentList[]> {
-  const response = await api.get('/documents/documents/');
-  return response.data;
+  const response = await api.get<PaginatedResponse<SignedDocumentList>>('/documents/documents/');
+  return response.data.results;
 }
 
 export async function getDocument(id: string): Promise<SignedDocument> {
@@ -183,5 +190,21 @@ export async function deleteSavedSignature(id: string): Promise<void> {
 
 export async function setDefaultSignature(id: string): Promise<SavedSignature> {
   const response = await api.post(`/documents/signatures/${id}/set_default/`);
+  return response.data;
+}
+
+// === Email API ===
+
+export interface EmailDocumentRequest {
+  email: string;
+  subject?: string;
+  message?: string;
+}
+
+export async function emailSignedDocument(
+  id: string,
+  data: EmailDocumentRequest
+): Promise<{ message: string }> {
+  const response = await api.post(`/documents/documents/${id}/send_email/`, data);
   return response.data;
 }
