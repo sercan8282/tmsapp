@@ -13,12 +13,14 @@ class MailboxConfigSerializer(serializers.ModelSerializer):
     created_by_name = serializers.SerializerMethodField()
     protocol_display = serializers.CharField(source='get_protocol_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    default_invoice_type_display = serializers.CharField(source='get_default_invoice_type_display', read_only=True)
     
     class Meta:
         model = MailboxConfig
         fields = [
             'id', 'name', 'description', 'protocol', 'protocol_display',
             'status', 'status_display', 'email_address', 'folder_name',
+            'folder_display_name', 'default_invoice_type', 'default_invoice_type_display',
             'auto_fetch_enabled', 'auto_fetch_interval_minutes',
             'last_fetch_at', 'total_emails_processed', 'total_invoices_imported',
             'created_by_name', 'created_at', 'updated_at'
@@ -60,7 +62,9 @@ class MailboxConfigDetailSerializer(serializers.ModelSerializer):
             'imap_server', 'imap_port', 'imap_use_ssl',
             'username', 'password', 'has_credentials',
             'ms365_client_id', 'ms365_client_secret', 'ms365_tenant_id', 'has_ms365_secret',
-            'folder_name', 'mark_as_read', 'move_to_folder',
+            'folder_name', 'folder_display_name', 'mark_as_read', 
+            'move_to_folder', 'move_to_folder_display_name',
+            'default_invoice_type',
             'only_unread', 'subject_filter', 'sender_filter',
             'auto_fetch_enabled', 'auto_fetch_interval_minutes',
             'last_fetch_at', 'last_error', 'total_emails_processed', 'total_invoices_imported',
@@ -186,13 +190,14 @@ class EmailAttachmentSerializer(serializers.ModelSerializer):
         read_only=True, 
         allow_null=True
     )
+    extracted_data = serializers.SerializerMethodField()
     
     class Meta:
         model = EmailAttachment
         fields = [
             'id', 'original_filename', 'file_url', 'file_size', 'content_type',
             'invoice_import_id', 'invoice_import_status', 'is_processed',
-            'error_message', 'created_at'
+            'error_message', 'created_at', 'extracted_data'
         ]
     
     def get_file_url(self, obj) -> str:
@@ -200,6 +205,40 @@ class EmailAttachmentSerializer(serializers.ModelSerializer):
         if obj.file and request:
             return request.build_absolute_uri(obj.file.url)
         return ''
+    
+    def get_extracted_data(self, obj) -> dict:
+        """Return extracted invoice data from linked InvoiceImport."""
+        if obj.invoice_import and obj.invoice_import.extracted_data:
+            data = obj.invoice_import.extracted_data
+            fields = data.get('fields', {})
+            line_items = data.get('line_items', [])
+            
+            # Map the fields to a frontend-friendly format
+            return {
+                'invoice_number': fields.get('invoice_number') or fields.get('factuurnummer'),
+                'invoice_date': fields.get('invoice_date') or fields.get('factuurdatum'),
+                'due_date': fields.get('due_date') or fields.get('vervaldatum'),
+                'supplier_name': fields.get('supplier_name') or fields.get('leverancier'),
+                'supplier_address': fields.get('supplier_address') or fields.get('adres'),
+                'supplier_vat': fields.get('vat_number') or fields.get('btw_nummer'),
+                'supplier_kvk': fields.get('kvk_number') or fields.get('kvk'),
+                'supplier_iban': fields.get('iban'),
+                'total_amount': fields.get('total_amount') or fields.get('totaal'),
+                'vat_amount': fields.get('vat_amount') or fields.get('btw_bedrag'),
+                'net_amount': fields.get('net_amount') or fields.get('netto'),
+                'currency': fields.get('currency', 'EUR'),
+                'line_items': [
+                    {
+                        'description': item.get('omschrijving') or item.get('description', ''),
+                        'quantity': item.get('aantal') or item.get('quantity'),
+                        'unit_price': item.get('prijs_per_eenheid') or item.get('unit_price'),
+                        'total': item.get('totaal') or item.get('total'),
+                        'vat_rate': item.get('btw_percentage') or item.get('vat_rate'),
+                    }
+                    for item in line_items
+                ] if line_items else []
+            }
+        return {}
 
 
 class EmailImportSerializer(serializers.ModelSerializer):
@@ -207,16 +246,19 @@ class EmailImportSerializer(serializers.ModelSerializer):
     
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     mailbox_name = serializers.CharField(source='mailbox_config.name', read_only=True)
+    default_invoice_type = serializers.CharField(source='mailbox_config.default_invoice_type', read_only=True)
     attachment_count = serializers.SerializerMethodField()
     reviewed_by_name = serializers.SerializerMethodField()
+    attachments = EmailAttachmentSerializer(many=True, read_only=True)
+    first_invoice_import_id = serializers.SerializerMethodField()
     
     class Meta:
         model = EmailImport
         fields = [
-            'id', 'mailbox_name', 'email_subject', 'email_from', 'email_date',
+            'id', 'mailbox_name', 'default_invoice_type', 'email_subject', 'email_from', 'email_date',
             'email_body_preview', 'status', 'status_display', 'attachment_count',
             'processed_at', 'reviewed_by_name', 'reviewed_at',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'attachments', 'first_invoice_import_id'
         ]
     
     def get_attachment_count(self, obj) -> int:
@@ -230,6 +272,13 @@ class EmailImportSerializer(serializers.ModelSerializer):
                 return name
             return obj.reviewed_by.email
         return ''
+    
+    def get_first_invoice_import_id(self, obj) -> str:
+        """Return the ID of the first attachment's invoice import."""
+        first_attachment = obj.attachments.filter(invoice_import__isnull=False).first()
+        if first_attachment and first_attachment.invoice_import:
+            return str(first_attachment.invoice_import.id)
+        return None
 
 
 class EmailImportDetailSerializer(EmailImportSerializer):
@@ -248,6 +297,23 @@ class EmailImportReviewSerializer(serializers.Serializer):
     
     action = serializers.ChoiceField(choices=['approve', 'reject'])
     notes = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+    invoice_type = serializers.ChoiceField(
+        choices=['purchase', 'credit', 'sales'],
+        required=False,
+        allow_null=True,
+        help_text='Type factuur: inkoop, credit, of verkoop'
+    )
+
+
+class BulkDeleteSerializer(serializers.Serializer):
+    """Serializer for bulk deleting email imports."""
+    
+    ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        max_length=100,
+        help_text='Lijst van email import IDs om te verwijderen'
+    )
 
 
 class TestConnectionSerializer(serializers.Serializer):

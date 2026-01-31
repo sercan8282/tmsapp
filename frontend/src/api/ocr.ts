@@ -247,6 +247,31 @@ export const deleteInvoiceImport = async (id: string): Promise<void> => {
   await api.delete(`/invoicing/ocr/imports/${id}/`);
 };
 
+/**
+ * Bulk delete multiple imports
+ */
+export const bulkDeleteInvoiceImports = async (ids: string[]): Promise<{ success: boolean; deleted_count: number; message: string }> => {
+  const response = await api.post('/invoicing/ocr/imports/bulk_delete/', { ids });
+  return response.data;
+};
+
+/**
+ * Bulk convert multiple imports to invoices
+ */
+export const bulkConvertInvoiceImports = async (
+  ids: string[], 
+  invoice_type: 'inkoop' | 'verkoop' | 'credit'
+): Promise<{ 
+  success: boolean; 
+  converted_count: number; 
+  total_count: number;
+  results: Array<{ import_id: string; success: boolean; invoice_id?: string; factuurnummer?: string; error?: string }>;
+  message: string 
+}> => {
+  const response = await api.post('/invoicing/ocr/imports/bulk_convert/', { ids, invoice_type });
+  return response.data;
+};
+
 // Patterns API
 
 /**

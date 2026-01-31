@@ -352,8 +352,8 @@ class AppSettings(models.Model):
         blank=True,
         verbose_name='SMTP Gebruikersnaam'
     )
-    smtp_password = models.CharField(
-        max_length=255, 
+    smtp_password = EncryptedCharField(
+        max_length=512, 
         blank=True,
         verbose_name='SMTP Wachtwoord'
     )
@@ -376,8 +376,8 @@ class AppSettings(models.Model):
         blank=True,
         verbose_name='OAuth Client ID'
     )
-    oauth_client_secret = models.CharField(
-        max_length=255, 
+    oauth_client_secret = EncryptedCharField(
+        max_length=512, 
         blank=True,
         verbose_name='OAuth Client Secret'
     )

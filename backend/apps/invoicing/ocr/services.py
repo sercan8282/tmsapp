@@ -8,7 +8,7 @@ import uuid
 import logging
 from typing import Optional, Dict, List, Any, Tuple
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -17,6 +17,21 @@ from django.core.files.uploadedfile import UploadedFile
 
 
 logger = logging.getLogger(__name__)
+
+
+def convert_to_json_serializable(obj):
+    """Convert an object to be JSON serializable, handling Decimals and dates."""
+    if isinstance(obj, dict):
+        return {k: convert_to_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_to_json_serializable(item) for item in obj]
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    elif isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    elif hasattr(obj, 'to_dict'):
+        return convert_to_json_serializable(obj.to_dict())
+    return obj
 
 
 @dataclass
@@ -214,56 +229,38 @@ class OCREngine:
         all_text = []
         total_confidence = 0.0
         
-        # Create temp directory for images using unique session ID
+        # Create permanent directory for images using unique session ID
+        # These are stored permanently so they can be used for region selection later
         session_id = str(uuid.uuid4())[:8]
-        temp_dir = Path(settings.MEDIA_ROOT) / 'temp' / 'ocr' / session_id
-        temp_dir.mkdir(parents=True, exist_ok=True)
+        ocr_dir = Path(settings.MEDIA_ROOT) / 'imports' / 'ocr_pages' / session_id
+        ocr_dir.mkdir(parents=True, exist_ok=True)
         
-        temp_files = []  # Track files for cleanup
-        
-        try:
-            for i, image in enumerate(images):
-                # Save image temporarily with unique session ID
-                img_path = temp_dir / f"page_{i}.png"
-                image.save(str(img_path))
-                temp_files.append(img_path)
-                
-                # Use relative path for media URL (relative to MEDIA_ROOT)
-                relative_img_path = f"temp/ocr/{session_id}/page_{i}.png"
-                
-                # Process page
-                page = self._process_single_image(
-                    image, 
-                    i, 
-                    language,
-                    relative_img_path
-                )
-                pages.append(page)
-                all_text.append(page.text)
-                total_confidence += page.confidence
+        for i, image in enumerate(images):
+            # Save image permanently
+            img_path = ocr_dir / f"page_{i}.png"
+            image.save(str(img_path))
             
-            avg_confidence = total_confidence / len(pages) if pages else 0.0
+            # Use relative path for media URL (relative to MEDIA_ROOT)
+            relative_img_path = f"imports/ocr_pages/{session_id}/page_{i}.png"
             
-            return OCRResult(
-                pages=pages,
-                full_text="\n\n".join(all_text),
-                avg_confidence=avg_confidence
+            # Process page
+            page = self._process_single_image(
+                image, 
+                i, 
+                language,
+                relative_img_path
             )
-        finally:
-            # Clean up temporary files
-            for temp_file in temp_files:
-                try:
-                    if temp_file.exists():
-                        temp_file.unlink()
-                except Exception as e:
-                    logger.warning(f"Failed to delete temp file {temp_file}: {e}")
-            
-            # Remove temp directory if empty
-            try:
-                if temp_dir.exists():
-                    temp_dir.rmdir()
-            except Exception:
-                pass  # Directory not empty or other error, ignore
+            pages.append(page)
+            all_text.append(page.text)
+            total_confidence += page.confidence
+        
+        avg_confidence = total_confidence / len(pages) if pages else 0.0
+        
+        return OCRResult(
+            pages=pages,
+            full_text="\n\n".join(all_text),
+            avg_confidence=avg_confidence
+        )
     
     def _process_image(self, file_path: str, language: str) -> OCRResult:
         """Process an image file."""
@@ -918,12 +915,12 @@ class InvoiceImportService:
             if not line_items:
                 line_items = self.extractor.find_line_items(ocr_result)
             
-            # Store results
-            invoice_import.extracted_data = {
+            # Store results - convert to JSON serializable format
+            invoice_import.extracted_data = convert_to_json_serializable({
                 'fields': extracted,
                 'line_items': line_items,
                 'ocr_pages': [p.to_dict() for p in ocr_result.pages],
-            }
+            })
             
             invoice_import.status = InvoiceImport.Status.EXTRACTED
             invoice_import.save()

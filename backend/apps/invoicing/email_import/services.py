@@ -482,10 +482,19 @@ class Microsoft365EmailReader(EmailReaderBase):
             
             messages = response.json().get('value', [])
             
+            logger.info(f"MS365 fetch_emails: Found {len(messages)} messages in folder {folder}")
+            
             for msg in messages:
                 # Check for PDF attachments
                 attachments = []
-                for att in msg.get('attachments', []):
+                msg_attachments = msg.get('attachments', [])
+                logger.info(f"MS365 Message '{msg.get('subject', 'No subject')}' has {len(msg_attachments)} attachments")
+                
+                for att in msg_attachments:
+                    att_name = att.get('name', 'unknown')
+                    att_type = att.get('contentType', 'unknown')
+                    logger.info(f"  - Attachment: {att_name} ({att_type})")
+                    
                     if att.get('contentType') == 'application/pdf' or \
                        att.get('name', '').lower().endswith('.pdf'):
                         
@@ -506,10 +515,22 @@ class Microsoft365EmailReader(EmailReaderBase):
                                     })
                 
                 if attachments:
+                    # Parse sender - prefer emailAddress, fall back to name
+                    from_obj = msg.get('from', {})
+                    email_address_obj = from_obj.get('emailAddress', {})
+                    sender_email = email_address_obj.get('address', '')
+                    sender_name = email_address_obj.get('name', '')
+                    
+                    # Handle X.500/Exchange addresses - use display name if email looks like X.500
+                    if sender_email and ('/O=' in sender_email or '/CN=' in sender_email):
+                        sender_display = sender_name if sender_name else 'Onbekende afzender'
+                    else:
+                        sender_display = sender_email if sender_email else (sender_name or 'Onbekende afzender')
+                    
                     emails.append({
                         'message_id': msg.get('id'),
                         'subject': msg.get('subject', ''),
-                        'from': msg.get('from', {}).get('emailAddress', {}).get('address', ''),
+                        'from': sender_display,
                         'date': datetime.fromisoformat(
                             msg.get('receivedDateTime', '').replace('Z', '+00:00')
                         ) if msg.get('receivedDateTime') else None,
@@ -614,7 +635,6 @@ class EmailImportService:
             logger.error(f"Error listing folders: {e}")
             raise
     
-    @transaction.atomic
     def fetch_and_process_emails(self, config, user=None, limit: int = 50) -> Dict:
         """
         Fetch emails from a mailbox and process PDF attachments.
@@ -623,6 +643,12 @@ class EmailImportService:
             Dict with statistics about the import
         """
         from .models import EmailImport, EmailAttachment, MailboxConfig
+        
+        logger.info(f"fetch_and_process_emails: Starting for {config.name}")
+        logger.info(f"  - Folder: {config.folder_name}")
+        logger.info(f"  - Only unread: {config.only_unread}")
+        logger.info(f"  - Subject filter: {config.subject_filter or 'None'}")
+        logger.info(f"  - Sender filter: {config.sender_filter or 'None'}")
         
         reader = self._get_reader(config)
         stats = {
@@ -658,90 +684,92 @@ class EmailImportService:
                         logger.info(f"Email already processed: {message_id}")
                         continue
                     
-                    # Create email import record
-                    email_import = EmailImport.objects.create(
-                        mailbox_config=config,
-                        email_message_id=message_id,
-                        email_subject=email_data['subject'][:500],
-                        email_from=email_data['from'][:255],
-                        email_date=email_data['date'] or timezone.now(),
-                        email_body_preview=email_data['body_preview'],
-                        status=EmailImport.Status.PROCESSING
-                    )
-                    
-                    stats['attachments_found'] += len(email_data['attachments'])
-                    
-                    # Process each PDF attachment
-                    for attachment in email_data['attachments']:
-                        try:
-                            # Sanitize filename
-                            safe_filename = self._sanitize_filename(attachment['filename'])
-                            
-                            # Create attachment record
-                            email_attachment = EmailAttachment.objects.create(
-                                email_import=email_import,
-                                original_filename=safe_filename,
-                                content_type=attachment['content_type'],
-                                file_size=attachment['size']
-                            )
-                            
-                            # Save the file
-                            email_attachment.file.save(
-                                safe_filename,
-                                ContentFile(attachment['content'])
-                            )
-                            
-                            # Process with OCR
+                    # Process each email in its own transaction
+                    with transaction.atomic():
+                        # Create email import record
+                        email_import = EmailImport.objects.create(
+                            mailbox_config=config,
+                            email_message_id=message_id,
+                            email_subject=email_data['subject'][:500],
+                            email_from=email_data['from'][:255],
+                            email_date=email_data['date'] or timezone.now(),
+                            email_body_preview=email_data['body_preview'],
+                            status=EmailImport.Status.PROCESSING
+                        )
+                        
+                        stats['attachments_found'] += len(email_data['attachments'])
+                        
+                        # Process each PDF attachment
+                        for attachment in email_data['attachments']:
                             try:
-                                from django.core.files.uploadedfile import InMemoryUploadedFile
-                                from io import BytesIO
+                                # Sanitize filename
+                                safe_filename = self._sanitize_filename(attachment['filename'])
                                 
-                                # Create a file-like object for the OCR service
-                                file_obj = BytesIO(attachment['content'])
-                                file_obj.name = safe_filename
-                                file_obj.size = attachment['size']
+                                # Create attachment record
+                                email_attachment = EmailAttachment.objects.create(
+                                    email_import=email_import,
+                                    original_filename=safe_filename,
+                                    content_type=attachment['content_type'],
+                                    file_size=attachment['size']
+                                )
                                 
-                                # Use SimpleUploadedFile
-                                from django.core.files.uploadedfile import SimpleUploadedFile
-                                uploaded_file = SimpleUploadedFile(
-                                    name=safe_filename,
-                                    content=attachment['content'],
-                                    content_type=attachment['content_type']
+                                # Save the file
+                                email_attachment.file.save(
+                                    safe_filename,
+                                    ContentFile(attachment['content'])
                                 )
                                 
                                 # Process with OCR
-                                invoice_import = self.ocr_service.process_upload(
-                                    uploaded_file, 
-                                    user
-                                )
+                                try:
+                                    from django.core.files.uploadedfile import InMemoryUploadedFile
+                                    from io import BytesIO
+                                    
+                                    # Create a file-like object for the OCR service
+                                    file_obj = BytesIO(attachment['content'])
+                                    file_obj.name = safe_filename
+                                    file_obj.size = attachment['size']
+                                    
+                                    # Use SimpleUploadedFile
+                                    from django.core.files.uploadedfile import SimpleUploadedFile
+                                    uploaded_file = SimpleUploadedFile(
+                                        name=safe_filename,
+                                        content=attachment['content'],
+                                        content_type=attachment['content_type']
+                                    )
+                                    
+                                    # Process with OCR
+                                    invoice_import = self.ocr_service.process_upload(
+                                        uploaded_file, 
+                                        user
+                                    )
+                                    
+                                    # Link to email attachment
+                                    email_attachment.invoice_import = invoice_import
+                                    email_attachment.is_processed = True
+                                    email_attachment.save()
+                                    
+                                    stats['attachments_processed'] += 1
                                 
-                                # Link to email attachment
-                                email_attachment.invoice_import = invoice_import
-                                email_attachment.is_processed = True
-                                email_attachment.save()
-                                
-                                stats['attachments_processed'] += 1
+                                except Exception as e:
+                                    email_attachment.error_message = str(e)
+                                    email_attachment.save()
+                                    logger.error(f"OCR processing failed for {safe_filename}: {e}")
                             
                             except Exception as e:
-                                email_attachment.error_message = str(e)
-                                email_attachment.save()
-                                logger.error(f"OCR processing failed for {safe_filename}: {e}")
+                                logger.error(f"Error processing attachment: {e}")
+                                stats['errors'].append(f"Bijlage fout: {str(e)}")
                         
-                        except Exception as e:
-                            logger.error(f"Error processing attachment: {e}")
-                            stats['errors'].append(f"Bijlage fout: {str(e)}")
+                        # Update email import status
+                        email_import.status = EmailImport.Status.AWAITING_REVIEW
+                        email_import.processed_at = timezone.now()
+                        email_import.save()
                     
-                    # Update email import status
-                    email_import.status = EmailImport.Status.AWAITING_REVIEW
-                    email_import.processed_at = timezone.now()
-                    email_import.save()
-                    
-                    # Mark email as read if configured
+                    # Mark email as read if configured (outside transaction)
                     if config.mark_as_read:
                         imap_uid = email_data.get('imap_uid', email_data['message_id'])
                         reader.mark_as_read(imap_uid)
                     
-                    # Move email if configured
+                    # Move email if configured (outside transaction)
                     if config.move_to_folder:
                         imap_uid = email_data.get('imap_uid', email_data['message_id'])
                         reader.move_email(imap_uid, config.move_to_folder)

@@ -26,6 +26,7 @@ import {
   getInvoices,
   deleteInvoice,
   bulkDeleteInvoices,
+  bulkStatusChange,
   markDefinitief,
   markVerzonden,
   markBetaald,
@@ -192,6 +193,43 @@ export default function InvoicesPage() {
     }
   }
 
+  const handleBulkStatusChange = async (newStatus: 'concept' | 'definitief' | 'verzonden' | 'betaald') => {
+    if (selectedIds.size === 0) return
+    
+    const statusLabels = {
+      concept: 'concept',
+      definitief: 'definitief',
+      verzonden: 'verzonden',
+      betaald: 'betaald',
+    }
+    
+    if (!confirm(`Weet je zeker dat je ${selectedIds.size} factuur/facturen wilt markeren als ${statusLabels[newStatus]}?`)) {
+      return
+    }
+    
+    try {
+      setSaving(true)
+      setError(null)
+      const result = await bulkStatusChange(Array.from(selectedIds), newStatus)
+      
+      if (result.updated > 0) {
+        setSuccessMessage(result.message)
+        setTimeout(() => setSuccessMessage(null), 5000)
+      }
+      
+      if (result.errors.length > 0) {
+        setError(result.errors.join(', '))
+      }
+      
+      setSelectedIds(new Set())
+      loadInvoices()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Kon status niet wijzigen')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const toggleSelectAll = () => {
     if (selectedIds.size === invoices.length) {
       setSelectedIds(new Set())
@@ -291,15 +329,43 @@ export default function InvoicesPage() {
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Facturen</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {!isReadOnly && selectedIds.size > 0 && (
-            <button 
-              onClick={() => setShowBulkDeleteModal(true)} 
-              className="btn-danger flex items-center gap-2"
-            >
-              <TrashIcon className="h-5 w-5" />
-              Verwijder ({selectedIds.size})
-            </button>
+            <>
+              <span className="text-sm text-gray-600">{selectedIds.size} geselecteerd</span>
+              <button 
+                onClick={() => handleBulkStatusChange('definitief')} 
+                className="btn-secondary flex items-center gap-1.5 text-sm"
+                disabled={saving}
+              >
+                <CheckCircleIcon className="h-4 w-4" />
+                Definitief
+              </button>
+              <button 
+                onClick={() => handleBulkStatusChange('verzonden')} 
+                className="btn-secondary flex items-center gap-1.5 text-sm"
+                disabled={saving}
+              >
+                <PaperAirplaneIcon className="h-4 w-4" />
+                Verzonden
+              </button>
+              <button 
+                onClick={() => handleBulkStatusChange('betaald')} 
+                className="btn-secondary flex items-center gap-1.5 text-sm"
+                disabled={saving}
+              >
+                <CurrencyEuroIcon className="h-4 w-4" />
+                Betaald
+              </button>
+              <button 
+                onClick={() => setShowBulkDeleteModal(true)} 
+                className="btn-danger flex items-center gap-1.5 text-sm"
+                disabled={saving}
+              >
+                <TrashIcon className="h-4 w-4" />
+                Verwijder
+              </button>
+            </>
           )}
           {!isReadOnly && (
             <button onClick={() => navigate('/invoices/new')} className="btn-primary">

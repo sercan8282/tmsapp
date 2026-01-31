@@ -33,8 +33,11 @@ const MailboxConfigPage: React.FC = () => {
     ms365_client_secret: '',
     ms365_tenant_id: '',
     folder_name: 'INBOX',
+    folder_display_name: 'INBOX',
+    default_invoice_type: 'purchase',
     mark_as_read: true,
     move_to_folder: '',
+    move_to_folder_display_name: '',
     only_unread: true,
     subject_filter: '',
     sender_filter: '',
@@ -74,8 +77,11 @@ const MailboxConfigPage: React.FC = () => {
         ms365_client_secret: '',
         ms365_tenant_id: existingConfig.ms365_tenant_id || '',
         folder_name: existingConfig.folder_name || 'INBOX',
+        folder_display_name: existingConfig.folder_display_name || existingConfig.folder_name || 'INBOX',
+        default_invoice_type: existingConfig.default_invoice_type || 'purchase',
         mark_as_read: existingConfig.mark_as_read !== false,
         move_to_folder: existingConfig.move_to_folder || '',
+        move_to_folder_display_name: existingConfig.move_to_folder_display_name || existingConfig.move_to_folder || '',
         only_unread: existingConfig.only_unread !== false,
         subject_filter: existingConfig.subject_filter || '',
         sender_filter: existingConfig.sender_filter || '',
@@ -84,6 +90,27 @@ const MailboxConfigPage: React.FC = () => {
       });
     }
   }, [existingConfig]);
+
+  // Auto-load folders when existing config loads
+  useEffect(() => {
+    if (existingConfig && id && !isNew) {
+      // Automatically load folders for existing config
+      const autoLoadFolders = async () => {
+        setFoldersLoading(true);
+        try {
+          const result = await listMailboxFolders(id);
+          if (result.success) {
+            setFolders(result.folders);
+          }
+        } catch {
+          // Silent fail - user can manually load folders
+        } finally {
+          setFoldersLoading(false);
+        }
+      };
+      autoLoadFolders();
+    }
+  }, [existingConfig, id, isNew]);
 
   // Create/Update mutation
   const saveMutation = useMutation({
@@ -490,12 +517,32 @@ const MailboxConfigPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
+              <label className="block text-sm font-medium text-gray-700">Standaard Factuurtype</label>
+              <select
+                value={formData.default_invoice_type || 'purchase'}
+                onChange={(e) => handleChange('default_invoice_type', e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="purchase">Inkoop</option>
+                <option value="credit">Credit</option>
+                <option value="sales">Verkoop</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Dit type wordt standaard toegepast bij imports uit deze mailbox
+              </p>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700">Map om te monitoren</label>
               <div className="mt-1 flex gap-2">
                 {folders.length > 0 ? (
                   <select
                     value={formData.folder_name}
-                    onChange={(e) => handleChange('folder_name', e.target.value)}
+                    onChange={(e) => {
+                      const selectedFolder = folders.find(f => f.id === e.target.value);
+                      handleChange('folder_name', e.target.value);
+                      handleChange('folder_display_name', selectedFolder?.display_name || e.target.value);
+                    }}
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Selecteer een map...</option>
@@ -507,13 +554,18 @@ const MailboxConfigPage: React.FC = () => {
                     ))}
                   </select>
                 ) : (
-                  <input
-                    type="text"
-                    value={formData.folder_name}
-                    onChange={(e) => handleChange('folder_name', e.target.value)}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="INBOX"
-                  />
+                  <div className="w-full">
+                    <input
+                      type="text"
+                      value={formData.folder_display_name || formData.folder_name || 'INBOX'}
+                      readOnly
+                      className="block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm text-gray-600"
+                      placeholder="INBOX"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Klik op de map-knop om een andere map te selecteren
+                    </p>
+                  </div>
                 )}
                 {!isNew && (
                   <button
@@ -545,7 +597,11 @@ const MailboxConfigPage: React.FC = () => {
                 {folders.length > 0 ? (
                   <select
                     value={formData.move_to_folder}
-                    onChange={(e) => handleChange('move_to_folder', e.target.value)}
+                    onChange={(e) => {
+                      const selectedFolder = folders.find(f => f.id === e.target.value);
+                      handleChange('move_to_folder', e.target.value);
+                      handleChange('move_to_folder_display_name', selectedFolder?.display_name || '');
+                    }}
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Niet verplaatsen</option>
@@ -556,13 +612,15 @@ const MailboxConfigPage: React.FC = () => {
                     ))}
                   </select>
                 ) : (
-                  <input
-                    type="text"
-                    value={formData.move_to_folder}
-                    onChange={(e) => handleChange('move_to_folder', e.target.value)}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Verwerkt"
-                  />
+                  <div className="w-full">
+                    <input
+                      type="text"
+                      value={formData.move_to_folder_display_name || formData.move_to_folder || ''}
+                      readOnly
+                      className="block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm text-gray-600"
+                      placeholder="Niet ingesteld"
+                    />
+                  </div>
                 )}
               </div>
               <p className="mt-1 text-xs text-gray-500">Laat leeg om mails in de oorspronkelijke map te laten</p>

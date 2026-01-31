@@ -358,6 +358,80 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             'deleted': deleted_count,
             'errors': errors
         })
+
+    @action(detail=False, methods=['post'])
+    def bulk_status(self, request):
+        """Change status for multiple invoices at once."""
+        ids = request.data.get('ids', [])
+        new_status = request.data.get('status')
+        
+        if not ids:
+            return Response(
+                {'error': 'Geen facturen geselecteerd'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        valid_statuses = [s[0] for s in InvoiceStatus.choices]
+        if new_status not in valid_statuses:
+            return Response(
+                {'error': f'Ongeldige status. Kies uit: {", ".join(valid_statuses)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        updated_count = 0
+        errors = []
+        
+        for invoice_id in ids:
+            try:
+                invoice = Invoice.objects.get(id=invoice_id)
+                old_status = invoice.status
+                
+                # Validation for definitief
+                if new_status == InvoiceStatus.DEFINITIEF:
+                    if invoice.status != InvoiceStatus.CONCEPT:
+                        errors.append(f"{invoice.factuurnummer}: Alleen concept facturen kunnen definitief worden")
+                        continue
+                    if not invoice.lines.exists():
+                        errors.append(f"{invoice.factuurnummer}: Factuur moet minimaal 1 regel bevatten")
+                        continue
+                
+                invoice.status = new_status
+                
+                # Set sent_at for verzonden
+                if new_status == InvoiceStatus.VERZONDEN:
+                    invoice.sent_at = timezone.now()
+                # Clear sent_at if going back to concept/definitief
+                elif new_status in [InvoiceStatus.CONCEPT, InvoiceStatus.DEFINITIEF]:
+                    invoice.sent_at = None
+                
+                invoice.save()
+                updated_count += 1
+                
+                logger.info(
+                    f"Invoice bulk status change: {invoice.factuurnummer} "
+                    f"'{old_status}' -> '{new_status}' by user {request.user.email}"
+                )
+            except Invoice.DoesNotExist:
+                errors.append(f"Factuur {invoice_id} niet gevonden")
+            except Exception as e:
+                errors.append(f"Fout: {str(e)}")
+        
+        status_labels = {
+            'concept': 'concept',
+            'definitief': 'definitief',
+            'verzonden': 'verzonden',
+            'betaald': 'betaald',
+        }
+        
+        logger.info(
+            f"Bulk status change completed: {updated_count} invoices updated to '{new_status}' by user {request.user.email}"
+        )
+        
+        return Response({
+            'updated': updated_count,
+            'errors': errors,
+            'message': f'{updated_count} factuur/facturen gemarkeerd als {status_labels.get(new_status, new_status)}'
+        })
     
     @action(detail=True, methods=['post'])
     def recalculate(self, request, pk=None):

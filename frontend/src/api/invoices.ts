@@ -191,6 +191,14 @@ export async function bulkDeleteInvoices(ids: string[]): Promise<{ deleted: numb
   return response.data
 }
 
+export async function bulkStatusChange(
+  ids: string[], 
+  status: 'concept' | 'definitief' | 'verzonden' | 'betaald'
+): Promise<{ updated: number; errors: string[]; message: string }> {
+  const response = await api.post('/invoicing/invoices/bulk_status/', { ids, status })
+  return response.data
+}
+
 // Invoice actions
 
 export async function recalculateInvoice(id: string): Promise<Invoice> {

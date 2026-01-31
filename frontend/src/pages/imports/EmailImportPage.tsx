@@ -3,21 +3,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Mail, Settings, RefreshCw, CheckCircle, XCircle, Clock, AlertCircle,
-  Loader2, Plus, Trash2, Eye, ChevronLeft, ChevronRight, FileText, Inbox
+  Loader2, Plus, Trash2, Eye, ChevronLeft, ChevronRight, FileText, Inbox,
+  ChevronDown, ChevronUp, ArrowLeft, Square, CheckSquare
 } from 'lucide-react';
 import {
   getMailboxConfigs,
   getEmailImports,
-  getPendingReviewImports,
   fetchMailboxEmails,
   testMailboxConnection,
   deleteMailboxConfig,
   reviewEmailImport,
   getEmailImportStats,
-  MailboxConfig,
-  EmailImport,
-  EmailImportStats,
-  PaginatedResponse,
+  bulkDeleteEmailImports,
 } from '../../api/emailImport';
 
 const statusConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
@@ -42,6 +39,9 @@ const EmailImportPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [invoiceTypes, setInvoiceTypes] = useState<Record<string, 'purchase' | 'credit' | 'sales'>>({});
 
   // Fetch mailbox configs
   const { data: mailboxes = [], isLoading: mailboxesLoading } = useQuery({
@@ -88,13 +88,62 @@ const EmailImportPage: React.FC = () => {
 
   // Review mutation
   const reviewMutation = useMutation({
-    mutationFn: ({ id, action, notes }: { id: string; action: 'approve' | 'reject'; notes?: string }) =>
-      reviewEmailImport(id, action, notes),
+    mutationFn: ({ id, action, notes, invoiceType }: { id: string; action: 'approve' | 'reject'; notes?: string; invoiceType?: 'purchase' | 'credit' | 'sales' }) =>
+      reviewEmailImport(id, action, notes, invoiceType),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['emailImports'] });
       queryClient.invalidateQueries({ queryKey: ['emailImportStats'] });
     },
   });
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: string[]) => bulkDeleteEmailImports(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['emailImports'] });
+      queryClient.invalidateQueries({ queryKey: ['emailImportStats'] });
+      setSelectedIds(new Set());
+    },
+  });
+
+  const toggleRowExpanded = (id: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === imports.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(imports.map(i => i.id)));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (window.confirm(`Weet je zeker dat je ${selectedIds.size} e-mail import(s) wilt verwijderen?`)) {
+      bulkDeleteMutation.mutate(Array.from(selectedIds));
+    }
+  };
 
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('nl-NL', {
@@ -111,8 +160,15 @@ const EmailImportPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
+      {/* Header with Back Button */}
       <div className="mb-8">
+        <button
+          onClick={() => navigate('/imports')}
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Terug naar Imports
+        </button>
         <h1 className="text-2xl font-bold text-gray-900">E-mail Factuur Import</h1>
         <p className="mt-1 text-sm text-gray-500">
           Importeer facturen automatisch uit shared mailboxen
@@ -271,22 +327,40 @@ const EmailImportPage: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Geïmporteerde E-mails</h2>
 
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Alle statussen</option>
-            <option value="awaiting_review">Wacht op Review</option>
-            <option value="approved">Goedgekeurd</option>
-            <option value="rejected">Afgewezen</option>
-            <option value="completed">Voltooid</option>
-            <option value="failed">Mislukt</option>
-          </select>
+          <div className="flex items-center gap-4">
+            {/* Bulk Delete */}
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteMutation.isPending}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+              >
+                {bulkDeleteMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+                Verwijder ({selectedIds.size})
+              </button>
+            )}
+
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Alle statussen</option>
+              <option value="awaiting_review">Wacht op Review</option>
+              <option value="approved">Goedgekeurd</option>
+              <option value="rejected">Afgewezen</option>
+              <option value="completed">Voltooid</option>
+              <option value="failed">Mislukt</option>
+            </select>
+          </div>
         </div>
 
         {importsLoading ? (
@@ -300,93 +374,306 @@ const EmailImportPage: React.FC = () => {
           </div>
         ) : (
           <>
+            {/* Select All Header */}
+            <div className="px-6 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-4">
+              <button
+                onClick={toggleSelectAll}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                {selectedIds.size === imports.length ? (
+                  <CheckSquare className="w-5 h-5 text-blue-600" />
+                ) : (
+                  <Square className="w-5 h-5" />
+                )}
+              </button>
+              <span className="text-sm text-gray-500">
+                {selectedIds.size > 0 ? `${selectedIds.size} geselecteerd` : 'Selecteer alles'}
+              </span>
+            </div>
+
             <div className="divide-y divide-gray-200">
               {imports.map((emailImport) => {
                 const statusInfo = statusConfig[emailImport.status] || statusConfig.pending;
+                const isExpanded = expandedRows.has(emailImport.id);
+                const isSelected = selectedIds.has(emailImport.id);
 
                 return (
-                  <div key={emailImport.id} className="px-6 py-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3">
-                          <h3 className="font-medium text-gray-900 truncate">
-                            {emailImport.email_subject || '(Geen onderwerp)'}
-                          </h3>
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                            {statusInfo.icon}
-                            {statusInfo.label}
-                          </span>
+                  <div key={emailImport.id} className={`${isSelected ? 'bg-blue-50' : ''}`}>
+                    <div className="px-6 py-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          {/* Selection Checkbox */}
+                          <button
+                            onClick={() => toggleSelection(emailImport.id)}
+                            className="mt-1 text-gray-500 hover:text-gray-700"
+                          >
+                            {isSelected ? (
+                              <CheckSquare className="w-5 h-5 text-blue-600" />
+                            ) : (
+                              <Square className="w-5 h-5" />
+                            )}
+                          </button>
+
+                          {/* Expand/Collapse Button */}
+                          <button
+                            onClick={() => toggleRowExpanded(emailImport.id)}
+                            className="mt-1 text-gray-400 hover:text-gray-600"
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="w-5 h-5" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5" />
+                            )}
+                          </button>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3">
+                              <h3 className="font-medium text-gray-900 truncate">
+                                {emailImport.email_subject || '(Geen onderwerp)'}
+                              </h3>
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                                {statusInfo.icon}
+                                {statusInfo.label}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex items-center gap-4 text-sm text-gray-500">
+                              <span>Van: {emailImport.email_from}</span>
+                              <span>•</span>
+                              <span>{formatDate(emailImport.email_date)}</span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <FileText className="w-4 h-4" />
+                                {emailImport.attachment_count} bijlage(s)
+                              </span>
+                            </div>
+                            {!isExpanded && emailImport.email_body_preview && (
+                              <p className="mt-2 text-sm text-gray-400 truncate max-w-2xl">
+                                {emailImport.email_body_preview}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div className="mt-1 flex items-center gap-4 text-sm text-gray-500">
-                          <span>Van: {emailImport.email_from}</span>
-                          <span>•</span>
-                          <span>{formatDate(emailImport.email_date)}</span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <FileText className="w-4 h-4" />
-                            {emailImport.attachment_count} bijlage(s)
-                          </span>
-                        </div>
-                        {emailImport.email_body_preview && (
-                          <p className="mt-2 text-sm text-gray-400 truncate max-w-2xl">
-                            {emailImport.email_body_preview}
-                          </p>
+
+                        {/* Review Actions */}
+                        {emailImport.status === 'awaiting_review' && (
+                          <div className="flex items-center gap-2 ml-4">
+                            {/* Invoice Type Selection */}
+                            <select
+                              value={invoiceTypes[emailImport.id] || emailImport.default_invoice_type || 'purchase'}
+                              onChange={(e) =>
+                                setInvoiceTypes((prev) => ({
+                                  ...prev,
+                                  [emailImport.id]: e.target.value as 'purchase' | 'credit' | 'sales'
+                                }))
+                              }
+                              className="border border-gray-300 rounded px-2 py-1 text-sm"
+                            >
+                              <option value="purchase">Inkoop</option>
+                              <option value="credit">Credit</option>
+                              <option value="sales">Verkoop</option>
+                            </select>
+                            <input
+                              type="text"
+                              placeholder="Notities..."
+                              value={reviewNotes[emailImport.id] || ''}
+                              onChange={(e) =>
+                                setReviewNotes((prev) => ({ ...prev, [emailImport.id]: e.target.value }))
+                              }
+                              className="border border-gray-300 rounded px-2 py-1 text-sm w-32"
+                            />
+                            <button
+                              onClick={() =>
+                                reviewMutation.mutate({
+                                  id: emailImport.id,
+                                  action: 'approve',
+                                  notes: reviewNotes[emailImport.id],
+                                  invoiceType: invoiceTypes[emailImport.id] || emailImport.default_invoice_type || 'purchase',
+                                })
+                              }
+                              disabled={reviewMutation.isPending}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded"
+                              title="Goedkeuren"
+                            >
+                              <CheckCircle className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                reviewMutation.mutate({
+                                  id: emailImport.id,
+                                  action: 'reject',
+                                  notes: reviewNotes[emailImport.id],
+                                })
+                              }
+                              disabled={reviewMutation.isPending}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded"
+                              title="Afwijzen"
+                            >
+                              <XCircle className="w-5 h-5" />
+                            </button>
+                          </div>
+                        )}
+
+                        {emailImport.status !== 'awaiting_review' && (
+                          <button
+                            onClick={() => {
+                              // Navigate to invoice import detail if available, otherwise to email import list
+                              if (emailImport.first_invoice_import_id) {
+                                navigate(`/imports/${emailImport.first_invoice_import_id}`);
+                              } else {
+                                // Show toast or stay on page - no detail page available
+                                alert('Geen factuur details beschikbaar');
+                              }
+                            }}
+                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                            title="Details bekijken"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
                         )}
                       </div>
-
-                      {/* Review Actions */}
-                      {emailImport.status === 'awaiting_review' && (
-                        <div className="flex items-center gap-2 ml-4">
-                          <input
-                            type="text"
-                            placeholder="Notities..."
-                            value={reviewNotes[emailImport.id] || ''}
-                            onChange={(e) =>
-                              setReviewNotes((prev) => ({ ...prev, [emailImport.id]: e.target.value }))
-                            }
-                            className="border border-gray-300 rounded px-2 py-1 text-sm w-32"
-                          />
-                          <button
-                            onClick={() =>
-                              reviewMutation.mutate({
-                                id: emailImport.id,
-                                action: 'approve',
-                                notes: reviewNotes[emailImport.id],
-                              })
-                            }
-                            disabled={reviewMutation.isPending}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded"
-                            title="Goedkeuren"
-                          >
-                            <CheckCircle className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              reviewMutation.mutate({
-                                id: emailImport.id,
-                                action: 'reject',
-                                notes: reviewNotes[emailImport.id],
-                              })
-                            }
-                            disabled={reviewMutation.isPending}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded"
-                            title="Afwijzen"
-                          >
-                            <XCircle className="w-5 h-5" />
-                          </button>
-                        </div>
-                      )}
-
-                      {emailImport.status !== 'awaiting_review' && (
-                        <button
-                          onClick={() => navigate(`/imports/email/${emailImport.id}`)}
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                          title="Details bekijken"
-                        >
-                          <Eye className="w-5 h-5" />
-                        </button>
-                      )}
                     </div>
+
+                    {/* Expanded Section - Extracted Data */}
+                    {isExpanded && (
+                      <div className="px-6 pb-4 bg-gray-50 border-t border-gray-100">
+                        {emailImport.attachments && emailImport.attachments.length > 0 ? (
+                          <div className="space-y-4 pt-4">
+                            {emailImport.attachments.map((attachment) => (
+                              <div key={attachment.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <FileText className="w-4 h-4 text-gray-400" />
+                                  <span className="font-medium text-gray-700">{attachment.original_filename}</span>
+                                  <span className="text-xs text-gray-400">
+                                    ({(attachment.file_size / 1024).toFixed(1)} KB)
+                                  </span>
+                                  {attachment.is_processed && (
+                                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                      Verwerkt
+                                    </span>
+                                  )}
+                                </div>
+
+                                {attachment.extracted_data ? (
+                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
+                                    {attachment.extracted_data.invoice_number && (
+                                      <div>
+                                        <span className="text-gray-500 block">Factuurnummer</span>
+                                        <span className="font-medium">{attachment.extracted_data.invoice_number}</span>
+                                      </div>
+                                    )}
+                                    {attachment.extracted_data.invoice_date && (
+                                      <div>
+                                        <span className="text-gray-500 block">Factuurdatum</span>
+                                        <span className="font-medium">{attachment.extracted_data.invoice_date}</span>
+                                      </div>
+                                    )}
+                                    {attachment.extracted_data.due_date && (
+                                      <div>
+                                        <span className="text-gray-500 block">Vervaldatum</span>
+                                        <span className="font-medium">{attachment.extracted_data.due_date}</span>
+                                      </div>
+                                    )}
+                                    {attachment.extracted_data.supplier_name && (
+                                      <div>
+                                        <span className="text-gray-500 block">Leverancier</span>
+                                        <span className="font-medium">{attachment.extracted_data.supplier_name}</span>
+                                      </div>
+                                    )}
+                                    {attachment.extracted_data.supplier_vat && (
+                                      <div>
+                                        <span className="text-gray-500 block">BTW-nummer</span>
+                                        <span className="font-medium">{attachment.extracted_data.supplier_vat}</span>
+                                      </div>
+                                    )}
+                                    {attachment.extracted_data.supplier_kvk && (
+                                      <div>
+                                        <span className="text-gray-500 block">KVK</span>
+                                        <span className="font-medium">{attachment.extracted_data.supplier_kvk}</span>
+                                      </div>
+                                    )}
+                                    {attachment.extracted_data.supplier_iban && (
+                                      <div>
+                                        <span className="text-gray-500 block">IBAN</span>
+                                        <span className="font-medium">{attachment.extracted_data.supplier_iban}</span>
+                                      </div>
+                                    )}
+                                    {attachment.extracted_data.net_amount !== undefined && (
+                                      <div>
+                                        <span className="text-gray-500 block">Netto bedrag</span>
+                                        <span className="font-medium">
+                                          {attachment.extracted_data.currency || '€'} {attachment.extracted_data.net_amount?.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {attachment.extracted_data.vat_amount !== undefined && (
+                                      <div>
+                                        <span className="text-gray-500 block">BTW</span>
+                                        <span className="font-medium">
+                                          {attachment.extracted_data.currency || '€'} {attachment.extracted_data.vat_amount?.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {attachment.extracted_data.total_amount !== undefined && (
+                                      <div>
+                                        <span className="text-gray-500 block">Totaal</span>
+                                        <span className="font-medium text-lg">
+                                          {attachment.extracted_data.currency || '€'} {attachment.extracted_data.total_amount?.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-gray-400 italic">
+                                    Geen geëxtraheerde gegevens beschikbaar
+                                  </p>
+                                )}
+
+                                {/* Line items if present */}
+                                {attachment.extracted_data?.line_items && attachment.extracted_data.line_items.length > 0 && (
+                                  <div className="mt-4">
+                                    <span className="text-gray-500 text-sm block mb-2">Factuurregels</span>
+                                    <div className="overflow-x-auto">
+                                      <table className="min-w-full text-sm">
+                                        <thead>
+                                          <tr className="bg-gray-50">
+                                            <th className="px-3 py-2 text-left text-gray-500">Omschrijving</th>
+                                            <th className="px-3 py-2 text-right text-gray-500">Aantal</th>
+                                            <th className="px-3 py-2 text-right text-gray-500">Prijs</th>
+                                            <th className="px-3 py-2 text-right text-gray-500">BTW %</th>
+                                            <th className="px-3 py-2 text-right text-gray-500">Totaal</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                          {attachment.extracted_data.line_items.map((item, lineIdx) => (
+                                            <tr key={lineIdx}>
+                                              <td className="px-3 py-2">{item.description || '-'}</td>
+                                              <td className="px-3 py-2 text-right">{item.quantity || '-'}</td>
+                                              <td className="px-3 py-2 text-right">
+                                                {item.unit_price !== undefined ? `€ ${item.unit_price.toFixed(2)}` : '-'}
+                                              </td>
+                                              <td className="px-3 py-2 text-right">
+                                                {item.vat_rate !== undefined ? `${item.vat_rate}%` : '-'}
+                                              </td>
+                                              <td className="px-3 py-2 text-right">
+                                                {item.total !== undefined ? `€ ${item.total.toFixed(2)}` : '-'}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="pt-4 text-sm text-gray-400 italic">
+                            Geen bijlagen beschikbaar
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

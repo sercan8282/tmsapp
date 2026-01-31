@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Upload, FileText, AlertCircle, CheckCircle, Clock, Loader2, Mail } from 'lucide-react';
-import { uploadInvoice, getInvoiceImports, deleteInvoiceImport, InvoiceImport } from '../../api/ocr';
+import { Upload, FileText, AlertCircle, CheckCircle, Clock, Loader2, Mail, Trash2, FileCheck, Square, CheckSquare } from 'lucide-react';
+import { uploadInvoice, getInvoiceImports, deleteInvoiceImport, bulkDeleteInvoiceImports, bulkConvertInvoiceImports, InvoiceImport } from '../../api/ocr';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const statusConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
@@ -59,6 +59,8 @@ const InvoiceImportPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [uploadProgress, setUploadProgress] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkInvoiceType, setBulkInvoiceType] = useState<'inkoop' | 'verkoop' | 'credit'>('inkoop');
 
   // Fetch imports
   const { data: imports = [], isLoading } = useQuery({
@@ -93,6 +95,66 @@ const InvoiceImportPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['invoiceImports'] });
     },
   });
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: string[]) => bulkDeleteInvoiceImports(ids),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['invoiceImports'] });
+      setSelectedIds(new Set());
+      alert(data.message);
+    },
+    onError: (error: Error) => {
+      alert(`Fout bij verwijderen: ${error.message}`);
+    },
+  });
+
+  // Bulk convert mutation
+  const bulkConvertMutation = useMutation({
+    mutationFn: ({ ids, invoice_type }: { ids: string[]; invoice_type: 'inkoop' | 'verkoop' | 'credit' }) => 
+      bulkConvertInvoiceImports(ids, invoice_type),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['invoiceImports'] });
+      setSelectedIds(new Set());
+      alert(data.message);
+    },
+    onError: (error: Error) => {
+      alert(`Fout bij omzetten: ${error.message}`);
+    },
+  });
+
+  // Selection handlers
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === imports.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(imports.map((imp: InvoiceImport) => imp.id)));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (window.confirm(`Weet je zeker dat je ${selectedIds.size} import(s) wilt verwijderen?`)) {
+      bulkDeleteMutation.mutate(Array.from(selectedIds));
+    }
+  };
+
+  const handleBulkConvert = () => {
+    if (selectedIds.size === 0) return;
+    if (window.confirm(`Weet je zeker dat je ${selectedIds.size} import(s) wilt omzetten naar ${bulkInvoiceType === 'inkoop' ? 'inkoopfacturen' : bulkInvoiceType === 'verkoop' ? 'verkoopfacturen' : 'creditnota\'s'}?`)) {
+      bulkConvertMutation.mutate({ ids: Array.from(selectedIds), invoice_type: bulkInvoiceType });
+    }
+  };
 
   // Dropzone
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -196,7 +258,57 @@ const InvoiceImportPage: React.FC = () => {
 
       {/* Recent Imports */}
       <div className="mt-12">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recente Imports</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Recente Imports</h2>
+          
+          {/* Bulk Actions */}
+          {imports.length > 0 && (
+            <div className="flex items-center gap-3">
+              {selectedIds.size > 0 && (
+                <>
+                  <span className="text-sm text-gray-600">{selectedIds.size} geselecteerd</span>
+                  
+                  <select
+                    value={bulkInvoiceType}
+                    onChange={(e) => setBulkInvoiceType(e.target.value as 'inkoop' | 'verkoop' | 'credit')}
+                    className="text-sm border-gray-300 rounded-md"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="inkoop">Inkoopfactuur</option>
+                    <option value="verkoop">Verkoopfactuur</option>
+                    <option value="credit">Creditnota</option>
+                  </select>
+                  
+                  <button
+                    onClick={handleBulkConvert}
+                    disabled={bulkConvertMutation.isPending}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50"
+                  >
+                    {bulkConvertMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <FileCheck className="w-4 h-4" />
+                    )}
+                    Opslaan als factuur
+                  </button>
+                  
+                  <button
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleteMutation.isPending}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50"
+                  >
+                    {bulkDeleteMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    Verwijderen
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
         
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
@@ -212,6 +324,18 @@ const InvoiceImportPage: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left">
+                    <button
+                      onClick={toggleSelectAll}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      {selectedIds.size === imports.length ? (
+                        <CheckSquare className="w-5 h-5 text-blue-600" />
+                      ) : (
+                        <Square className="w-5 h-5" />
+                      )}
+                    </button>
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Bestand
                   </th>
@@ -235,13 +359,26 @@ const InvoiceImportPage: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {imports.map((imp: InvoiceImport) => {
                   const status = statusConfig[imp.status] || statusConfig.pending;
+                  const isSelected = selectedIds.has(imp.id);
                   
                   return (
                     <tr 
                       key={imp.id} 
-                      className="hover:bg-gray-50 cursor-pointer"
+                      className={`hover:bg-gray-50 cursor-pointer ${isSelected ? 'bg-blue-50' : ''}`}
                       onClick={() => navigate(`/imports/${imp.id}`)}
                     >
+                      <td className="px-4 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => toggleSelect(imp.id)}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-5 h-5 text-blue-600" />
+                          ) : (
+                            <Square className="w-5 h-5" />
+                          )}
+                        </button>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <FileText className="w-5 h-5 text-gray-400 mr-3" />

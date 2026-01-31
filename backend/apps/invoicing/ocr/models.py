@@ -2,6 +2,8 @@
 Invoice OCR Models - Self-learning extraction patterns
 """
 import uuid
+import shutil
+from pathlib import Path
 from django.db import models
 from django.conf import settings
 
@@ -88,6 +90,33 @@ class InvoiceImport(models.Model):
     
     def __str__(self):
         return f"{self.file_name} ({self.get_status_display()})"
+    
+    def delete(self, *args, **kwargs):
+        """Clean up OCR page images when deleting import."""
+        # Get OCR pages directory from extracted_data
+        if self.extracted_data and 'ocr_pages' in self.extracted_data:
+            pages = self.extracted_data.get('ocr_pages', [])
+            if pages and pages[0].get('image_path'):
+                # Extract session_id from path like "imports/ocr_pages/{session_id}/page_0.png"
+                image_path = pages[0]['image_path']
+                parts = image_path.split('/')
+                if len(parts) >= 3 and parts[0] == 'imports' and parts[1] == 'ocr_pages':
+                    session_id = parts[2]
+                    ocr_dir = Path(settings.MEDIA_ROOT) / 'imports' / 'ocr_pages' / session_id
+                    if ocr_dir.exists():
+                        try:
+                            shutil.rmtree(ocr_dir)
+                        except Exception:
+                            pass  # Ignore cleanup errors
+        
+        # Delete original file
+        if self.original_file:
+            try:
+                self.original_file.delete(save=False)
+            except Exception:
+                pass
+        
+        super().delete(*args, **kwargs)
 
 
 class InvoicePattern(models.Model):

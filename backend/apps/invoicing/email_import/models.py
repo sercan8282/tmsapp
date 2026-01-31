@@ -110,9 +110,15 @@ class MailboxConfig(models.Model):
     
     # Mailbox folder to monitor
     folder_name = models.CharField(
-        max_length=100, 
+        max_length=500, 
         default='INBOX', 
-        verbose_name='Map om te Monitoren'
+        verbose_name='Map ID'
+    )
+    folder_display_name = models.CharField(
+        max_length=255,
+        default='INBOX',
+        verbose_name='Map Naam',
+        help_text='Leesbare naam van de map'
     )
     
     # Processing settings
@@ -121,10 +127,29 @@ class MailboxConfig(models.Model):
         verbose_name='Als Gelezen Markeren'
     )
     move_to_folder = models.CharField(
-        max_length=100, 
+        max_length=500, 
         blank=True, 
-        verbose_name='Verplaats naar Map',
+        verbose_name='Verplaats naar Map ID',
         help_text='Optioneel: verplaats verwerkte mails naar deze map'
+    )
+    move_to_folder_display_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Verplaats naar Map Naam'
+    )
+    
+    # Invoice type setting
+    class InvoiceType(models.TextChoices):
+        PURCHASE = 'purchase', 'Inkoop'
+        CREDIT = 'credit', 'Credit'
+        SALES = 'sales', 'Verkoop'
+    
+    default_invoice_type = models.CharField(
+        max_length=20,
+        choices=InvoiceType.choices,
+        default=InvoiceType.PURCHASE,
+        verbose_name='Standaard Factuurtype',
+        help_text='Het type factuur dat vanuit deze mailbox geïmporteerd wordt'
     )
     
     # Filter settings

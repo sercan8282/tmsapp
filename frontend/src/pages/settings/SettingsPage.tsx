@@ -24,14 +24,12 @@ import {
   ServerIcon,
   LanguageIcon,
   SparklesIcon,
-  BellIcon,
 } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
 import { settingsApi } from '@/api/settings'
 import { useAppStore } from '@/stores/appStore'
 import { useServerConfigStore } from '@/stores/serverConfigStore'
 import ThemeSelector from '@/components/settings/ThemeSelector'
-import PushSettingsTab from '@/components/settings/PushSettingsTab'
 import type { AppSettingsAdmin } from '@/types'
 import { CalendarDaysIcon } from '@heroicons/react/24/outline'
 
@@ -43,7 +41,6 @@ const tabs = [
   { id: 'company', name: 'Bedrijfsgegevens', icon: BuildingOfficeIcon },
   { id: 'invoice', name: 'Factuur', icon: DocumentTextIcon },
   { id: 'email', name: 'E-mail', icon: EnvelopeIcon },
-  { id: 'push', name: 'Push Notificaties', icon: BellIcon },
   { id: 'ai', name: 'AI Extractie', icon: SparklesIcon },
   { id: 'server', name: 'Server', icon: ServerIcon },
   { id: 'leave', name: 'Verlof', icon: CalendarDaysIcon, link: '/settings/leave' },
@@ -867,17 +864,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Push Notifications Tab */}
-          {activeTab === 'push' && (
-            <PushSettingsTab
-              onSuccess={(msg) => {
-                setSuccess(msg)
-                setTimeout(() => setSuccess(null), 3000)
-              }}
-              onError={(msg) => setError(msg)}
-            />
-          )}
-
           {/* AI Tab */}
           {activeTab === 'ai' && (
             <div className="space-y-6">
@@ -924,6 +910,26 @@ export default function SettingsPage() {
               {formData.ai_provider === 'github' && (
                 <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                   <h3 className="font-medium text-gray-900">GitHub Models (Gratis)</h3>
+                  
+                  {/* Rate limit warning */}
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <svg className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <div className="text-sm">
+                        <p className="font-medium text-amber-800">Rate Limiet</p>
+                        <p className="text-amber-700 mt-1">
+                          GitHub Models heeft een limiet van <strong>150 requests per dag</strong> en <strong>15 requests per minuut</strong>. 
+                          Bij veel factuur imports kan deze limiet snel bereikt worden.
+                        </p>
+                        <p className="text-amber-600 mt-1 text-xs">
+                          Voor onbeperkt gebruik, overweeg OpenAI of Azure OpenAI.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       GitHub Personal Access Token

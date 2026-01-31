@@ -15,7 +15,8 @@ from .models import MailboxConfig, EmailImport, EmailAttachment
 from .serializers import (
     MailboxConfigSerializer, MailboxConfigDetailSerializer,
     EmailImportSerializer, EmailImportDetailSerializer, EmailImportReviewSerializer,
-    EmailAttachmentSerializer, TestConnectionSerializer, FetchEmailsSerializer
+    EmailAttachmentSerializer, TestConnectionSerializer, FetchEmailsSerializer,
+    BulkDeleteSerializer
 )
 from .services import EmailImportService
 from apps.core.throttling import EmailImportRateThrottle
@@ -293,4 +294,24 @@ class EmailImportViewSet(viewsets.ModelViewSet):
             'total': total,
             'today': today,
             'by_status': status_counts
+        })
+    
+    @action(detail=False, methods=['post'])
+    def bulk_delete(self, request):
+        """Delete multiple email imports at once."""
+        serializer = BulkDeleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        ids = serializer.validated_data['ids']
+        
+        # Get imports that belong to user's accessible configs
+        queryset = self.get_queryset().filter(id__in=ids)
+        
+        deleted_count = queryset.count()
+        queryset.delete()
+        
+        return Response({
+            'success': True,
+            'deleted_count': deleted_count,
+            'message': f'{deleted_count} imports verwijderd'
         })

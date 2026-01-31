@@ -401,6 +401,225 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
             ).data
         )
 
+    @action(detail=False, methods=['post'])
+    def bulk_delete(self, request):
+        """
+        Delete multiple invoice imports at once.
+        """
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response(
+                {'error': 'Geen IDs opgegeven'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Only delete imports the user has access to
+        queryset = self.get_queryset().filter(id__in=ids)
+        deleted_count = queryset.count()
+        queryset.delete()
+        
+        return Response({
+            'success': True,
+            'deleted_count': deleted_count,
+            'message': f'{deleted_count} imports verwijderd'
+        })
+
+    @action(detail=False, methods=['post'])
+    def bulk_convert(self, request):
+        """
+        Convert multiple imports to invoices at once.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        ids = request.data.get('ids', [])
+        invoice_type = request.data.get('invoice_type', 'inkoop')
+        
+        if not ids:
+            return Response(
+                {'error': 'Geen IDs opgegeven'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from apps.invoicing.models import Invoice, InvoiceLine, InvoiceType, InvoiceStatus, InvoiceTemplate
+        from apps.companies.models import Company
+        from datetime import date, timedelta
+        
+        # Get default template
+        template, _ = InvoiceTemplate.objects.get_or_create(
+            naam='Standaard',
+            defaults={'beschrijving': 'Standaard factuur template', 'layout': {}, 'variables': {}}
+        )
+        
+        # Map invoice type
+        type_mapping = {
+            'inkoop': InvoiceType.INKOOP,
+            'verkoop': InvoiceType.VERKOOP,
+            'credit': InvoiceType.CREDIT,
+        }
+        
+        type_labels = {
+            'inkoop': 'Inkoopfactuur',
+            'verkoop': 'Verkoopfactuur', 
+            'credit': 'Creditnota',
+        }
+        
+        queryset = self.get_queryset().filter(id__in=ids)
+        results = []
+        
+        for invoice_import in queryset:
+            try:
+                # Extract data from import
+                extracted = invoice_import.extracted_data or {}
+                fields = extracted.get('fields', {})
+                
+                logger.info(f"Processing import {invoice_import.id}, fields: {fields}")
+                
+                # Helper function to get field value (handles both dict with 'value' key and direct values)
+                def get_field(field_name, default=None):
+                    val = fields.get(field_name)
+                    if val is None:
+                        return default
+                    if isinstance(val, dict):
+                        return val.get('value', default)
+                    return val
+                
+                # Get company - try multiple field names
+                leverancier_naam = (
+                    get_field('supplier_name') or 
+                    get_field('leverancier') or 
+                    get_field('company_name') or
+                    get_field('vendor_name') or
+                    'Onbekend'
+                )
+                company, _ = Company.objects.get_or_create(naam=leverancier_naam)
+                
+                # Parse date - try multiple field names
+                factuurdatum_str = (
+                    get_field('invoice_date') or 
+                    get_field('factuurdatum') or
+                    get_field('date')
+                )
+                factuurdatum = date.today()
+                if factuurdatum_str:
+                    try:
+                        from datetime import datetime
+                        for fmt in ['%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y']:
+                            try:
+                                factuurdatum = datetime.strptime(str(factuurdatum_str), fmt).date()
+                                break
+                            except:
+                                pass
+                    except:
+                        pass
+                
+                # Get invoice number - try multiple field names
+                factuurnummer_str = (
+                    get_field('invoice_number') or 
+                    get_field('factuurnummer') or
+                    get_field('number')
+                )
+                if not factuurnummer_str:
+                    prefix = 'INK' if invoice_type == 'inkoop' else 'VRK' if invoice_type == 'verkoop' else 'CRD'
+                    count = Invoice.objects.filter(type=invoice_type).count() + 1
+                    factuurnummer_str = f"{prefix}-{date.today().year}-{count:04d}"
+                
+                # Ensure unique factuurnummer
+                base_nummer = str(factuurnummer_str)
+                counter = 1
+                while Invoice.objects.filter(factuurnummer=factuurnummer_str).exists():
+                    factuurnummer_str = f"{base_nummer}-{counter}"
+                    counter += 1
+                
+                # Get totals - try multiple field names
+                totaal = get_field('total') or get_field('totaal') or get_field('amount') or 0
+                if isinstance(totaal, str):
+                    try:
+                        totaal = float(totaal.replace(',', '.').replace('€', '').strip())
+                    except:
+                        totaal = 0
+                
+                subtotaal = get_field('subtotal') or get_field('subtotaal') or totaal
+                if isinstance(subtotaal, str):
+                    try:
+                        subtotaal = float(subtotaal.replace(',', '.').replace('€', '').strip())
+                    except:
+                        subtotaal = totaal
+                
+                btw_bedrag = get_field('vat_amount') or get_field('btw_bedrag') or 0
+                if isinstance(btw_bedrag, str):
+                    try:
+                        btw_bedrag = float(btw_bedrag.replace(',', '.').replace('€', '').strip())
+                    except:
+                        btw_bedrag = 0
+                
+                btw_percentage = get_field('vat_percentage') or get_field('btw_percentage') or 21
+                if isinstance(btw_percentage, str):
+                    try:
+                        btw_percentage = float(btw_percentage.replace('%', '').strip())
+                    except:
+                        btw_percentage = 21
+                
+                logger.info(f"Creating invoice: {factuurnummer_str}, company: {leverancier_naam}, total: {totaal}")
+                
+                # Create invoice
+                invoice = Invoice.objects.create(
+                    factuurnummer=factuurnummer_str,
+                    type=type_mapping.get(invoice_type, InvoiceType.INKOOP),
+                    status=InvoiceStatus.CONCEPT,
+                    template=template,
+                    bedrijf=company,
+                    factuurdatum=factuurdatum,
+                    vervaldatum=factuurdatum + timedelta(days=30),
+                    subtotaal=subtotaal or totaal,
+                    btw_percentage=btw_percentage,
+                    btw_bedrag=btw_bedrag,
+                    totaal=totaal,
+                    opmerkingen=invoice_import.file_name,
+                    pdf_file=invoice_import.original_file,
+                    created_by=request.user,
+                )
+                
+                # Create lines
+                for imported_line in invoice_import.lines.all():
+                    InvoiceLine.objects.create(
+                        invoice=invoice,
+                        omschrijving=imported_line.omschrijving or imported_line.raw_text or 'Regel',
+                        aantal=imported_line.aantal or 1,
+                        eenheid=imported_line.eenheid or 'stuk',
+                        prijs_per_eenheid=imported_line.prijs_per_eenheid or imported_line.totaal or 0,
+                        volgorde=imported_line.volgorde,
+                    )
+                
+                # Mark as completed
+                invoice_import.status = InvoiceImport.Status.COMPLETED
+                invoice_import.completed_at = timezone.now()
+                invoice_import.save(update_fields=['status', 'completed_at'])
+                
+                results.append({
+                    'import_id': str(invoice_import.id),
+                    'success': True,
+                    'invoice_id': str(invoice.id),
+                    'factuurnummer': invoice.factuurnummer,
+                })
+            except Exception as e:
+                logger.error(f"Error converting import {invoice_import.id}: {e}")
+                results.append({
+                    'import_id': str(invoice_import.id),
+                    'success': False,
+                    'error': str(e),
+                })
+        
+        successful = sum(1 for r in results if r.get('success'))
+        
+        return Response({
+            'success': True,
+            'converted_count': successful,
+            'total_count': len(results),
+            'results': results,
+            'message': f'{successful} van {len(results)} imports omgezet naar {type_labels.get(invoice_type, "factuur")}'
+        })
+
 
 class InvoicePatternViewSet(viewsets.ModelViewSet):
     """

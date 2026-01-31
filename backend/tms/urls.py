@@ -4,14 +4,23 @@ URL configuration for TMS project.
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 from django.http import JsonResponse
+from django.views.static import serve
+from django.views.decorators.clickjacking import xframe_options_exempt
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 
 def health_check(request):
     """Simple health check endpoint for Docker/monitoring."""
     return JsonResponse({'status': 'healthy', 'service': 'tms-api'})
+
+
+# Custom media serve view that allows iframe embedding
+@xframe_options_exempt
+def serve_media(request, path, document_root=None):
+    """Serve media files without X-Frame-Options restriction."""
+    return serve(request, path, document_root=document_root)
 
 
 urlpatterns = [
@@ -41,7 +50,10 @@ urlpatterns = [
 
 # Serve media files in development
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Use custom serve_media view that allows iframe embedding for PDFs
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', serve_media, {'document_root': settings.MEDIA_ROOT}),
+    ]
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     
     # Debug toolbar (only if installed)

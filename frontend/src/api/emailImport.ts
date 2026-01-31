@@ -14,6 +14,9 @@ export interface MailboxConfig {
   status_display: string;
   email_address: string;
   folder_name: string;
+  folder_display_name: string;
+  default_invoice_type: 'purchase' | 'credit' | 'sales';
+  default_invoice_type_display: string;
   auto_fetch_enabled: boolean;
   auto_fetch_interval_minutes: number;
   last_fetch_at?: string;
@@ -34,6 +37,8 @@ export interface MailboxConfigDetail extends MailboxConfig {
   has_ms365_secret: boolean;
   mark_as_read: boolean;
   move_to_folder: string;
+  move_to_folder_display_name: string;
+  default_invoice_type: 'purchase' | 'credit' | 'sales';
   only_unread: boolean;
   subject_filter: string;
   sender_filter: string;
@@ -54,8 +59,11 @@ export interface MailboxConfigInput {
   ms365_client_secret?: string;
   ms365_tenant_id?: string;
   folder_name?: string;
+  folder_display_name?: string;
+  default_invoice_type?: 'purchase' | 'credit' | 'sales';
   mark_as_read?: boolean;
   move_to_folder?: string;
+  move_to_folder_display_name?: string;
   only_unread?: boolean;
   subject_filter?: string;
   sender_filter?: string;
@@ -74,11 +82,34 @@ export interface EmailAttachment {
   is_processed: boolean;
   error_message?: string;
   created_at: string;
+  extracted_data?: {
+    invoice_number?: string;
+    invoice_date?: string;
+    due_date?: string;
+    supplier_name?: string;
+    supplier_address?: string;
+    supplier_vat?: string;
+    supplier_kvk?: string;
+    supplier_iban?: string;
+    total_amount?: number;
+    vat_amount?: number;
+    net_amount?: number;
+    currency?: string;
+    line_items?: Array<{
+      description?: string;
+      quantity?: number;
+      unit_price?: number;
+      total?: number;
+      vat_rate?: number;
+    }>;
+    [key: string]: any;
+  };
 }
 
 export interface EmailImport {
   id: string;
   mailbox_name: string;
+  default_invoice_type: 'purchase' | 'credit' | 'sales';
   email_subject: string;
   email_from: string;
   email_date: string;
@@ -86,6 +117,8 @@ export interface EmailImport {
   status: 'pending' | 'processing' | 'awaiting_review' | 'approved' | 'rejected' | 'completed' | 'failed';
   status_display: string;
   attachment_count: number;
+  attachments: EmailAttachment[];
+  first_invoice_import_id?: string;
   processed_at?: string;
   reviewed_by_name?: string;
   reviewed_at?: string;
@@ -255,11 +288,20 @@ export const getPendingReviewImports = async (page: number = 1, pageSize: number
 export const reviewEmailImport = async (
   id: string, 
   action: 'approve' | 'reject', 
-  notes?: string
+  notes?: string,
+  invoiceType?: 'purchase' | 'credit' | 'sales'
 ): Promise<{ success: boolean; message: string }> => {
   const response = await api.post<{ success: boolean; message: string }>(
     `/invoicing/email-import/imports/${id}/review/`,
-    { action, notes }
+    { action, notes, invoice_type: invoiceType }
+  );
+  return response.data;
+};
+
+export const bulkDeleteEmailImports = async (ids: string[]): Promise<{ success: boolean; deleted_count: number; message: string }> => {
+  const response = await api.post<{ success: boolean; deleted_count: number; message: string }>(
+    '/invoicing/email-import/imports/bulk_delete/',
+    { ids }
   );
   return response.data;
 };

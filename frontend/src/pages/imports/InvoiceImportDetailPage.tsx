@@ -96,6 +96,7 @@ const InvoiceImportDetailPage: React.FC = () => {
   const [corrections, setCorrections] = useState<Record<string, { value: unknown; region?: BoundingBox }>>({});
   const [extractedValues, setExtractedValues] = useState<Record<string, unknown>>({});
   const [selectedInvoiceType, setSelectedInvoiceType] = useState<string>('inkoop');
+  const [imageLoadError, setImageLoadError] = useState(false);
   const [editableLines, setEditableLines] = useState<Array<{
     id: string;
     omschrijving: string;
@@ -250,11 +251,16 @@ const InvoiceImportDetailPage: React.FC = () => {
 
   // Load page image and auto-fit to container
   useEffect(() => {
+    // Reset error state when page changes
+    setImageLoadError(false);
+    
     const page = importData?.extracted_data?.ocr_pages?.[currentPage];
     if (page?.image_path) {
       const img = new Image();
+      img.crossOrigin = 'anonymous'; // Help with CORS
       img.onload = () => {
         imageRef.current = img;
+        setImageLoadError(false);
         const canvas = canvasRef.current;
         const container = containerRef.current;
         if (canvas && container) {
@@ -273,8 +279,19 @@ const InvoiceImportDetailPage: React.FC = () => {
           drawCanvas();
         }
       };
+      img.onerror = () => {
+        console.log('Image load failed, showing PDF fallback');
+        setImageLoadError(true);
+        imageRef.current = null;
+      };
       // Construct URL from path - use backend media URL directly
-      img.src = `http://localhost:8001/media/${page.image_path}`;
+      const imageUrl = `http://localhost:8001/media/${page.image_path}`;
+      console.log('Loading image:', imageUrl);
+      img.src = imageUrl;
+    } else {
+      // No image path available, show PDF fallback
+      console.log('No image path, showing PDF fallback');
+      setImageLoadError(true);
     }
   }, [importData, currentPage, zoom, drawCanvas]);
 
@@ -503,6 +520,18 @@ const InvoiceImportDetailPage: React.FC = () => {
               <div className="flex flex-col items-center justify-center h-full text-gray-500">
                 <Loader2 className="w-8 h-8 animate-spin mb-2" />
                 <p className="text-sm">Verwerken...</p>
+              </div>
+            ) : imageLoadError && importData.original_file_url ? (
+              // Fallback to PDF embed when OCR image is not available
+              <iframe
+                src={importData.original_file_url}
+                className="w-full h-full min-h-[700px] bg-white"
+                title="PDF Preview"
+              />
+            ) : imageLoadError ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <FileText className="w-12 h-12 mb-2 text-gray-300" />
+                <p className="text-sm">Geen preview beschikbaar</p>
               </div>
             ) : (
               <canvas
