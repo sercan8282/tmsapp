@@ -211,7 +211,7 @@ class SignedDocumentViewSet(viewsets.ModelViewSet):
             'y': data['y'],
             'width': data.get('width', 20),
             'signed_at': document.signed_at.isoformat(),
-            'signed_by': request.user.get_full_name() or request.user.email
+            'signed_by': request.user.full_name or request.user.email
         }
         document.save()
         
