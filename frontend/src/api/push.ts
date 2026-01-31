@@ -250,31 +250,31 @@ export interface SentNotification {
 export const pushApi = {
   // Admin: Get push settings
   getSettings: async (): Promise<PushSettings> => {
-    const response = await api.get('/push/settings/')
+    const response = await api.get('/notifications/settings/')
     return response.data
   },
 
   // Admin: Update push settings
   updateSettings: async (data: PushSettingsUpdate): Promise<PushSettings> => {
-    const response = await api.patch('/push/settings/', data)
+    const response = await api.patch('/notifications/settings/', data)
     return response.data
   },
 
   // Admin: Generate VAPID keys
   generateVapidKeys: async (): Promise<VapidKeys> => {
-    const response = await api.post('/push/settings/generate-vapid-keys/')
+    const response = await api.post('/notifications/settings/generate-vapid-keys/')
     return response.data
   },
 
   // Public: Get push config (for subscribing)
   getConfig: async (): Promise<PushConfig> => {
-    const response = await api.get('/push/config/')
+    const response = await api.get('/notifications/config/')
     return response.data
   },
 
   // User: Subscribe to push notifications
   subscribe: async (subscription: PushSubscriptionJSON, deviceName?: string): Promise<PushSubscription> => {
-    const response = await api.post('/push/subscriptions/', {
+    const response = await api.post('/notifications/subscriptions/', {
       endpoint: subscription.endpoint,
       keys: subscription.keys,
       device_name: deviceName,
@@ -284,18 +284,18 @@ export const pushApi = {
 
   // User: Unsubscribe from push notifications
   unsubscribe: async (endpoint: string): Promise<void> => {
-    await api.post('/push/subscriptions/unsubscribe/', { endpoint })
+    await api.post('/notifications/subscriptions/unsubscribe/', { endpoint })
   },
 
   // User: Get subscription status
   getSubscriptionStatus: async (): Promise<SubscriptionStatus> => {
-    const response = await api.get('/push/subscriptions/status/')
+    const response = await api.get('/notifications/subscriptions/status/')
     return response.data
   },
 
   // User: Get my subscriptions
   getMySubscriptions: async (): Promise<PushSubscription[]> => {
-    const response = await api.get('/push/subscriptions/')
+    const response = await api.get('/notifications/subscriptions/')
     return response.data
   },
 
@@ -306,13 +306,13 @@ export const pushApi = {
 
   // Admin: Send push notification
   send: async (data: SendNotification): Promise<SendResult> => {
-    const response = await api.post('/push/send/', data)
+    const response = await api.post('/notifications/send/', data)
     return response.data
   },
 
   // Admin: Get notification logs
   getLogs: async (params?: { recipient?: string }): Promise<PushNotificationLog[]> => {
-    const response = await api.get('/push/logs/', { params })
+    const response = await api.get('/notifications/logs/', { params })
     return response.data
   },
 
@@ -322,7 +322,7 @@ export const pushApi = {
   
   // Get all notification groups
   getGroups: async (): Promise<NotificationGroup[]> => {
-    const response = await api.get('/push/groups/')
+    const response = await api.get('/notifications/groups/')
     return response.data
   },
 
@@ -334,7 +334,7 @@ export const pushApi = {
 
   // Create a notification group
   createGroup: async (data: NotificationGroupCreate): Promise<NotificationGroup> => {
-    const response = await api.post('/push/groups/', data)
+    const response = await api.post('/notifications/groups/', data)
     return response.data
   },
 
@@ -373,13 +373,13 @@ export const pushApi = {
   
   // Get schedule choices (frequencies and weekdays)
   getScheduleChoices: async (): Promise<ScheduleChoices> => {
-    const response = await api.get('/push/schedules/choices/')
+    const response = await api.get('/notifications/schedules/choices/')
     return response.data
   },
 
   // Get all schedules
   getSchedules: async (params?: { group?: string }): Promise<NotificationSchedule[]> => {
-    const response = await api.get('/push/schedules/', { params })
+    const response = await api.get('/notifications/schedules/', { params })
     return response.data
   },
 
@@ -391,7 +391,7 @@ export const pushApi = {
 
   // Create a schedule
   createSchedule: async (data: NotificationScheduleCreate): Promise<NotificationSchedule> => {
-    const response = await api.post('/push/schedules/', data)
+    const response = await api.post('/notifications/schedules/', data)
     return response.data
   },
 
@@ -418,7 +418,7 @@ export const pushApi = {
   
   // Get users that can be added to groups
   getAvailableUsers: async (): Promise<AvailableUser[]> => {
-    const response = await api.get('/push/available-users/')
+    const response = await api.get('/notifications/available-users/')
     return response.data
   },
 
@@ -428,19 +428,19 @@ export const pushApi = {
 
   // Get all notifications for current user
   getInboxNotifications: async (): Promise<UserNotification[]> => {
-    const response = await api.get('/push/inbox/')
+    const response = await api.get('/notifications/inbox/')
     return response.data
   },
 
   // Get recent notifications (for dropdown, max 3)
   getRecentNotifications: async (limit: number = 3): Promise<NotificationInboxResponse> => {
-    const response = await api.get('/push/inbox/recent/', { params: { limit } })
+    const response = await api.get('/notifications/inbox/recent/', { params: { limit } })
     return response.data
   },
 
   // Get notification count
   getNotificationCount: async (): Promise<NotificationCount> => {
-    const response = await api.get('/push/inbox/count/')
+    const response = await api.get('/notifications/inbox/count/')
     return response.data
   },
 
@@ -452,19 +452,19 @@ export const pushApi = {
 
   // Mark all notifications as read
   markAllNotificationsRead: async (): Promise<{ message: string; count: number }> => {
-    const response = await api.post('/push/inbox/mark_all_read/')
+    const response = await api.post('/notifications/inbox/mark_all_read/')
     return response.data
   },
 
   // Clear all notifications
   clearAllNotifications: async (): Promise<{ message: string; count: number }> => {
-    const response = await api.delete('/push/inbox/clear_all/')
+    const response = await api.delete('/notifications/inbox/clear_all/')
     return response.data
   },
 
   // Clear only read notifications
   clearReadNotifications: async (): Promise<{ message: string; count: number }> => {
-    const response = await api.delete('/push/inbox/clear_read/')
+    const response = await api.delete('/notifications/inbox/clear_read/')
     return response.data
   },
 
@@ -478,7 +478,7 @@ export const pushApi = {
     date_from?: string
     date_to?: string
   }): Promise<SentNotification[]> => {
-    const response = await api.get('/push/sent/', { params })
+    const response = await api.get('/notifications/sent/', { params })
     return response.data
   },
 
@@ -501,13 +501,13 @@ export const pushApi = {
 
   // Delete multiple sent notifications
   bulkDeleteSentNotifications: async (ids: string[]): Promise<{ deleted_count: number; message: string }> => {
-    const response = await api.post('/push/sent/bulk_delete/', { ids })
+    const response = await api.post('/notifications/sent/bulk_delete/', { ids })
     return response.data
   },
 
   // Delete notifications older than X days
   clearOldNotifications: async (days: number): Promise<{ deleted_count: number; message: string }> => {
-    const response = await api.post('/push/sent/clear_old/', { days })
+    const response = await api.post('/notifications/sent/clear_old/', { days })
     return response.data
   },
 }
