@@ -301,7 +301,7 @@ export const pushApi = {
 
   // User: Delete a subscription
   deleteSubscription: async (id: string): Promise<void> => {
-    await api.delete(`/push/subscriptions/${id}/`)
+    await api.delete(`/notifications/subscriptions/${id}/`)
   },
 
   // Admin: Send push notification
@@ -328,7 +328,7 @@ export const pushApi = {
 
   // Get a single notification group
   getGroup: async (id: string): Promise<NotificationGroup> => {
-    const response = await api.get(`/push/groups/${id}/`)
+    const response = await api.get(`/notifications/groups/${id}/`)
     return response.data
   },
 
@@ -340,30 +340,30 @@ export const pushApi = {
 
   // Update a notification group
   updateGroup: async (id: string, data: Partial<NotificationGroupCreate>): Promise<NotificationGroup> => {
-    const response = await api.patch(`/push/groups/${id}/`, data)
+    const response = await api.patch(`/notifications/groups/${id}/`, data)
     return response.data
   },
 
   // Delete a notification group
   deleteGroup: async (id: string): Promise<void> => {
-    await api.delete(`/push/groups/${id}/`)
+    await api.delete(`/notifications/groups/${id}/`)
   },
 
   // Add members to a group
   addGroupMembers: async (groupId: string, userIds: string[]): Promise<NotificationGroup> => {
-    const response = await api.post(`/push/groups/${groupId}/add_members/`, { user_ids: userIds })
+    const response = await api.post(`/notifications/groups/${groupId}/add_members/`, { user_ids: userIds })
     return response.data
   },
 
   // Remove members from a group
   removeGroupMembers: async (groupId: string, userIds: string[]): Promise<NotificationGroup> => {
-    const response = await api.post(`/push/groups/${groupId}/remove_members/`, { user_ids: userIds })
+    const response = await api.post(`/notifications/groups/${groupId}/remove_members/`, { user_ids: userIds })
     return response.data
   },
 
   // Send notification to a group
   sendToGroup: async (groupId: string, notification: { title: string; body: string; icon?: string; url?: string }): Promise<SendResult> => {
-    const response = await api.post(`/push/groups/${groupId}/send_notification/`, notification)
+    const response = await api.post(`/notifications/groups/${groupId}/send_notification/`, notification)
     return response.data
   },
 
@@ -385,7 +385,7 @@ export const pushApi = {
 
   // Get a single schedule
   getSchedule: async (id: string): Promise<NotificationSchedule> => {
-    const response = await api.get(`/push/schedules/${id}/`)
+    const response = await api.get(`/notifications/schedules/${id}/`)
     return response.data
   },
 
@@ -397,18 +397,18 @@ export const pushApi = {
 
   // Update a schedule
   updateSchedule: async (id: string, data: Partial<NotificationScheduleCreate>): Promise<NotificationSchedule> => {
-    const response = await api.patch(`/push/schedules/${id}/`, data)
+    const response = await api.patch(`/notifications/schedules/${id}/`, data)
     return response.data
   },
 
   // Delete a schedule
   deleteSchedule: async (id: string): Promise<void> => {
-    await api.delete(`/push/schedules/${id}/`)
+    await api.delete(`/notifications/schedules/${id}/`)
   },
 
   // Send a scheduled notification now
   sendScheduleNow: async (scheduleId: string): Promise<SendResult> => {
-    const response = await api.post(`/push/schedules/${scheduleId}/send_now/`)
+    const response = await api.post(`/notifications/schedules/${scheduleId}/send_now/`)
     return response.data
   },
 
@@ -446,7 +446,7 @@ export const pushApi = {
 
   // Mark single notification as read
   markNotificationRead: async (id: string): Promise<UserNotification> => {
-    const response = await api.post(`/push/inbox/${id}/mark_read/`)
+    const response = await api.post(`/notifications/inbox/${id}/mark_read/`)
     return response.data
   },
 
@@ -484,19 +484,19 @@ export const pushApi = {
 
   // Get single sent notification with read receipts
   getSentNotification: async (id: string): Promise<SentNotification> => {
-    const response = await api.get(`/push/sent/${id}/`)
+    const response = await api.get(`/notifications/sent/${id}/`)
     return response.data
   },
 
   // Get read receipts for a notification
   getReadReceipts: async (id: string): Promise<ReadReceipt[]> => {
-    const response = await api.get(`/push/sent/${id}/read_receipts/`)
+    const response = await api.get(`/notifications/sent/${id}/read_receipts/`)
     return response.data
   },
 
   // Delete a single sent notification
   deleteSentNotification: async (id: string): Promise<void> => {
-    await api.delete(`/push/sent/${id}/`)
+    await api.delete(`/notifications/sent/${id}/`)
   },
 
   // Delete multiple sent notifications
