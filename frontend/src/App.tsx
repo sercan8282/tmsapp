@@ -66,6 +66,14 @@ import LeaveRequestsAdminPage from '@/pages/leave/LeaveRequestsAdminPage'
 // Notifications
 import NotificationsPage from '@/pages/notifications/NotificationsPage'
 
+// Documents (PDF Signing)
+import {
+  DocumentsPage,
+  DocumentUploadPage,
+  DocumentDetailPage,
+  DocumentSignPage,
+} from '@/pages/documents'
+
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, pendingMfaSetup } = useAuthStore()
@@ -232,6 +240,12 @@ function App() {
         <Route path="/leave/calendar" element={<LeaveCalendarPage />} />
         <Route path="/leave/admin" element={<AdminRoute><LeaveRequestsAdminPage /></AdminRoute>} />
         <Route path="/settings/leave" element={<AdminRoute><LeaveSettingsPage /></AdminRoute>} />
+
+        {/* Documents (PDF Signing) */}
+        <Route path="/documents" element={<DocumentsPage />} />
+        <Route path="/documents/upload" element={<DocumentUploadPage />} />
+        <Route path="/documents/:id" element={<DocumentDetailPage />} />
+        <Route path="/documents/:id/sign" element={<DocumentSignPage />} />
       </Route>
       
       {/* Catch all - redirect to home */}
