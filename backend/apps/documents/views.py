@@ -246,13 +246,13 @@ class SignedDocumentViewSet(viewsets.ModelViewSet):
         )
     
     def _sanitize_filename(self, filename: str) -> str:
-        \"\"\"Sanitize filename to prevent header injection and path traversal.\"\"\"
+        """Sanitize filename to prevent header injection and path traversal."""
         import re
         import os
         # Remove path components
         filename = os.path.basename(filename)
         # Remove or replace dangerous characters
-        filename = re.sub(r'[\\\\/:*?"<>|\\r\\n]', '_', filename)
+        filename = re.sub(r'[\\/:*?"<>|\r\n]', '_', filename)
         # Limit length
         if len(filename) > 200:
             name, ext = os.path.splitext(filename)

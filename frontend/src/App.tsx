@@ -54,7 +54,7 @@ import TemplateEditorPage from '@/pages/invoices/TemplateEditorPage'
 import RevenuePage from '@/pages/revenue/RevenuePage'
 
 // Invoice Import (OCR)
-import { InvoiceImportPage, InvoiceImportDetailPage } from '@/pages/imports'
+import { InvoiceImportPage, InvoiceImportDetailPage, EmailImportPage, MailboxConfigPage } from '@/pages/imports'
 
 // Leave management
 import LeaveOverviewPage from '@/pages/leave/LeaveOverviewPage'
@@ -233,6 +233,11 @@ function App() {
         {/* Invoice Import (OCR) */}
         <Route path="/imports" element={<AdminRoute><InvoiceImportPage /></AdminRoute>} />
         <Route path="/imports/:id" element={<AdminRoute><InvoiceImportDetailPage /></AdminRoute>} />
+        
+        {/* Email Invoice Import */}
+        <Route path="/imports/email" element={<AdminRoute><EmailImportPage /></AdminRoute>} />
+        <Route path="/imports/email/mailbox/new" element={<AdminRoute><MailboxConfigPage /></AdminRoute>} />
+        <Route path="/imports/email/mailbox/:id" element={<AdminRoute><MailboxConfigPage /></AdminRoute>} />
 
         {/* Leave management */}
         <Route path="/leave" element={<LeaveOverviewPage />} />

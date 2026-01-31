@@ -42,6 +42,7 @@ LOCAL_APPS = [
     'apps.planning',
     'apps.invoicing',
     'apps.invoicing.ocr',
+    'apps.invoicing.email_import',
     'apps.leave',
     'apps.notifications',
     'apps.documents',
@@ -142,6 +143,7 @@ REST_FRAMEWORK = {
         'burst': '60/minute',       # Burst protection: 60 per minute
         'document_email': '10/hour',  # Document email: 10 per hour
         'document_sign': '30/hour',   # Document signing: 30 per hour
+        'email_import': '20/hour',    # Email import fetch: 20 per hour
     },
 }
 

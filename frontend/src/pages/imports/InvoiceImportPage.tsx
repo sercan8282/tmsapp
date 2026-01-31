@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, AlertCircle, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { Upload, FileText, AlertCircle, CheckCircle, Clock, Loader2, Mail } from 'lucide-react';
 import { uploadInvoice, getInvoiceImports, deleteInvoiceImport, InvoiceImport } from '../../api/ocr';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -12,6 +12,46 @@ const statusConfig: Record<string, { color: string; icon: React.ReactNode; label
   review: { color: 'bg-orange-100 text-orange-800', icon: <AlertCircle className="w-4 h-4" />, label: 'Review nodig' },
   completed: { color: 'bg-green-100 text-green-800', icon: <CheckCircle className="w-4 h-4" />, label: 'Voltooid' },
   failed: { color: 'bg-red-100 text-red-800', icon: <AlertCircle className="w-4 h-4" />, label: 'Mislukt' },
+};
+
+// Tab Navigation Component
+const ImportTabs: React.FC = () => {
+  const location = useLocation();
+  const isUploadTab = location.pathname === '/imports';
+  const isEmailTab = location.pathname.startsWith('/imports/email');
+  
+  return (
+    <div className="border-b border-gray-200 mb-8">
+      <nav className="-mb-px flex space-x-8">
+        <Link
+          to="/imports"
+          className={`py-4 px-1 border-b-2 font-medium text-sm ${
+            isUploadTab && !isEmailTab
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Upload className="w-4 h-4" />
+            Upload
+          </span>
+        </Link>
+        <Link
+          to="/imports/email"
+          className={`py-4 px-1 border-b-2 font-medium text-sm ${
+            isEmailTab
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Mail className="w-4 h-4" />
+            E-mail Import
+          </span>
+        </Link>
+      </nav>
+    </div>
+  );
 };
 
 const InvoiceImportPage: React.FC = () => {
@@ -92,12 +132,15 @@ const InvoiceImportPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Factuur Import</h1>
         <p className="mt-1 text-sm text-gray-500">
           Upload inkoopfacturen om automatisch gegevens te extraheren met OCR
         </p>
       </div>
+
+      {/* Tabs */}
+      <ImportTabs />
 
       {/* Upload Zone */}
       <div

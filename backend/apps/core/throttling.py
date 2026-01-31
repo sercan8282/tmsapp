@@ -105,3 +105,21 @@ class DocumentSignRateThrottle(SimpleRateThrottle):
             'scope': self.scope,
             'ident': ident
         }
+
+
+class EmailImportRateThrottle(SimpleRateThrottle):
+    """
+    Rate limit for email import operations.
+    Prevents abuse of mailbox fetching.
+    """
+    scope = 'email_import'
+    
+    def get_cache_key(self, request, view):
+        if request.user.is_authenticated:
+            ident = request.user.pk
+        else:
+            ident = self.get_ident(request)
+        return self.cache_format % {
+            'scope': self.scope,
+            'ident': ident
+        }
