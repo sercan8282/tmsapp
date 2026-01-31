@@ -48,7 +48,8 @@ export default function DocumentSignPage() {
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [signaturePosition, setSignaturePosition] = useState<SignaturePosition | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [showSignaturePad, setShowSignaturePad] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_showSignaturePad, _setShowSignaturePad] = useState(false);
   
   // Signing state
   const [signing, setSigning] = useState(false);
