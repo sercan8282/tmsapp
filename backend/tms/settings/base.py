@@ -43,6 +43,7 @@ LOCAL_APPS = [
     'apps.invoicing',
     'apps.invoicing.ocr',
     'apps.leave',
+    'apps.notifications',
     'apps.documents',
 ]
 
