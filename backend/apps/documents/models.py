@@ -54,7 +54,7 @@ class SavedSignature(models.Model):
         ordering = ['-is_default', '-created_at']
 
     def __str__(self):
-        return f"{self.name} - {self.user.get_full_name()}"
+        return f"{self.name} - {self.user.full_name}"
 
     def save(self, *args, **kwargs):
         # Zorg dat er maar één default is per gebruiker

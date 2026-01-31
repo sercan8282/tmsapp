@@ -35,12 +35,12 @@ class SignedDocumentListSerializer(serializers.ModelSerializer):
     
     def get_uploaded_by_name(self, obj):
         if obj.uploaded_by:
-            return obj.uploaded_by.get_full_name() or obj.uploaded_by.email
+            return obj.uploaded_by.full_name or obj.uploaded_by.email
         return None
     
     def get_signed_by_name(self, obj):
         if obj.signed_by:
-            return obj.signed_by.get_full_name() or obj.signed_by.email
+            return obj.signed_by.full_name or obj.signed_by.email
         return None
 
 
@@ -72,12 +72,12 @@ class SignedDocumentDetailSerializer(serializers.ModelSerializer):
     
     def get_uploaded_by_name(self, obj):
         if obj.uploaded_by:
-            return obj.uploaded_by.get_full_name() or obj.uploaded_by.email
+            return obj.uploaded_by.full_name or obj.uploaded_by.email
         return None
     
     def get_signed_by_name(self, obj):
         if obj.signed_by:
-            return obj.signed_by.get_full_name() or obj.signed_by.email
+            return obj.signed_by.full_name or obj.signed_by.email
         return None
     
     def get_original_file_url(self, obj):

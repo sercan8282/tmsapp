@@ -50,24 +50,31 @@ class SignedDocumentViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Upload een nieuw document."""
-        serializer = DocumentUploadSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        uploaded_file = serializer.validated_data['file']
-        
-        document = SignedDocument.objects.create(
-            title=serializer.validated_data['title'],
-            description=serializer.validated_data.get('description', ''),
-            original_file=uploaded_file,
-            original_filename=uploaded_file.name,
-            uploaded_by=request.user,
-            status='pending'
-        )
-        
-        return Response(
-            SignedDocumentDetailSerializer(document, context={'request': request}).data,
-            status=status.HTTP_201_CREATED
-        )
+        try:
+            serializer = DocumentUploadSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            uploaded_file = serializer.validated_data['file']
+            
+            document = SignedDocument.objects.create(
+                title=serializer.validated_data['title'],
+                description=serializer.validated_data.get('description', ''),
+                original_file=uploaded_file,
+                original_filename=uploaded_file.name,
+                uploaded_by=request.user,
+                status='pending'
+            )
+            
+            return Response(
+                SignedDocumentDetailSerializer(document, context={'request': request}).data,
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            logger.exception(f"Error uploading document: {e}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=True, methods=['get'])
     def info(self, request, pk=None):
