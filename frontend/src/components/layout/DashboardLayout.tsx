@@ -22,6 +22,7 @@ import {
   CurrencyEuroIcon,
   ArrowUpTrayIcon,
   CalendarDaysIcon,
+  BellIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
@@ -50,6 +51,7 @@ const navigation: NavItem[] = [
   { name: 'Planning', href: '/planning', icon: CalendarIcon },  // All roles (filtered by backend)
   { name: 'Verlof', href: '/leave', icon: CalendarDaysIcon },  // All roles
   { name: 'Verlofaanvragen', href: '/leave/admin', icon: ClipboardDocumentCheckIcon, roles: ['admin'] },
+  { name: 'Notificaties', href: '/notifications', icon: BellIcon, roles: ['admin'] },  // Admin only
   { name: 'Facturen', href: '/invoices', icon: DocumentTextIcon, roles: ['admin', 'gebruiker'] },
   { name: 'Factuur Templates', href: '/invoices/templates', icon: DocumentDuplicateIcon, roles: ['admin'] },
   { name: 'Factuur Import', href: '/imports', icon: ArrowUpTrayIcon, roles: ['admin', 'gebruiker'] },

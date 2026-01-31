@@ -1,0 +1,110 @@
+/**
+ * Notifications Management Page
+ * Admin interface for managing notification groups, schedules, sending and sent history
+ */
+import { useState } from 'react'
+import {
+  BellIcon,
+  UserGroupIcon,
+  CalendarDaysIcon,
+  PaperAirplaneIcon,
+  CheckCircleIcon,
+} from '@heroicons/react/24/outline'
+import NotificationGroupsTab from '@/components/settings/NotificationGroupsTab'
+import NotificationSchedulesTab from '@/components/settings/NotificationSchedulesTab'
+import SentNotificationsTab from '@/components/settings/SentNotificationsTab'
+import SendUserNotificationTab from '@/components/settings/SendUserNotificationTab'
+
+type SubTab = 'groups' | 'schedules' | 'send' | 'sent'
+
+const subTabs = [
+  { id: 'groups' as SubTab, name: 'Groepen', icon: UserGroupIcon },
+  { id: 'schedules' as SubTab, name: "Schema's", icon: CalendarDaysIcon },
+  { id: 'send' as SubTab, name: 'Versturen', icon: PaperAirplaneIcon },
+  { id: 'sent' as SubTab, name: 'Verzonden', icon: CheckCircleIcon },
+]
+
+export default function NotificationsPage() {
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>('groups')
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const handleSuccess = (message: string) => {
+    setSuccessMessage(message)
+    setErrorMessage(null)
+    setTimeout(() => setSuccessMessage(null), 5000)
+  }
+
+  const handleError = (message: string) => {
+    setErrorMessage(message)
+    setSuccessMessage(null)
+    setTimeout(() => setErrorMessage(null), 5000)
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center gap-3">
+          <BellIcon className="h-8 w-8 text-primary-600" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Notificaties</h1>
+            <p className="text-sm text-gray-500">
+              Beheer notificatie groepen, schema's en verstuur berichten.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Success/Error Messages */}
+      {successMessage && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+          {successMessage}
+        </div>
+      )}
+      {errorMessage && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {errorMessage}
+        </div>
+      )}
+
+      {/* Sub-tabs Navigation */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex space-x-8">
+          {subTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`
+                flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors
+                ${activeSubTab === tab.id
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              <tab.icon className="h-5 w-5" />
+              {tab.name}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        {activeSubTab === 'groups' && (
+          <NotificationGroupsTab onSuccess={handleSuccess} onError={handleError} />
+        )}
+        {activeSubTab === 'schedules' && (
+          <NotificationSchedulesTab onSuccess={handleSuccess} onError={handleError} />
+        )}
+        {activeSubTab === 'send' && (
+          <SendUserNotificationTab onSuccess={handleSuccess} onError={handleError} />
+        )}
+        {activeSubTab === 'sent' && (
+          <SentNotificationsTab />
+        )}
+      </div>
+    </div>
+  )
+}

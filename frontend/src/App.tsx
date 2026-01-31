@@ -63,6 +63,9 @@ import LeaveCalendarPage from '@/pages/leave/LeaveCalendarPage'
 import LeaveSettingsPage from '@/pages/settings/LeaveSettingsPage'
 import LeaveRequestsAdminPage from '@/pages/leave/LeaveRequestsAdminPage'
 
+// Notifications
+import NotificationsPage from '@/pages/notifications/NotificationsPage'
+
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, pendingMfaSetup } = useAuthStore()
@@ -204,6 +207,9 @@ function App() {
         
         {/* Profile */}
         <Route path="/profile/password" element={<PasswordChangePage />} />
+
+        {/* Notifications (Admin) */}
+        <Route path="/notifications" element={<AdminRoute><NotificationsPage /></AdminRoute>} />
 
         {/* Invoicing */}
         <Route path="/invoices" element={<InvoicesPage />} />
