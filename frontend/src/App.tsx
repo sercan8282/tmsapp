@@ -232,12 +232,14 @@ function App() {
 
         {/* Invoice Import (OCR) */}
         <Route path="/imports" element={<AdminRoute><InvoiceImportPage /></AdminRoute>} />
-        <Route path="/imports/:id" element={<AdminRoute><InvoiceImportDetailPage /></AdminRoute>} />
         
-        {/* Email Invoice Import */}
+        {/* Email Invoice Import - must be before /imports/:id */}
         <Route path="/imports/email" element={<AdminRoute><EmailImportPage /></AdminRoute>} />
         <Route path="/imports/email/mailbox/new" element={<AdminRoute><MailboxConfigPage /></AdminRoute>} />
         <Route path="/imports/email/mailbox/:id" element={<AdminRoute><MailboxConfigPage /></AdminRoute>} />
+        
+        {/* Invoice Import Detail - after more specific routes */}
+        <Route path="/imports/:id" element={<AdminRoute><InvoiceImportDetailPage /></AdminRoute>} />
 
         {/* Leave management */}
         <Route path="/leave" element={<LeaveOverviewPage />} />

@@ -131,9 +131,16 @@ class MailboxConfigDetailSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Handle credential encryption on create."""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"CREATE validated_data keys: {validated_data.keys()}")
+        logger.info(f"CREATE ms365_client_secret present: {'ms365_client_secret' in validated_data}")
+        
         username = validated_data.pop('username', '')
         password = validated_data.pop('password', '')
         ms365_secret = validated_data.pop('ms365_client_secret', '')
+        
+        logger.info(f"CREATE ms365_secret value (truncated): {ms365_secret[:10] if ms365_secret else 'EMPTY'}...")
         
         instance = MailboxConfig(**validated_data)
         

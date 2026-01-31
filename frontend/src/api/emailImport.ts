@@ -160,10 +160,50 @@ export const deleteMailboxConfig = async (id: string): Promise<void> => {
 };
 
 export const testMailboxConnection = async (id: string): Promise<{ success: boolean; message: string }> => {
-  const response = await api.post<{ success: boolean; message: string }>(
-    `/invoicing/email-import/mailboxes/${id}/test_connection/`
-  );
-  return response.data;
+  try {
+    const response = await api.post<{ success: boolean; message: string }>(
+      `/invoicing/email-import/mailboxes/${id}/test_connection/`
+    );
+    return response.data;
+  } catch (error: any) {
+    // Handle 400 response with success/message body
+    if (error.response?.status === 400 && error.response?.data?.message) {
+      return {
+        success: false,
+        message: error.response.data.message
+      };
+    }
+    throw error;
+  }
+};
+
+export interface MailboxFolder {
+  id: string;
+  name: string;
+  display_name: string;
+  depth: number;
+  has_children: boolean;
+  total_items?: number;
+  unread_items?: number;
+}
+
+export const listMailboxFolders = async (id: string): Promise<{ success: boolean; folders: MailboxFolder[]; message?: string }> => {
+  try {
+    const response = await api.get<{ success: boolean; folders: MailboxFolder[] }>(
+      `/invoicing/email-import/mailboxes/${id}/list_folders/`
+    );
+    return response.data;
+  } catch (error: any) {
+    // Handle 400 response with error message
+    if (error.response?.status === 400 && error.response?.data?.message) {
+      return {
+        success: false,
+        folders: [],
+        message: error.response.data.message
+      };
+    }
+    throw error;
+  }
 };
 
 export const fetchMailboxEmails = async (id: string, limit: number = 50): Promise<FetchEmailsResult> => {

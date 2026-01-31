@@ -31,6 +31,10 @@ class EmailReaderBase:
         """Disconnect from the mail server."""
         raise NotImplementedError
     
+    def list_folders(self) -> List[Dict]:
+        """List available folders in the mailbox."""
+        raise NotImplementedError
+    
     def fetch_emails(self, folder: str = 'INBOX', only_unread: bool = True,
                      subject_filter: str = '', sender_filter: str = '',
                      limit: int = 50) -> List[Dict]:
@@ -88,6 +92,53 @@ class IMAPEmailReader(EmailReaderBase):
             except Exception:
                 pass
             self.connection = None
+    
+    def list_folders(self) -> List[Dict]:
+        """List available folders in the mailbox."""
+        if not self.connection:
+            raise RuntimeError("Not connected to IMAP server")
+        
+        folders = []
+        
+        try:
+            status, folder_list = self.connection.list()
+            if status != 'OK':
+                return folders
+            
+            for folder_data in folder_list:
+                if isinstance(folder_data, bytes):
+                    # Parse folder response: (\\Flags) "delimiter" "folder_name"
+                    decoded = folder_data.decode('utf-8', errors='replace')
+                    
+                    # Extract folder name (last part after delimiter)
+                    # Format: (\HasNoChildren) "/" "INBOX/Subfolder"
+                    match = re.search(r'"([^"]+)"\s+"?([^"]+)"?$', decoded)
+                    if match:
+                        delimiter = match.group(1)
+                        folder_name = match.group(2).strip('"')
+                        
+                        # Calculate depth based on delimiter
+                        depth = folder_name.count(delimiter) if delimiter else 0
+                        
+                        # Get display name (last part)
+                        display_name = folder_name.split(delimiter)[-1] if delimiter else folder_name
+                        
+                        folders.append({
+                            'id': folder_name,
+                            'name': folder_name,
+                            'display_name': display_name,
+                            'depth': depth,
+                            'has_children': '\\HasChildren' in decoded
+                        })
+            
+            # Sort folders alphabetically
+            folders.sort(key=lambda x: x['name'].lower())
+            
+            return folders
+        
+        except Exception as e:
+            logger.error(f"Error listing folders: {e}")
+            raise
     
     def _decode_header(self, header_value: str) -> str:
         """Decode an email header value."""
@@ -323,6 +374,71 @@ class Microsoft365EmailReader(EmailReaderBase):
         """Clear the access token."""
         self.access_token = None
     
+    def list_folders(self) -> List[Dict]:
+        """List available folders in the Microsoft 365 mailbox."""
+        if not self.access_token:
+            raise RuntimeError("Not connected to Microsoft 365")
+        
+        import requests
+        
+        folders = []
+        
+        try:
+            # Get all mail folders (including child folders)
+            url = f"https://graph.microsoft.com/v1.0/users/{self.email_address}/mailFolders"
+            
+            headers = {
+                'Authorization': f'Bearer {self.access_token}',
+                'Content-Type': 'application/json'
+            }
+            
+            params = {
+                '$top': 100,
+                '$select': 'id,displayName,parentFolderId,childFolderCount,totalItemCount,unreadItemCount'
+            }
+            
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            
+            root_folders = response.json().get('value', [])
+            
+            def process_folder(folder_data, depth=0, parent_path=''):
+                """Process a folder and recursively get child folders."""
+                folder_id = folder_data.get('id')
+                display_name = folder_data.get('displayName', '')
+                
+                # Build the path for nested folders
+                folder_path = f"{parent_path}/{display_name}" if parent_path else display_name
+                
+                folders.append({
+                    'id': folder_id,
+                    'name': folder_path,
+                    'display_name': display_name,
+                    'depth': depth,
+                    'has_children': folder_data.get('childFolderCount', 0) > 0,
+                    'total_items': folder_data.get('totalItemCount', 0),
+                    'unread_items': folder_data.get('unreadItemCount', 0)
+                })
+                
+                # Get child folders if any
+                if folder_data.get('childFolderCount', 0) > 0:
+                    child_url = f"https://graph.microsoft.com/v1.0/users/{self.email_address}/mailFolders/{folder_id}/childFolders"
+                    child_response = requests.get(child_url, headers=headers, params=params)
+                    
+                    if child_response.status_code == 200:
+                        child_folders = child_response.json().get('value', [])
+                        for child in child_folders:
+                            process_folder(child, depth + 1, folder_path)
+            
+            for folder_data in root_folders:
+                process_folder(folder_data)
+            
+            return folders
+        
+        except Exception as e:
+            logger.error(f"Error listing Microsoft 365 folders: {e}")
+            raise
+    
     def fetch_emails(self, folder: str = 'inbox', only_unread: bool = True,
                      subject_filter: str = '', sender_filter: str = '',
                      limit: int = 50) -> List[Dict]:
@@ -484,6 +600,19 @@ class EmailImportService:
             return True, "Verbinding succesvol"
         except Exception as e:
             return False, str(e)
+    
+    def list_folders(self, config) -> List[Dict]:
+        """List available folders in a mailbox."""
+        reader = self._get_reader(config)
+        
+        try:
+            reader.connect()
+            folders = reader.list_folders()
+            reader.disconnect()
+            return folders
+        except Exception as e:
+            logger.error(f"Error listing folders: {e}")
+            raise
     
     @transaction.atomic
     def fetch_and_process_emails(self, config, user=None, limit: int = 50) -> Dict:

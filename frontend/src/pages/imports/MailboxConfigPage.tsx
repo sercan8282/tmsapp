@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Save, Loader2, TestTube, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, TestTube, CheckCircle, XCircle, Eye, EyeOff, FolderOpen } from 'lucide-react';
 import {
   getMailboxConfig,
   createMailboxConfig,
   updateMailboxConfig,
   testMailboxConnection,
-  MailboxConfigDetail,
+  listMailboxFolders,
   MailboxConfigInput,
+  MailboxFolder,
 } from '../../api/emailImport';
 
 const MailboxConfigPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const isNew = id === 'new';
+  const isNew = !id || id === 'new';
 
   // Form state
   const [formData, setFormData] = useState<MailboxConfigInput>({
@@ -45,6 +46,9 @@ const MailboxConfigPage: React.FC = () => {
   const [showSecret, setShowSecret] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [folders, setFolders] = useState<MailboxFolder[]>([]);
+  const [foldersLoading, setFoldersLoading] = useState(false);
+  const [foldersError, setFoldersError] = useState<string | null>(null);
 
   // Fetch existing config
   const { data: existingConfig, isLoading } = useQuery({
@@ -90,10 +94,10 @@ const MailboxConfigPage: React.FC = () => {
       if (!cleanedData.password) delete cleanedData.password;
       if (!cleanedData.ms365_client_secret) delete cleanedData.ms365_client_secret;
 
-      if (isNew) {
+      if (isNew || !id) {
         return createMailboxConfig(cleanedData);
       } else {
-        return updateMailboxConfig(id!, cleanedData);
+        return updateMailboxConfig(id, cleanedData);
       }
     },
     onSuccess: () => {
@@ -109,19 +113,47 @@ const MailboxConfigPage: React.FC = () => {
   // Test connection mutation
   const testMutation = useMutation({
     mutationFn: async () => {
-      // Need to save first for new configs
-      if (isNew) {
+      // Need to save first for new configs, or if id is missing
+      if (isNew || !id) {
         throw new Error('Sla de configuratie eerst op om te testen');
       }
-      return testMailboxConnection(id!);
+      return testMailboxConnection(id);
     },
     onSuccess: (result) => {
       setTestResult(result);
+      // Auto-load folders when connection test succeeds
+      if (result.success) {
+        loadFolders();
+      }
     },
     onError: (error: Error) => {
       setTestResult({ success: false, message: error.message });
     },
   });
+
+  // Load folders function
+  const loadFolders = async () => {
+    if (isNew || !id) {
+      setFoldersError('Sla de configuratie eerst op om mappen te laden');
+      return;
+    }
+    
+    setFoldersLoading(true);
+    setFoldersError(null);
+    
+    try {
+      const result = await listMailboxFolders(id);
+      if (result.success) {
+        setFolders(result.folders);
+      } else {
+        setFoldersError(result.message || 'Kon mappen niet laden');
+      }
+    } catch (error: any) {
+      setFoldersError(error.message || 'Kon mappen niet laden');
+    } finally {
+      setFoldersLoading(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -459,24 +491,80 @@ const MailboxConfigPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700">Map om te monitoren</label>
-              <input
-                type="text"
-                value={formData.folder_name}
-                onChange={(e) => handleChange('folder_name', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                placeholder="INBOX"
-              />
+              <div className="mt-1 flex gap-2">
+                {folders.length > 0 ? (
+                  <select
+                    value={formData.folder_name}
+                    onChange={(e) => handleChange('folder_name', e.target.value)}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Selecteer een map...</option>
+                    {folders.map((folder) => (
+                      <option key={folder.id} value={folder.id}>
+                        {'  '.repeat(folder.depth)}{folder.display_name}
+                        {folder.total_items !== undefined && ` (${folder.unread_items}/${folder.total_items})`}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.folder_name}
+                    onChange={(e) => handleChange('folder_name', e.target.value)}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="INBOX"
+                  />
+                )}
+                {!isNew && (
+                  <button
+                    type="button"
+                    onClick={loadFolders}
+                    disabled={foldersLoading}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    title="Mappen laden"
+                  >
+                    {foldersLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <FolderOpen className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+              </div>
+              {foldersError && (
+                <p className="mt-1 text-xs text-red-600">{foldersError}</p>
+              )}
+              {isNew && (
+                <p className="mt-1 text-xs text-gray-500">Sla eerst op om mappen te kunnen laden</p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Verplaats naar map (optioneel)</label>
-              <input
-                type="text"
-                value={formData.move_to_folder}
-                onChange={(e) => handleChange('move_to_folder', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Verwerkt"
-              />
+              <div className="mt-1 flex gap-2">
+                {folders.length > 0 ? (
+                  <select
+                    value={formData.move_to_folder}
+                    onChange={(e) => handleChange('move_to_folder', e.target.value)}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Niet verplaatsen</option>
+                    {folders.map((folder) => (
+                      <option key={folder.id} value={folder.id}>
+                        {'  '.repeat(folder.depth)}{folder.display_name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.move_to_folder}
+                    onChange={(e) => handleChange('move_to_folder', e.target.value)}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Verwerkt"
+                  />
+                )}
+              </div>
               <p className="mt-1 text-xs text-gray-500">Laat leeg om mails in de oorspronkelijke map te laten</p>
             </div>
 

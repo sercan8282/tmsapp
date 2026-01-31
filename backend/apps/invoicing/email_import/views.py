@@ -89,6 +89,25 @@ class MailboxConfigViewSet(viewsets.ModelViewSet):
                 'message': message
             }, status=status.HTTP_400_BAD_REQUEST)
     
+    @action(detail=True, methods=['get'])
+    def list_folders(self, request, pk=None):
+        """List available folders in the mailbox."""
+        config = self.get_object()
+        
+        service = EmailImportService()
+        
+        try:
+            folders = service.list_folders(config)
+            return Response({
+                'success': True,
+                'folders': folders
+            })
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
     @action(detail=True, methods=['post'], throttle_classes=[EmailImportRateThrottle])
     def fetch_emails(self, request, pk=None):
         """Manually trigger email fetch for this mailbox."""
