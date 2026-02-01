@@ -703,6 +703,18 @@ class InvoiceLineViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAdminOrManager]
     filterset_fields = ['invoice']
     
+    def create(self, request, *args, **kwargs):
+        """Override create to add better error logging."""
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            logger.error(
+                f"InvoiceLine validation failed: {serializer.errors} "
+                f"Data: {request.data} "
+                f"User: {request.user.email}"
+            )
+            return Response(serializer.errors, status=400)
+        return super().create(request, *args, **kwargs)
+    
     def perform_create(self, serializer):
         line = serializer.save()
         line.invoice.calculate_totals()
