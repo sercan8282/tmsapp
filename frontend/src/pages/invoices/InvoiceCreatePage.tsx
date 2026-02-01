@@ -933,11 +933,19 @@ export default function InvoiceCreatePage() {
       // Create invoice lines
       const totaalColumn = columns.find(c => c.type === 'berekend') || columns[columns.length - 1]
       
+      // Log lines for debugging
+      console.log('Saving invoice lines:', lines.length, 'lines')
+      console.log('Columns:', columns.map(c => ({ id: c.id, type: c.type })))
+      
       for (const line of lines) {
         // Find omschrijving column
         const omschrijvingCol = columns.find(c => c.type === 'text' || c.id === 'omschrijving')
         const aantalCol = columns.find(c => c.type === 'aantal' || c.id === 'aantal')
         const prijsCol = columns.find(c => c.type === 'prijs' || c.id.includes('prijs') || c.id.includes('tarief'))
+        
+        // Log column detection
+        console.log('Line values:', line.values)
+        console.log('prijsCol:', prijsCol?.id, 'value:', prijsCol ? line.values[prijsCol.id] : 'N/A')
         
         const lineData: any = {
           invoice: invoice.id,
@@ -950,12 +958,20 @@ export default function InvoiceCreatePage() {
               : 0,
         }
         
+        console.log('Creating line:', lineData)
+        
         // Only add time_entry if it exists
         if (line.timeEntryId) {
           lineData.time_entry = line.timeEntryId
         }
         
-        await createInvoiceLine(lineData)
+        try {
+          await createInvoiceLine(lineData)
+          console.log('Line created successfully')
+        } catch (lineErr: any) {
+          console.error('Failed to create line:', lineErr.response?.data || lineErr.message)
+          throw lineErr // Re-throw to handle in outer catch
+        }
       }
 
       // Navigate to invoice list
