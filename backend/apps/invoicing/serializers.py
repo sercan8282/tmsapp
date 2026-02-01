@@ -22,6 +22,20 @@ class InvoiceLineSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'totaal', 'created_at', 'updated_at']
     
+    def validate_prijs_per_eenheid(self, value):
+        """Round price to 2 decimal places to avoid validation errors."""
+        from decimal import Decimal, ROUND_HALF_UP
+        if value is not None:
+            return Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return value
+    
+    def validate_aantal(self, value):
+        """Round quantity to 2 decimal places to avoid validation errors."""
+        from decimal import Decimal, ROUND_HALF_UP
+        if value is not None:
+            return Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return value
+    
     def validate(self, data):
         # Log warning if modifying non-concept invoice lines
         invoice = data.get('invoice') or (self.instance.invoice if self.instance else None)
