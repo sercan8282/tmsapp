@@ -141,6 +141,7 @@ export interface TimeEntry {
   id: string
   user: string
   user_naam: string
+  user_bedrijf?: string
   weeknummer: number
   ritnummer: string
   datum: string

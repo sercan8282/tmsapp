@@ -5,13 +5,14 @@ from .models import TimeEntry
 class TimeEntrySerializer(serializers.ModelSerializer):
     user_naam = serializers.CharField(source='user.full_name', read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
+    user_bedrijf = serializers.CharField(source='user.bedrijf', read_only=True, allow_blank=True)
     totaal_uren_display = serializers.SerializerMethodField()
     pauze_display = serializers.SerializerMethodField()
     
     class Meta:
         model = TimeEntry
         fields = [
-            'id', 'user', 'user_naam', 'user_email',
+            'id', 'user', 'user_naam', 'user_email', 'user_bedrijf',
             'weeknummer', 'ritnummer', 'datum', 'kenteken',
             'km_start', 'km_eind', 'totaal_km',
             'aanvang', 'eind', 'pauze', 'pauze_display',

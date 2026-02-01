@@ -326,7 +326,7 @@ function TimeEntryImportModal({
             jaar: jaar,
             userId: entry.user,
             chauffeurNaam: entry.user_naam || 'Onbekend',
-            bedrijfNaam: '-', // Will be filled if available
+            bedrijfNaam: entry.user_bedrijf || '-',
             entries: [],
             selected: false,
           }
