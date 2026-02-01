@@ -293,12 +293,14 @@ function TimeEntryImportModal({
   const [isLoading, setIsLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
+  const [weekFilter, setWeekFilter] = useState<string>('') // '' = alle weken
   const itemsPerPage = 10
 
   useEffect(() => {
     if (isOpen) {
       loadTimeEntries()
       setCurrentPage(1)
+      setWeekFilter('')
     }
   }, [isOpen])
 
@@ -370,17 +372,31 @@ function TimeEntryImportModal({
     onClose()
   }
 
-  const selectedCount = chauffeurGroups.filter(g => g.selected).length
-  const totalEntries = chauffeurGroups
+  // Get unique weeks for filter dropdown
+  const availableWeeks = [...new Set(chauffeurGroups.map(g => `${g.jaar}-W${g.weeknummer}`))]
+    .sort((a, b) => b.localeCompare(a)) // Sort descending
+
+  // Filter groups by selected week
+  const filteredGroups = weekFilter 
+    ? chauffeurGroups.filter(g => `${g.jaar}-W${g.weeknummer}` === weekFilter)
+    : chauffeurGroups
+
+  const selectedCount = filteredGroups.filter(g => g.selected).length
+  const totalEntries = filteredGroups
     .filter(g => g.selected)
     .reduce((sum, g) => sum + g.entries.length, 0)
 
-  // Pagination
-  const totalPages = Math.ceil(chauffeurGroups.length / itemsPerPage)
-  const paginatedGroups = chauffeurGroups.slice(
+  // Pagination (on filtered groups)
+  const totalPages = Math.ceil(filteredGroups.length / itemsPerPage)
+  const paginatedGroups = filteredGroups.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [weekFilter])
 
   if (!isOpen) return null
 
@@ -390,7 +406,22 @@ function TimeEntryImportModal({
         <div className="fixed inset-0 bg-gray-500/75" onClick={onClose} />
         <div className="relative bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col">
           <div className="px-6 py-4 border-b flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Uren Importeren</h3>
+            <div className="flex items-center gap-4">
+              <h3 className="text-lg font-semibold">Uren Importeren</h3>
+              {/* Week Filter */}
+              {availableWeeks.length > 0 && (
+                <select
+                  value={weekFilter}
+                  onChange={(e) => setWeekFilter(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">Alle weken</option>
+                  {availableWeeks.map(week => (
+                    <option key={week} value={week}>{week.replace('-W', ' Week ')}</option>
+                  ))}
+                </select>
+              )}
+            </div>
             <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
               <XCircleIcon className="h-5 w-5 text-gray-400" />
             </button>
@@ -406,6 +437,11 @@ function TimeEntryImportModal({
                 <ClockIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                 <p>Geen ingediende uren gevonden</p>
                 <p className="text-sm mt-1">Alleen ingediende uren kunnen worden geïmporteerd</p>
+              </div>
+            ) : filteredGroups.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <ClockIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>Geen uren gevonden voor deze week</p>
               </div>
             ) : (
               <>
