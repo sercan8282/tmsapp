@@ -294,7 +294,7 @@ function TimeEntryImportModal({
   const [currentPage, setCurrentPage] = useState(1)
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
   const [weekFilter, setWeekFilter] = useState<string>('') // '' = alle weken
-  const itemsPerPage = 10
+  const itemsPerPage = 20
 
   useEffect(() => {
     if (isOpen) {
