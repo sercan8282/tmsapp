@@ -947,15 +947,18 @@ export default function InvoiceCreatePage() {
         console.log('Line values:', line.values)
         console.log('prijsCol:', prijsCol?.id, 'value:', prijsCol ? line.values[prijsCol.id] : 'N/A')
         
+        // Round values to 2 decimals to prevent backend validation errors
+        const roundTo2 = (n: number) => Math.round(n * 100) / 100
+        
         const lineData: any = {
           invoice: invoice.id,
           omschrijving: omschrijvingCol ? String(line.values[omschrijvingCol.id]) : 'Regel',
-          aantal: aantalCol ? Number(line.values[aantalCol.id]) || 1 : 1,
-          prijs_per_eenheid: prijsCol 
+          aantal: roundTo2(aantalCol ? Number(line.values[aantalCol.id]) || 1 : 1),
+          prijs_per_eenheid: roundTo2(prijsCol 
             ? Number(line.values[prijsCol.id]) || 0 
             : totaalColumn 
               ? Number(line.values[totaalColumn.id]) || 0 
-              : 0,
+              : 0),
         }
         
         console.log('Creating line:', lineData)
