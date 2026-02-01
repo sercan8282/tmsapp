@@ -106,6 +106,8 @@ services:
         - VITE_API_URL=/api
     container_name: tms_frontend
     restart: always
+    volumes:
+      - media_files:/usr/share/nginx/html/media:ro
     networks:
       - tms_internal
     expose:
