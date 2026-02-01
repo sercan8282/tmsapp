@@ -1,6 +1,8 @@
 """
 Django settings for TMS project - Local development with PostgreSQL.
-"""from decouple import configfrom .base import *
+"""
+from decouple import config
+from .base import *
 
 DEBUG = True
 

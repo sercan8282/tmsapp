@@ -193,6 +193,8 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def next_number(self, request):
         """Get next invoice number for a given type."""
+        from apps.core.models import AppSettings
+        
         invoice_type = request.query_params.get('type', 'verkoop')
         today = date.today()
         
@@ -204,6 +206,15 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         prefix_char = type_prefixes.get(invoice_type, 'F')
         prefix = f"{prefix_char}-{today.year}"
         
+        # Get start number from settings
+        app_settings = AppSettings.objects.first()
+        start_numbers = {
+            'verkoop': getattr(app_settings, 'invoice_start_number_verkoop', 1) if app_settings else 1,
+            'credit': getattr(app_settings, 'invoice_start_number_credit', 1) if app_settings else 1,
+            'inkoop': getattr(app_settings, 'invoice_start_number_inkoop', 1) if app_settings else 1,
+        }
+        start_number = start_numbers.get(invoice_type, 1)
+        
         last_invoice = Invoice.objects.filter(
             factuurnummer__startswith=prefix
         ).order_by('-factuurnummer').first()
@@ -211,11 +222,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         if last_invoice:
             try:
                 last_num = int(last_invoice.factuurnummer.split('-')[-1])
-                next_num = last_num + 1
+                next_num = max(last_num + 1, start_number)
             except (ValueError, IndexError):
-                next_num = 1
+                next_num = start_number
         else:
-            next_num = 1
+            next_num = start_number
         
         factuurnummer = f"{prefix}-{next_num:04d}"
         
@@ -234,6 +245,8 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         # Generate invoice number based on type
+        from apps.core.models import AppSettings
+        
         today = date.today()
         invoice_type = serializer.validated_data.get('type', 'verkoop')
         
@@ -246,6 +259,15 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         prefix_char = type_prefixes.get(invoice_type, 'F')
         prefix = f"{prefix_char}-{today.year}"
         
+        # Get start number from settings
+        app_settings = AppSettings.objects.first()
+        start_numbers = {
+            'verkoop': getattr(app_settings, 'invoice_start_number_verkoop', 1) if app_settings else 1,
+            'credit': getattr(app_settings, 'invoice_start_number_credit', 1) if app_settings else 1,
+            'inkoop': getattr(app_settings, 'invoice_start_number_inkoop', 1) if app_settings else 1,
+        }
+        start_number = start_numbers.get(invoice_type, 1)
+        
         # Get next number for this type and year
         last_invoice = Invoice.objects.filter(
             factuurnummer__startswith=prefix
@@ -254,11 +276,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         if last_invoice:
             try:
                 last_num = int(last_invoice.factuurnummer.split('-')[-1])
-                next_num = last_num + 1
+                next_num = max(last_num + 1, start_number)
             except (ValueError, IndexError):
-                next_num = 1
+                next_num = start_number
         else:
-            next_num = 1
+            next_num = start_number
         
         factuurnummer = f"{prefix}-{next_num:04d}"
         

@@ -395,6 +395,23 @@ class AppSettings(models.Model):
         help_text='Tekst die onderaan de factuur wordt getoond. Gebruik {bedrag}, {vervaldatum} en {factuurnummer} als variabelen.'
     )
     
+    # Invoice numbering start values
+    invoice_start_number_verkoop = models.PositiveIntegerField(
+        default=1,
+        verbose_name='Startnummer Verkoopfacturen',
+        help_text='Nummer waarmee de telling begint voor verkoopfacturen (F-JAAR-XXXX)'
+    )
+    invoice_start_number_inkoop = models.PositiveIntegerField(
+        default=1,
+        verbose_name='Startnummer Inkoopfacturen',
+        help_text='Nummer waarmee de telling begint voor inkoopfacturen (I-JAAR-XXXX)'
+    )
+    invoice_start_number_credit = models.PositiveIntegerField(
+        default=1,
+        verbose_name='Startnummer Creditfacturen',
+        help_text='Nummer waarmee de telling begint voor creditfacturen (C-JAAR-XXXX)'
+    )
+    
     # AI Configuration for Invoice Extraction
     ai_provider = models.CharField(
         max_length=20,

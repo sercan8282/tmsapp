@@ -103,6 +103,9 @@ export default function SettingsPage() {
         oauth_client_id: data.oauth_client_id,
         oauth_tenant_id: data.oauth_tenant_id,
         invoice_payment_text: data.invoice_payment_text,
+        invoice_start_number_verkoop: data.invoice_start_number_verkoop || 1,
+        invoice_start_number_inkoop: data.invoice_start_number_inkoop || 1,
+        invoice_start_number_credit: data.invoice_start_number_credit || 1,
         email_signature: data.email_signature,
         // AI settings
         ai_provider: data.ai_provider || 'none',
@@ -619,6 +622,78 @@ export default function SettingsPage() {
                 <p className="text-xs text-gray-400 mt-1">
                   Voorbeeld: "Wij verzoeken u vriendelijk het totaalbedrag van {'{bedrag}'} vóór {'{vervaldatum}'} over te maken onder vermelding van {'{factuurnummer}'}."
                 </p>
+              </div>
+
+              {/* Invoice Number Start Settings */}
+              <div className="border-t pt-6">
+                <h3 className="text-md font-semibold text-gray-900 mb-4">Factuurnummer Instellingen</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Stel het startnummer in voor nieuwe facturen. Het systeem kiest automatisch het hoogste nummer 
+                  (bestaand of startnummer). Formaat: TYPE-JAAR-NUMMER (bijv. F-2026-0001).
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Verkoop Start Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Startnummer Verkoopfacturen (F-)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.invoice_start_number_verkoop || 1}
+                      onChange={(e) => handleInputChange('invoice_start_number_verkoop', parseInt(e.target.value) || 1)}
+                      className="input-field"
+                      placeholder="1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Bijv: F-2026-{String(formData.invoice_start_number_verkoop || 1).padStart(4, '0')}
+                    </p>
+                  </div>
+
+                  {/* Inkoop Start Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Startnummer Inkoopfacturen (I-)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.invoice_start_number_inkoop || 1}
+                      onChange={(e) => handleInputChange('invoice_start_number_inkoop', parseInt(e.target.value) || 1)}
+                      className="input-field"
+                      placeholder="1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Bijv: I-2026-{String(formData.invoice_start_number_inkoop || 1).padStart(4, '0')}
+                    </p>
+                  </div>
+
+                  {/* Credit Start Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Startnummer Creditfacturen (C-)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.invoice_start_number_credit || 1}
+                      onChange={(e) => handleInputChange('invoice_start_number_credit', parseInt(e.target.value) || 1)}
+                      className="input-field"
+                      placeholder="1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Bijv: C-2026-{String(formData.invoice_start_number_credit || 1).padStart(4, '0')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    <strong>Let op:</strong> Het startnummer wordt alleen gebruikt als er nog geen facturen 
+                    van dit type bestaan, of als het startnummer hoger is dan het huidige hoogste nummer.
+                  </p>
+                </div>
               </div>
             </div>
           )}

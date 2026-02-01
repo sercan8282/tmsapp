@@ -76,6 +76,9 @@ export interface AppSettingsAdmin extends AppSettings {
   oauth_client_secret?: string // Write-only
   oauth_tenant_id: string
   invoice_payment_text: string
+  invoice_start_number_verkoop: number
+  invoice_start_number_inkoop: number
+  invoice_start_number_credit: number
   email_signature: string
   // AI Settings
   ai_provider: 'github' | 'openai' | 'azure' | 'none'
