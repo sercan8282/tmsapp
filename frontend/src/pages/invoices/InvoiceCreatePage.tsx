@@ -812,11 +812,11 @@ export default function InvoiceCreatePage() {
       const values: Record<string, number | string> = {}
       
       columns.forEach(col => {
-        if (col.type === 'text' || col.id === 'omschrijving') {
+        if (col.type === 'text' || col.id === 'omschrijving' || col.id.includes('omschrijving')) {
           values[col.id] = omschrijving
-        } else if (col.type === 'aantal' || col.id === 'aantal') {
+        } else if (col.type === 'aantal' || col.id === 'aantal' || col.id.includes('aantal')) {
           values[col.id] = aantal
-        } else if (col.type === 'prijs' || col.id === 'prijs') {
+        } else if (col.type === 'prijs' || col.id === 'prijs' || col.id.includes('prijs') || col.id.includes('tarief')) {
           values[col.id] = prijs
         } else {
           values[col.id] = 0
