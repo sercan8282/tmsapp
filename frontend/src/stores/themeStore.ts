@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 
 export interface Theme {
   id: string
-  name: string
+  nameKey: string
   colors: {
     primary: string
     primaryHover: string
@@ -21,11 +21,11 @@ export interface Theme {
   }
 }
 
-// Voorgedefinieerde thema's
+// Predefined themes
 export const themes: Theme[] = [
   {
     id: 'default',
-    name: 'Standaard (Blauw)',
+    nameKey: 'themes.default',
     colors: {
       primary: '#3b82f6',
       primaryHover: '#2563eb',
@@ -44,7 +44,7 @@ export const themes: Theme[] = [
   },
   {
     id: 'emerald',
-    name: 'Smaragd (Groen)',
+    nameKey: 'themes.emerald',
     colors: {
       primary: '#10b981',
       primaryHover: '#059669',
@@ -63,7 +63,7 @@ export const themes: Theme[] = [
   },
   {
     id: 'violet',
-    name: 'Violet (Paars)',
+    nameKey: 'themes.violet',
     colors: {
       primary: '#8b5cf6',
       primaryHover: '#7c3aed',
@@ -82,7 +82,7 @@ export const themes: Theme[] = [
   },
   {
     id: 'amber',
-    name: 'Amber (Oranje)',
+    nameKey: 'themes.amber',
     colors: {
       primary: '#f59e0b',
       primaryHover: '#d97706',
@@ -101,7 +101,7 @@ export const themes: Theme[] = [
   },
   {
     id: 'rose',
-    name: 'Roze',
+    nameKey: 'themes.rose',
     colors: {
       primary: '#f43f5e',
       primaryHover: '#e11d48',
@@ -120,7 +120,7 @@ export const themes: Theme[] = [
   },
   {
     id: 'cyan',
-    name: 'Cyaan (Turquoise)',
+    nameKey: 'themes.cyan',
     colors: {
       primary: '#06b6d4',
       primaryHover: '#0891b2',
@@ -139,7 +139,7 @@ export const themes: Theme[] = [
   },
   {
     id: 'slate',
-    name: 'Leisteen (Donker)',
+    nameKey: 'themes.slate',
     colors: {
       primary: '#64748b',
       primaryHover: '#475569',
@@ -158,7 +158,7 @@ export const themes: Theme[] = [
   },
   {
     id: 'dark',
-    name: 'Donker Modus',
+    nameKey: 'themes.dark',
     colors: {
       primary: '#60a5fa',
       primaryHover: '#3b82f6',

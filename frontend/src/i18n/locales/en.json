@@ -1191,5 +1191,15 @@
     "newVersionAvailable": "A new version of TMS is available. Reload to use the latest version.",
     "updateNow": "Update now",
     "later": "Later"
+  },
+  "themes": {
+    "default": "Default (Blue)",
+    "emerald": "Emerald (Green)",
+    "violet": "Violet (Purple)",
+    "amber": "Amber (Orange)",
+    "rose": "Rose (Pink)",
+    "cyan": "Cyan (Turquoise)",
+    "slate": "Slate (Dark)",
+    "dark": "Dark Mode"
   }
 }

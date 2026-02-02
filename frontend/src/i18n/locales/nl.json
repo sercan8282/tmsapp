@@ -1191,5 +1191,15 @@
     "newVersionAvailable": "Er is een nieuwe versie van TMS beschikbaar. Herlaad om de nieuwste versie te gebruiken.",
     "updateNow": "Nu updaten",
     "later": "Later"
+  },
+  "themes": {
+    "default": "Standaard (Blauw)",
+    "emerald": "Smaragd (Groen)",
+    "violet": "Violet (Paars)",
+    "amber": "Amber (Oranje)",
+    "rose": "Roze",
+    "cyan": "Cyaan (Turquoise)",
+    "slate": "Leisteen (Donker)",
+    "dark": "Donker Modus"
   }
 }
