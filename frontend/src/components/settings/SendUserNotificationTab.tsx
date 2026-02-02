@@ -3,6 +3,7 @@
  * Admin interface for sending push notifications to individual users/chauffeurs
  */
 import { useState, useEffect, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Dialog, Transition, Combobox } from '@headlessui/react'
 import {
   PaperAirplaneIcon,
@@ -22,6 +23,7 @@ interface SendUserNotificationTabProps {
 }
 
 export default function SendUserNotificationTab({ onSuccess, onError }: SendUserNotificationTabProps) {
+  const { t } = useTranslation()
   const [users, setUsers] = useState<AvailableUser[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -47,7 +49,7 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
       setUsers(usersData)
     } catch (err: any) {
       console.error('Failed to load users:', err)
-      onError?.('Kon gebruikers niet laden')
+      onError?.(t('notifications.loadUsersError'))
     } finally {
       setLoading(false)
     }
@@ -65,15 +67,15 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
 
   const handleSend = async () => {
     if (!selectedUser) {
-      onError?.('Selecteer een gebruiker')
+      onError?.(t('notifications.selectUserError'))
       return
     }
     if (!title.trim()) {
-      onError?.('Vul een titel in')
+      onError?.(t('notifications.titleRequiredError'))
       return
     }
     if (!body.trim()) {
-      onError?.('Vul een bericht in')
+      onError?.(t('notifications.messageRequiredError'))
       return
     }
 
@@ -89,7 +91,7 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
       setShowConfirmModal(false)
       
       if (result.success_count > 0) {
-        onSuccess?.(`Notificatie verzonden naar ${selectedUser.full_name} (${result.success_count} apparaat${result.success_count > 1 ? 'en' : ''})`)
+        onSuccess?.(t('notifications.notificationSentToUser', { name: selectedUser.full_name, count: result.success_count }))
         // Reset form
         setSelectedUser(null)
         setUserQuery('')
@@ -97,13 +99,13 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
         setBody('')
         setUrl('')
       } else if (result.failure_count > 0) {
-        onError?.(`Notificatie kon niet worden verzonden. ${selectedUser.full_name} heeft mogelijk geen push notificaties ingeschakeld.`)
+        onError?.(t('notifications.notificationFailedUser', { name: selectedUser.full_name }))
       } else {
-        onError?.(`${selectedUser.full_name} heeft geen geregistreerde apparaten voor push notificaties.`)
+        onError?.(t('notifications.noDevicesRegistered', { name: selectedUser.full_name }))
       }
     } catch (err: any) {
       console.error('Failed to send notification:', err)
-      onError?.(err.response?.data?.detail || 'Kon notificatie niet verzenden')
+      onError?.(err.response?.data?.detail || t('notifications.sendError'))
     } finally {
       setSending(false)
     }
@@ -124,9 +126,9 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-semibold text-gray-900">Stuur Push Notificatie</h3>
+          <h3 className="text-base font-semibold text-gray-900">{t('notifications.sendPushNotification')}</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Verstuur een push notificatie naar een specifieke gebruiker/chauffeur.
+            {t('notifications.sendToUserDescription')}
           </p>
         </div>
       </div>
@@ -137,7 +139,7 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             <UserIcon className="inline-block h-4 w-4 mr-1 -mt-0.5" />
-            Selecteer Gebruiker
+            {t('notifications.selectUser')}
           </label>
           <Combobox value={selectedUser} onChange={setSelectedUser}>
             <div className="relative">
@@ -146,7 +148,7 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
                   className="w-full border-none py-3 pl-10 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
                   displayValue={(user: AvailableUser | null) => user?.full_name || ''}
                   onChange={(event) => setUserQuery(event.target.value)}
-                  placeholder="Zoek op naam of e-mail..."
+                  placeholder={t('notifications.searchByNameOrEmail')}
                 />
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3">
                   <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -165,7 +167,7 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
                 <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                   {filteredUsers.length === 0 && userQuery !== '' ? (
                     <div className="relative cursor-default select-none py-3 px-4 text-gray-700">
-                      Geen gebruikers gevonden.
+                      {t('notifications.noUsersFound')}
                     </div>
                   ) : (
                     filteredUsers.map((user) => (
@@ -209,7 +211,7 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
           {selectedUser && (
             <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
               <CheckIcon className="h-4 w-4 text-green-500" />
-              <span>Geselecteerd: <strong>{selectedUser.full_name}</strong> ({selectedUser.email})</span>
+              <span>{t('notifications.selected')}: <strong>{selectedUser.full_name}</strong> ({selectedUser.email})</span>
               <button
                 type="button"
                 onClick={() => setSelectedUser(null)}
@@ -224,7 +226,7 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
         {/* Title */}
         <div>
           <label htmlFor="notification-title" className="block text-sm font-medium text-gray-700 mb-2">
-            Titel *
+            {t('notifications.notificationTitle')} *
           </label>
           <input
             type="text"
@@ -232,16 +234,16 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="input-field"
-            placeholder="Bijv: Nieuwe rit toegewezen"
+            placeholder={t('notifications.titlePlaceholder')}
             maxLength={100}
           />
-          <p className="mt-1 text-xs text-gray-500">{title.length}/100 tekens</p>
+          <p className="mt-1 text-xs text-gray-500">{title.length}/100 {t('notifications.characters')}</p>
         </div>
 
         {/* Body */}
         <div>
           <label htmlFor="notification-body" className="block text-sm font-medium text-gray-700 mb-2">
-            Bericht *
+            {t('notifications.message')} *
           </label>
           <textarea
             id="notification-body"
@@ -249,16 +251,16 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
             onChange={(e) => setBody(e.target.value)}
             rows={4}
             className="input-field resize-none"
-            placeholder="Bijv: Je hebt een nieuwe rit voor morgen om 09:00"
+            placeholder={t('notifications.messagePlaceholderUser')}
             maxLength={500}
           />
-          <p className="mt-1 text-xs text-gray-500">{body.length}/500 tekens</p>
+          <p className="mt-1 text-xs text-gray-500">{body.length}/500 {t('notifications.characters')}</p>
         </div>
 
         {/* URL (optional) */}
         <div>
           <label htmlFor="notification-url" className="block text-sm font-medium text-gray-700 mb-2">
-            Link (optioneel)
+            {t('notifications.link')} ({t('common.optional')})
           </label>
           <input
             type="url"
@@ -269,7 +271,7 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
             placeholder="https://..."
           />
           <p className="mt-1 text-xs text-gray-500">
-            Gebruiker wordt naar deze link gestuurd bij klikken op de notificatie
+            {t('notifications.linkDescription')}
           </p>
         </div>
 
@@ -282,7 +284,7 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
             className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <PaperAirplaneIcon className="h-5 w-5 mr-2" />
-            Verstuur Notificatie
+            {t('notifications.sendNotification')}
           </button>
         </div>
       </div>
@@ -292,7 +294,7 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
             <BellIcon className="h-4 w-4" />
-            Voorbeeld
+            {t('common.preview')}
           </h4>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 max-w-sm">
             <div className="flex items-start gap-3">
@@ -340,31 +342,31 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-xl bg-white p-6 shadow-xl transition-all">
                   <Dialog.Title as="h3" className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <PaperAirplaneIcon className="h-5 w-5 text-primary-600" />
-                    Notificatie Versturen
+                    {t('notifications.sendNotification')}
                   </Dialog.Title>
 
                   <div className="mt-4 space-y-4">
                     <p className="text-sm text-gray-600">
-                      Weet je zeker dat je deze notificatie wilt versturen?
+                      {t('notifications.confirmSend')}
                     </p>
 
                     <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                       <div>
-                        <span className="text-xs font-medium text-gray-500">Ontvanger</span>
+                        <span className="text-xs font-medium text-gray-500">{t('notifications.recipient')}</span>
                         <p className="text-sm text-gray-900">{selectedUser?.full_name}</p>
                         <p className="text-xs text-gray-500">{selectedUser?.email}</p>
                       </div>
                       <div>
-                        <span className="text-xs font-medium text-gray-500">Titel</span>
+                        <span className="text-xs font-medium text-gray-500">{t('notifications.notificationTitle')}</span>
                         <p className="text-sm text-gray-900">{title}</p>
                       </div>
                       <div>
-                        <span className="text-xs font-medium text-gray-500">Bericht</span>
+                        <span className="text-xs font-medium text-gray-500">{t('notifications.message')}</span>
                         <p className="text-sm text-gray-900">{body}</p>
                       </div>
                       {url && (
                         <div>
-                          <span className="text-xs font-medium text-gray-500">Link</span>
+                          <span className="text-xs font-medium text-gray-500">{t('notifications.link')}</span>
                           <p className="text-sm text-primary-600 truncate">{url}</p>
                         </div>
                       )}
@@ -378,7 +380,7 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
                       disabled={sending}
                       className="btn-secondary"
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
@@ -389,12 +391,12 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
                       {sending ? (
                         <>
                           <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-                          Verzenden...
+                          {t('common.sending')}
                         </>
                       ) : (
                         <>
                           <PaperAirplaneIcon className="h-5 w-5 mr-2" />
-                          Versturen
+                          {t('common.send')}
                         </>
                       )}
                     </button>

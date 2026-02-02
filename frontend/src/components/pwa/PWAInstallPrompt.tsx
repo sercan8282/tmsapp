@@ -3,6 +3,7 @@
  * Shows a prompt to install the app on supported devices
  */
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { DevicePhoneMobileIcon, XMarkIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 
 interface BeforeInstallPromptEvent extends Event {
@@ -11,6 +12,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function PWAInstallPrompt() {
+  const { t } = useTranslation()
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showPrompt, setShowPrompt] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
@@ -89,16 +91,16 @@ export default function PWAInstallPrompt() {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold">
-              Installeer TMS App
+              {t('pwa.installApp')}
             </h3>
             <p className="mt-1 text-sm text-white/80">
               {isIOS ? (
                 <>
-                  Tik op <span className="inline-flex items-center"><ArrowDownTrayIcon className="h-4 w-4 mx-1" /></span> 
-                  en dan "Zet op beginscherm" om TMS als app te gebruiken.
+                  {t('pwa.iosTapOn')} <span className="inline-flex items-center"><ArrowDownTrayIcon className="h-4 w-4 mx-1" /></span> 
+                  {t('pwa.iosAddToHomeScreen')}
                 </>
               ) : (
-                'Installeer TMS op je apparaat voor snelle toegang en offline gebruik.'
+                t('pwa.installDescription')
               )}
             </p>
             {!isIOS && deferredPrompt && (
@@ -107,7 +109,7 @@ export default function PWAInstallPrompt() {
                   onClick={handleInstall}
                   className="bg-white text-primary-600 font-medium text-sm py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  Installeren
+                  {t('pwa.install')}
                 </button>
               </div>
             )}

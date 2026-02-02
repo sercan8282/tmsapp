@@ -92,6 +92,8 @@ export default defineConfig({
         dir: 'ltr'
       },
       workbox: {
+        // Increase max file size to cache - needed for large bundles
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MB
         // Cache strategieën
         runtimeCaching: [
           {

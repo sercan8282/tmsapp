@@ -3,6 +3,7 @@
  * Allows users to subscribe to push notifications (unsubscribe is admin-only)
  */
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   BellIcon,
   BellSlashIcon,
@@ -14,6 +15,7 @@ import {
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 export default function PushNotificationCard() {
+  const { t } = useTranslation()
   const {
     isSupported,
     permission,
@@ -47,9 +49,9 @@ export default function PushNotificationCard() {
         <div className="flex items-center gap-3">
           <BellSlashIcon className="h-6 w-6 text-gray-400" />
           <div>
-            <h3 className="text-sm font-medium text-gray-900">Push notificaties niet beschikbaar</h3>
+            <h3 className="text-sm font-medium text-gray-900">{t('pwa.pushNotificationsUnavailable')}</h3>
             <p className="text-sm text-gray-500">
-              Je browser of apparaat ondersteunt geen push notificaties.
+              {t('pwa.browserNotSupported')}
             </p>
           </div>
         </div>
@@ -64,9 +66,9 @@ export default function PushNotificationCard() {
         <div className="flex items-center gap-3">
           <ExclamationTriangleIcon className="h-6 w-6 text-yellow-500" />
           <div>
-            <h3 className="text-sm font-medium text-yellow-900">Push notificaties niet beschikbaar</h3>
+            <h3 className="text-sm font-medium text-yellow-900">{t('pwa.pushNotificationsUnavailable')}</h3>
             <p className="text-sm text-yellow-700">
-              Push notificaties zijn nog niet ingesteld door de beheerder.
+              {t('pwa.pushNotConfigured')}
             </p>
           </div>
         </div>
@@ -81,9 +83,9 @@ export default function PushNotificationCard() {
         <div className="flex items-center gap-3">
           <BellSlashIcon className="h-6 w-6 text-red-500" />
           <div>
-            <h3 className="text-sm font-medium text-red-900">Notificaties geblokkeerd</h3>
+            <h3 className="text-sm font-medium text-red-900">{t('pwa.notificationsBlocked')}</h3>
             <p className="text-sm text-red-700">
-              Je hebt notificaties geblokkeerd. Wijzig dit in je browser instellingen om push notificaties te ontvangen.
+              {t('pwa.notificationsBlockedDescription')}
             </p>
           </div>
         </div>
@@ -104,12 +106,12 @@ export default function PushNotificationCard() {
         
         <div className="flex-1">
           <h3 className="text-sm font-medium text-gray-900">
-            Push Notificaties
+            {t('pwa.pushNotifications')}
           </h3>
           <p className="text-sm text-gray-500 mt-1">
             {isSubscribed 
-              ? 'Je ontvangt push notificaties op dit apparaat.' 
-              : 'Ontvang meldingen over belangrijke updates, zelfs als de app niet open is.'}
+              ? t('pwa.receivingNotifications') 
+              : t('pwa.receiveNotificationsDescription')}
           </p>
 
           {error && (
@@ -124,7 +126,7 @@ export default function PushNotificationCard() {
                 type="text"
                 value={deviceName}
                 onChange={(e) => setDeviceName(e.target.value)}
-                placeholder="Apparaat naam (optioneel)"
+                placeholder={t('pwa.deviceNameOptional')}
                 className="input-field text-sm flex-1"
               />
             </div>
@@ -133,7 +135,7 @@ export default function PushNotificationCard() {
           <div className="mt-4 flex gap-2">
             {isSubscribed ? (
               <div className="text-sm text-gray-500 italic">
-                Je bent ingeschreven voor notificaties op dit apparaat.
+                {t('pwa.subscribedToNotifications')}
               </div>
             ) : (
               <>
@@ -147,7 +149,7 @@ export default function PushNotificationCard() {
                   ) : (
                     <BellIcon className="h-4 w-4 mr-2" />
                   )}
-                  {showDeviceInput ? 'Bevestigen' : 'Inschakelen'}
+                  {showDeviceInput ? t('common.confirm') : t('pwa.enable')}
                 </button>
                 {showDeviceInput && (
                   <button
@@ -157,7 +159,7 @@ export default function PushNotificationCard() {
                     }}
                     className="btn-secondary text-sm"
                   >
-                    Annuleren
+                    {t('common.cancel')}
                   </button>
                 )}
               </>
@@ -171,7 +173,7 @@ export default function PushNotificationCard() {
         <div className="mt-4 pt-4 border-t border-gray-100">
           <div className="flex items-center gap-2 text-sm text-green-600">
             <CheckCircleIcon className="h-4 w-4" />
-            <span>Push notificaties zijn actief</span>
+            <span>{t('pwa.pushNotificationsActive')}</span>
           </div>
         </div>
       )}

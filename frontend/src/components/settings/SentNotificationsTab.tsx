@@ -3,6 +3,7 @@
  * Admin view showing sent notification history with read receipts
  */
 import { useState, useEffect, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Dialog, Transition } from '@headlessui/react'
 import {
   ArrowPathIcon,
@@ -53,6 +54,7 @@ interface SentNotificationsTabProps {
 }
 
 export default function SentNotificationsTab({ onSuccess, onError }: SentNotificationsTabProps) {
+  const { t } = useTranslation()
   const [notifications, setNotifications] = useState<SentNotification[]>([])
   const [groups, setGroups] = useState<NotificationGroup[]>([])
   const [loading, setLoading] = useState(true)
@@ -90,7 +92,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
       setGroups(groupsData)
     } catch (err: any) {
       console.error('Failed to load data:', err)
-      onError?.('Kon verzonden notificaties niet laden')
+      onError?.(t('notifications.loadSentError'))
     } finally {
       setLoading(false)
     }
@@ -119,7 +121,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
       setShowDetailModal(true)
     } catch (err: any) {
       console.error('Failed to load notification details:', err)
-      onError?.('Kon details niet laden')
+      onError?.(t('notifications.loadDetailsError'))
     }
   }
 
@@ -167,7 +169,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
       await loadData()
     } catch (err: any) {
       console.error('Failed to delete notifications:', err)
-      onError?.(err.response?.data?.detail || 'Kon notificaties niet verwijderen')
+      onError?.(err.response?.data?.detail || t('notifications.deleteNotificationsError'))
     } finally {
       setDeleting(false)
     }
@@ -182,7 +184,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
       await loadData()
     } catch (err: any) {
       console.error('Failed to clear old notifications:', err)
-      onError?.(err.response?.data?.detail || 'Kon oude notificaties niet verwijderen')
+      onError?.(err.response?.data?.detail || t('notifications.clearOldError'))
     } finally {
       setDeleting(false)
     }
@@ -209,9 +211,9 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium text-gray-900">Verzonden Notificaties</h3>
+          <h3 className="text-lg font-medium text-gray-900">{t('notifications.sentNotifications')}</h3>
           <p className="text-sm text-gray-500">
-            Overzicht van alle verzonden notificaties met leesbevestigingen
+            {t('notifications.sentDescription')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -221,7 +223,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
               className="btn-danger flex items-center gap-2"
             >
               <TrashIcon className="h-4 w-4" />
-              Verwijder ({selectedIds.size})
+              {t('common.delete')} ({selectedIds.size})
             </button>
           )}
           <button
@@ -229,14 +231,14 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
             className="btn-secondary flex items-center gap-2 text-red-600 hover:text-red-700"
           >
             <TrashIcon className="h-4 w-4" />
-            Opschonen
+            {t('notifications.cleanup')}
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`btn-secondary flex items-center gap-2 ${hasActiveFilters ? 'ring-2 ring-primary-500' : ''}`}
           >
             <FunnelIcon className="h-4 w-4" />
-            Filters
+            {t('common.filter')}
             {hasActiveFilters && (
               <span className="bg-primary-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                 {[filterGroup, filterDateFrom, filterDateTo].filter(Boolean).length}
@@ -255,14 +257,14 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Groep
+                {t('notifications.group')}
               </label>
               <select
                 value={filterGroup}
                 onChange={(e) => setFilterGroup(e.target.value)}
                 className="input-field"
               >
-                <option value="">Alle groepen</option>
+                <option value="">{t('notifications.allGroups')}</option>
                 {groups.map((group) => (
                   <option key={group.id} value={group.id}>
                     {group.name}
@@ -272,7 +274,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Vanaf datum
+                {t('notifications.fromDate')}
               </label>
               <input
                 type="date"
@@ -283,7 +285,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tot datum
+                {t('notifications.toDate')}
               </label>
               <input
                 type="date"
@@ -295,7 +297,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
           </div>
           {hasActiveFilters && (
             <button onClick={clearFilters} className="text-sm text-primary-600 hover:text-primary-700">
-              Filters wissen
+              {t('notifications.clearFilters')}
             </button>
           )}
         </div>
@@ -306,12 +308,12 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
         <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <PaperAirplaneIcon className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-semibold text-gray-900">
-            Geen notificaties verzonden
+            {t('notifications.noNotificationsSent')}
           </h3>
           <p className="mt-1 text-sm text-gray-500">
             {hasActiveFilters 
-              ? 'Geen notificaties gevonden met deze filters' 
-              : 'Er zijn nog geen notificaties verzonden'}
+              ? t('notifications.noNotificationsWithFilters') 
+              : t('notifications.noNotificationsSentYet')}
           </p>
         </div>
       ) : (
@@ -328,19 +330,19 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                   />
                 </th>
                 <th className="py-3 pl-2 pr-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Notificatie
+                  {t('notifications.notification')}
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Ontvanger(s)
+                  {t('notifications.recipients')}
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Gelezen
+                  {t('notifications.read')}
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Verzonden
+                  {t('notifications.sent')}
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  <span className="sr-only">Acties</span>
+                  <span className="sr-only">{t('common.actions')}</span>
                 </th>
               </tr>
             </thead>
@@ -382,7 +384,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                       {notification.send_to_all ? (
                         <span className="inline-flex items-center gap-1 text-sm text-gray-700">
                           <UserGroupIcon className="h-4 w-4" />
-                          Iedereen
+                          {t('notifications.everyone')}
                         </span>
                       ) : notification.group_name ? (
                         <span className="inline-flex items-center gap-1 text-sm text-gray-700">
@@ -419,7 +421,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                         onClick={() => openDetailModal(notification)}
                         className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                       >
-                        Details
+                        {t('common.details')}
                       </button>
                     </td>
                   </tr>
@@ -430,7 +432,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                       <td colSpan={5} className="px-4 py-3">
                         <div className="text-sm">
                           <p className="font-medium text-gray-700 mb-2">
-                            Verzonden door: {notification.sent_by_email || 'Systeem'}
+                            {t('notifications.sentBy')}: {notification.sent_by_email || t('notifications.system')}
                           </p>
                           <p className="text-gray-600 mb-2">{notification.body}</p>
                           {notification.total_recipients > 0 && (
@@ -438,7 +440,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                               onClick={() => openDetailModal(notification)}
                               className="text-primary-600 hover:text-primary-700 text-sm"
                             >
-                              Bekijk alle leesbevestigingen →
+                              {t('notifications.viewReadReceipts')} →
                             </button>
                           )}
                         </div>
@@ -514,19 +516,19 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                           <p className="text-2xl font-bold text-gray-900">
                             {selectedNotification.total_recipients}
                           </p>
-                          <p className="text-xs text-gray-500">Ontvangers</p>
+                          <p className="text-xs text-gray-500">{t('notifications.recipients')}</p>
                         </div>
                         <div className="bg-green-50 rounded-lg p-3 text-center">
                           <p className="text-2xl font-bold text-green-600">
                             {selectedNotification.read_count}
                           </p>
-                          <p className="text-xs text-gray-500">Gelezen</p>
+                          <p className="text-xs text-gray-500">{t('notifications.read')}</p>
                         </div>
                         <div className="bg-gray-50 rounded-lg p-3 text-center">
                           <p className="text-2xl font-bold text-gray-600">
                             {selectedNotification.total_recipients - selectedNotification.read_count}
                           </p>
-                          <p className="text-xs text-gray-500">Ongelezen</p>
+                          <p className="text-xs text-gray-500">{t('notifications.unread')}</p>
                         </div>
                       </div>
 
@@ -534,20 +536,20 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                       {selectedNotification.read_receipts && selectedNotification.read_receipts.length > 0 ? (
                         <div>
                           <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                            Leesbevestigingen
+                            {t('notifications.readReceipts')}
                           </h4>
                           <div className="max-h-64 overflow-y-auto border rounded-lg">
                             <table className="min-w-full divide-y divide-gray-200">
                               <thead className="bg-gray-50 sticky top-0">
                                 <tr>
                                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                                    Gebruiker
+                                    {t('notifications.user')}
                                   </th>
                                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                                    Status
+                                    {t('common.status')}
                                   </th>
                                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                                    Gelezen op
+                                    {t('notifications.readAt')}
                                   </th>
                                 </tr>
                               </thead>
@@ -568,12 +570,12 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                                       {receipt.is_read ? (
                                         <span className="inline-flex items-center gap-1 text-sm text-green-600">
                                           <CheckCircleIcon className="h-4 w-4" />
-                                          Gelezen
+                                          {t('notifications.read')}
                                         </span>
                                       ) : (
                                         <span className="inline-flex items-center gap-1 text-sm text-gray-500">
                                           <ClockIcon className="h-4 w-4" />
-                                          Ongelezen
+                                          {t('notifications.unread')}
                                         </span>
                                       )}
                                     </td>
@@ -588,7 +590,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                         </div>
                       ) : (
                         <p className="text-sm text-gray-500 text-center py-4">
-                          Geen leesbevestigingen beschikbaar
+                          {t('notifications.noReadReceipts')}
                         </p>
                       )}
                     </div>
@@ -599,7 +601,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                       onClick={() => setShowDetailModal(false)}
                       className="btn-secondary"
                     >
-                      Sluiten
+                      {t('common.close')}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -641,17 +643,16 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                       <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
                     </div>
                     <Dialog.Title as="h3" className="text-lg font-semibold text-gray-900">
-                      Notificaties Verwijderen
+                      {t('notifications.deleteNotifications')}
                     </Dialog.Title>
                   </div>
 
                   <div className="mt-4">
                     <p className="text-sm text-gray-600">
-                      Weet je zeker dat je <strong>{selectedIds.size}</strong> notificatie(s) wilt verwijderen?
-                      Dit verwijdert ook alle bijbehorende leesbevestigingen.
+                      {t('notifications.deleteNotificationsConfirm', { count: selectedIds.size })}
                     </p>
                     <p className="mt-2 text-sm text-red-600">
-                      Deze actie kan niet ongedaan worden gemaakt.
+                      {t('notifications.cannotBeUndone')}
                     </p>
                   </div>
 
@@ -662,7 +663,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                       disabled={deleting}
                       className="btn-secondary"
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
@@ -673,12 +674,12 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                       {deleting ? (
                         <>
                           <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-                          Verwijderen...
+                          {t('common.deleting')}
                         </>
                       ) : (
                         <>
                           <TrashIcon className="h-5 w-5 mr-2" />
-                          Verwijderen
+                          {t('common.delete')}
                         </>
                       )}
                     </button>
@@ -722,18 +723,18 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                       <TrashIcon className="h-5 w-5 text-yellow-600" />
                     </div>
                     <Dialog.Title as="h3" className="text-lg font-semibold text-gray-900">
-                      Oude Notificaties Opschonen
+                      {t('notifications.cleanupOldNotifications')}
                     </Dialog.Title>
                   </div>
 
                   <div className="mt-4 space-y-4">
                     <p className="text-sm text-gray-600">
-                      Verwijder alle notificaties die ouder zijn dan het opgegeven aantal dagen.
+                      {t('notifications.cleanupDescription')}
                     </p>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Verwijder notificaties ouder dan:
+                        {t('notifications.deleteOlderThan')}:
                       </label>
                       <div className="flex items-center gap-3">
                         <input
@@ -744,13 +745,13 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                           onChange={(e) => setClearDays(Math.max(1, Math.min(365, parseInt(e.target.value) || 30)))}
                           className="input-field w-24 text-center"
                         />
-                        <span className="text-sm text-gray-600">dagen</span>
+                        <span className="text-sm text-gray-600">{t('notifications.days')}</span>
                       </div>
                     </div>
 
                     <p className="text-sm text-yellow-600 bg-yellow-50 p-3 rounded-lg">
                       <ExclamationTriangleIcon className="h-4 w-4 inline mr-1" />
-                      Dit verwijdert ook alle bijbehorende leesbevestigingen. Deze actie kan niet ongedaan worden gemaakt.
+                      {t('notifications.cleanupWarning')}
                     </p>
                   </div>
 
@@ -761,7 +762,7 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                       disabled={deleting}
                       className="btn-secondary"
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
@@ -772,12 +773,12 @@ export default function SentNotificationsTab({ onSuccess, onError }: SentNotific
                       {deleting ? (
                         <>
                           <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-                          Opschonen...
+                          {t('notifications.cleaning')}
                         </>
                       ) : (
                         <>
                           <TrashIcon className="h-5 w-5 mr-2" />
-                          Opschonen
+                          {t('notifications.cleanup')}
                         </>
                       )}
                     </button>

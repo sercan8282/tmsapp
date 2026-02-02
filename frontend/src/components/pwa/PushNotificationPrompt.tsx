@@ -3,6 +3,7 @@
  * Shows a modal prompting users to enable push notifications after login
  */
 import { useState, useEffect, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Dialog, Transition } from '@headlessui/react'
 import {
   BellAlertIcon,
@@ -23,6 +24,7 @@ interface PushNotificationPromptProps {
 }
 
 export default function PushNotificationPrompt({ delay = 2000 }: PushNotificationPromptProps) {
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [isEnabling, setIsEnabling] = useState(false)
   const [enableError, setEnableError] = useState<string | null>(null)
@@ -80,10 +82,10 @@ export default function PushNotificationPrompt({ delay = 2000 }: PushNotificatio
           setIsOpen(false)
         }, 2000)
       } else {
-        setEnableError('Kon notificaties niet inschakelen. Probeer het opnieuw.')
+        setEnableError(t('pwa.couldNotEnableNotifications'))
       }
     } catch (err: any) {
-      setEnableError(err.message || 'Er ging iets mis')
+      setEnableError(err.message || t('common.error'))
     } finally {
       setIsEnabling(false)
     }
@@ -150,10 +152,10 @@ export default function PushNotificationPrompt({ delay = 2000 }: PushNotificatio
                       <CheckCircleIcon className="h-10 w-10 text-green-600" />
                     </div>
                     <Dialog.Title as="h3" className="text-lg font-semibold text-gray-900">
-                      Notificaties ingeschakeld!
+                      {t('pwa.notificationsEnabled')}
                     </Dialog.Title>
                     <p className="mt-2 text-sm text-gray-600">
-                      Je ontvangt nu meldingen voor belangrijke updates.
+                      {t('pwa.willReceiveUpdates')}
                     </p>
                   </div>
                 ) : (
@@ -165,27 +167,27 @@ export default function PushNotificationPrompt({ delay = 2000 }: PushNotificatio
 
                     {/* Title */}
                     <Dialog.Title as="h3" className="text-xl font-semibold text-gray-900 text-center">
-                      Push notificaties inschakelen
+                      {t('pwa.enablePushNotifications')}
                     </Dialog.Title>
 
                     {/* Description */}
                     <div className="mt-4 space-y-3">
                       <p className="text-center text-gray-600">
-                        Schakel push notificaties in om <strong>direct op de hoogte</strong> te blijven van:
+                        {t('pwa.enableToStayInformed')}
                       </p>
                       
                       <ul className="space-y-2 text-sm text-gray-600">
                         <li className="flex items-center gap-2">
                           <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>
-                          Nieuwe ritten en wijzigingen
+                          {t('pwa.newTripsAndChanges')}
                         </li>
                         <li className="flex items-center gap-2">
                           <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>
-                          Belangrijke mededelingen
+                          {t('pwa.importantAnnouncements')}
                         </li>
                         <li className="flex items-center gap-2">
                           <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>
-                          Updates van de planning
+                          {t('pwa.planningUpdates')}
                         </li>
                       </ul>
 
@@ -194,7 +196,7 @@ export default function PushNotificationPrompt({ delay = 2000 }: PushNotificatio
                         <div className="flex gap-2">
                           <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                           <p className="text-sm text-amber-800">
-                            <strong>Belangrijk:</strong> Zonder notificaties mis je mogelijk cruciale updates over je ritten.
+                            <strong>{t('pwa.important')}:</strong> {t('pwa.mayMissUpdates')}
                           </p>
                         </div>
                       </div>
@@ -213,7 +215,7 @@ export default function PushNotificationPrompt({ delay = 2000 }: PushNotificatio
                         <div className="flex gap-2">
                           <BellSlashIcon className="h-5 w-5 text-gray-500 flex-shrink-0" />
                           <p className="text-sm text-gray-600">
-                            Notificaties zijn geblokkeerd. Ga naar je browser-instellingen om dit te wijzigen.
+                            {t('pwa.notificationsBlockedBrowser')}
                           </p>
                         </div>
                       </div>
@@ -229,12 +231,12 @@ export default function PushNotificationPrompt({ delay = 2000 }: PushNotificatio
                         {isEnabling ? (
                           <>
                             <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-                            Inschakelen...
+                            {t('pwa.enabling')}
                           </>
                         ) : (
                           <>
                             <BellAlertIcon className="h-5 w-5 mr-2" />
-                            Ja, inschakelen
+                            {t('pwa.yesEnable')}
                           </>
                         )}
                       </button>
@@ -244,7 +246,7 @@ export default function PushNotificationPrompt({ delay = 2000 }: PushNotificatio
                           onClick={handleDismiss}
                           className="w-full py-2 text-sm text-gray-500 hover:text-gray-700"
                         >
-                          Later herinneren
+                          {t('pwa.remindLater')}
                         </button>
                       )}
                     </div>

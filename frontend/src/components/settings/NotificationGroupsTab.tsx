@@ -3,6 +3,7 @@
  * Admin interface for creating and managing notification groups
  */
 import { useState, useEffect, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Dialog, Transition } from '@headlessui/react'
 import {
   PlusIcon,
@@ -30,6 +31,7 @@ interface NotificationGroupsTabProps {
 }
 
 export default function NotificationGroupsTab({ onSuccess, onError }: NotificationGroupsTabProps) {
+  const { t } = useTranslation()
   const [groups, setGroups] = useState<NotificationGroup[]>([])
   const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([])
   const [loading, setLoading] = useState(true)
@@ -79,7 +81,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
       setAvailableUsers(usersData)
     } catch (err: any) {
       console.error('Failed to load groups:', err)
-      onError?.('Kon groepen niet laden')
+      onError?.(t('notifications.loadGroupsError'))
     } finally {
       setLoading(false)
     }
@@ -92,10 +94,10 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
       await loadData()
       setShowCreateModal(false)
       resetForm()
-      onSuccess?.('Groep aangemaakt')
+      onSuccess?.(t('notifications.groupCreated'))
     } catch (err: any) {
       console.error('Failed to create group:', err)
-      onError?.(err.response?.data?.detail || 'Kon groep niet aanmaken')
+      onError?.(err.response?.data?.detail || t('notifications.groupCreateError'))
     } finally {
       setSaving(false)
     }
@@ -110,10 +112,10 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
       setShowEditModal(false)
       setSelectedGroup(null)
       resetForm()
-      onSuccess?.('Groep bijgewerkt')
+      onSuccess?.(t('notifications.groupUpdated'))
     } catch (err: any) {
       console.error('Failed to update group:', err)
-      onError?.(err.response?.data?.detail || 'Kon groep niet bijwerken')
+      onError?.(err.response?.data?.detail || t('notifications.groupUpdateError'))
     } finally {
       setSaving(false)
     }
@@ -127,10 +129,10 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
       await loadData()
       setShowDeleteConfirm(false)
       setSelectedGroup(null)
-      onSuccess?.('Groep verwijderd')
+      onSuccess?.(t('notifications.groupDeleted'))
     } catch (err: any) {
       console.error('Failed to delete group:', err)
-      onError?.(err.response?.data?.detail || 'Kon groep niet verwijderen')
+      onError?.(err.response?.data?.detail || t('notifications.groupDeleteError'))
     } finally {
       setDeleting(false)
     }
@@ -144,7 +146,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
       await loadData()
     } catch (err: any) {
       console.error('Failed to add member:', err)
-      onError?.('Kon lid niet toevoegen')
+      onError?.(t('notifications.memberAddError'))
     }
   }
 
@@ -156,7 +158,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
       await loadData()
     } catch (err: any) {
       console.error('Failed to remove member:', err)
-      onError?.('Kon lid niet verwijderen')
+      onError?.(t('notifications.memberRemoveError'))
     }
   }
 
@@ -173,10 +175,10 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
       setSendTitle('')
       setSendBody('')
       setSendUrl('')
-      onSuccess?.(`Notificatie verzonden naar ${result.success_count} apparaten`)
+      onSuccess?.(t('notifications.notificationSentToDevices', { count: result.success_count }))
     } catch (err: any) {
       console.error('Failed to send notification:', err)
-      onError?.(err.response?.data?.detail || 'Kon notificatie niet verzenden')
+      onError?.(err.response?.data?.detail || t('notifications.sendError'))
     } finally {
       setSending(false)
     }
@@ -210,7 +212,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
       setSelectedGroup(fullGroup)
       setShowMembersModal(true)
     } catch (err) {
-      onError?.('Kon groep details niet laden')
+      onError?.(t('notifications.loadGroupDetailsError'))
     }
   }
 
@@ -250,9 +252,9 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium text-gray-900">Notificatie Groepen</h3>
+          <h3 className="text-lg font-medium text-gray-900">{t('notifications.notificationGroups')}</h3>
           <p className="text-sm text-gray-500">
-            Maak groepen van gebruikers om notificaties naar te sturen
+            {t('notifications.createGroupDescription')}
           </p>
         </div>
         <button
@@ -260,7 +262,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
           className="btn-primary"
         >
           <PlusIcon className="h-5 w-5 mr-2" />
-          Nieuwe Groep
+          {t('notifications.newGroup')}
         </button>
       </div>
 
@@ -268,9 +270,9 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
       {groups.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Geen groepen</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">{t('notifications.noGroups')}</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Maak een nieuwe groep om te beginnen met groepsnotificaties.
+            {t('notifications.createGroupPrompt')}
           </p>
         </div>
       ) : (
@@ -295,17 +297,17 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                           </p>
                           {!group.is_active && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                              Inactief
+                              {t('common.inactive')}
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <span>{group.member_count} leden</span>
+                          <span>{t('notifications.membersCount', { count: group.member_count })}</span>
                           {group.company_name && (
                             <span>• {group.company_name}</span>
                           )}
                           {group.schedule_count !== undefined && group.schedule_count > 0 && (
-                            <span>• {group.schedule_count} schema's</span>
+                            <span>• {t('notifications.schedulesCount', { count: group.schedule_count })}</span>
                           )}
                         </div>
                       </div>
@@ -314,14 +316,14 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       <button
                         onClick={() => openMembersModal(group)}
                         className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
-                        title="Leden beheren"
+                        title={t('notifications.manageMembers')}
                       >
                         <UserGroupIcon className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => openSendModal(group)}
                         className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
-                        title="Notificatie versturen"
+                        title={t('notifications.sendNotification')}
                         disabled={!group.is_active || group.member_count === 0}
                       >
                         <BellIcon className="h-5 w-5" />
@@ -329,14 +331,14 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       <button
                         onClick={() => openEditModal(group)}
                         className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
-                        title="Bewerken"
+                        title={t('common.edit')}
                       >
                         <PencilIcon className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => openDeleteConfirm(group)}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                        title="Verwijderen"
+                        title={t('common.delete')}
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -377,29 +379,29 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
               >
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                   <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    Nieuwe Notificatie Groep
+                    {t('notifications.newNotificationGroup')}
                   </Dialog.Title>
                   
                   <div className="mt-4 space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Naam</label>
+                      <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
                       <input
                         type="text"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className="input-field mt-1"
-                        placeholder="bijv. Alle Chauffeurs"
+                        placeholder={t('notifications.groupNamePlaceholder')}
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Beschrijving</label>
+                      <label className="block text-sm font-medium text-gray-700">{t('common.description')}</label>
                       <textarea
                         value={formData.description || ''}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         className="input-field mt-1"
                         rows={3}
-                        placeholder="Optionele beschrijving..."
+                        placeholder={t('notifications.optionalDescription')}
                       />
                     </div>
                     
@@ -412,7 +414,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                         className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                       />
                       <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
-                        Actief
+                        {t('common.active')}
                       </label>
                     </div>
                   </div>
@@ -423,7 +425,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       onClick={() => setShowCreateModal(false)}
                       className="btn-secondary"
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
@@ -431,7 +433,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       disabled={saving || !formData.name}
                       className="btn-primary"
                     >
-                      {saving ? 'Opslaan...' : 'Aanmaken'}
+                      {saving ? t('common.saving') : t('common.create')}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -469,12 +471,12 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
               >
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                   <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    Groep Bewerken
+                    {t('notifications.editGroup')}
                   </Dialog.Title>
                   
                   <div className="mt-4 space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Naam</label>
+                      <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
                       <input
                         type="text"
                         value={formData.name}
@@ -484,7 +486,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Beschrijving</label>
+                      <label className="block text-sm font-medium text-gray-700">{t('common.description')}</label>
                       <textarea
                         value={formData.description || ''}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -502,7 +504,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                         className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                       />
                       <label htmlFor="edit_is_active" className="ml-2 block text-sm text-gray-900">
-                        Actief
+                        {t('common.active')}
                       </label>
                     </div>
                   </div>
@@ -513,7 +515,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       onClick={() => setShowEditModal(false)}
                       className="btn-secondary"
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
@@ -521,7 +523,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       disabled={saving || !formData.name}
                       className="btn-primary"
                     >
-                      {saving ? 'Opslaan...' : 'Opslaan'}
+                      {saving ? t('common.saving') : t('common.save')}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -560,7 +562,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                 <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      Leden van {selectedGroup?.name}
+                      {t('notifications.membersOf', { name: selectedGroup?.name })}
                     </Dialog.Title>
                     <button
                       onClick={() => setShowMembersModal(false)}
@@ -578,7 +580,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       value={memberSearch}
                       onChange={(e) => setMemberSearch(e.target.value)}
                       className="input-field pl-10"
-                      placeholder="Zoek gebruikers..."
+                      placeholder={t('notifications.searchUsers')}
                     />
                   </div>
 
@@ -586,11 +588,11 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                     {/* Current Members */}
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 mb-2">
-                        Huidige Leden ({selectedGroup?.members_detail?.length || 0})
+                        {t('notifications.currentMembers', { count: selectedGroup?.members_detail?.length || 0 })}
                       </h4>
                       <div className="border rounded-lg divide-y max-h-80 overflow-y-auto">
                         {selectedGroup?.members_detail?.length === 0 ? (
-                          <p className="p-4 text-sm text-gray-500 text-center">Geen leden</p>
+                          <p className="p-4 text-sm text-gray-500 text-center">{t('notifications.noMembers')}</p>
                         ) : (
                           selectedGroup?.members_detail?.map((member) => (
                             <div key={member.id} className="p-3 flex items-center justify-between hover:bg-gray-50">
@@ -603,7 +605,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                               <button
                                 onClick={() => handleRemoveMember(member.id)}
                                 className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
-                                title="Verwijderen"
+                                title={t('common.delete')}
                               >
                                 <UserMinusIcon className="h-5 w-5" />
                               </button>
@@ -616,11 +618,11 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                     {/* Available Users */}
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 mb-2">
-                        Beschikbare Gebruikers ({nonMembers.length})
+                        {t('notifications.availableUsers', { count: nonMembers.length })}
                       </h4>
                       <div className="border rounded-lg divide-y max-h-80 overflow-y-auto">
                         {nonMembers.length === 0 ? (
-                          <p className="p-4 text-sm text-gray-500 text-center">Geen gebruikers beschikbaar</p>
+                          <p className="p-4 text-sm text-gray-500 text-center">{t('notifications.noUsersAvailable')}</p>
                         ) : (
                           nonMembers.map((user) => (
                             <div key={user.id} className="p-3 flex items-center justify-between hover:bg-gray-50">
@@ -633,7 +635,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                               <button
                                 onClick={() => handleAddMember(user.id)}
                                 className="p-1 text-green-400 hover:text-green-600 hover:bg-green-50 rounded"
-                                title="Toevoegen"
+                                title={t('common.add')}
                               >
                                 <UserPlusIcon className="h-5 w-5" />
                               </button>
@@ -651,7 +653,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       className="btn-primary"
                     >
                       <CheckIcon className="h-5 w-5 mr-2" />
-                      Klaar
+                      {t('notifications.done')}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -689,37 +691,37 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
               >
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                   <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    Notificatie naar {selectedGroup?.name}
+                    {t('notifications.notificationTo', { name: selectedGroup?.name })}
                   </Dialog.Title>
                   <p className="text-sm text-gray-500 mt-1">
-                    Verstuur naar {selectedGroup?.member_count} leden
+                    {t('notifications.sendToMembers', { count: selectedGroup?.member_count })}
                   </p>
                   
                   <div className="mt-4 space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Titel</label>
+                      <label className="block text-sm font-medium text-gray-700">{t('notifications.notificationTitle')}</label>
                       <input
                         type="text"
                         value={sendTitle}
                         onChange={(e) => setSendTitle(e.target.value)}
                         className="input-field mt-1"
-                        placeholder="Notificatie titel"
+                        placeholder={t('notifications.notificationTitlePlaceholder')}
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Bericht</label>
+                      <label className="block text-sm font-medium text-gray-700">{t('notifications.message')}</label>
                       <textarea
                         value={sendBody}
                         onChange={(e) => setSendBody(e.target.value)}
                         className="input-field mt-1"
                         rows={3}
-                        placeholder="Notificatie bericht"
+                        placeholder={t('notifications.messagePlaceholder')}
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Link (optioneel)</label>
+                      <label className="block text-sm font-medium text-gray-700">{t('notifications.linkOptional')}</label>
                       <input
                         type="url"
                         value={sendUrl}
@@ -736,7 +738,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       onClick={() => setShowSendModal(false)}
                       className="btn-secondary"
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
@@ -744,7 +746,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       disabled={sending || !sendTitle || !sendBody}
                       className="btn-primary"
                     >
-                      {sending ? 'Versturen...' : 'Versturen'}
+                      {sending ? t('common.sending') : t('common.send')}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -782,11 +784,10 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
               >
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                   <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    Groep Verwijderen
+                    {t('notifications.deleteGroup')}
                   </Dialog.Title>
                   <p className="mt-2 text-sm text-gray-500">
-                    Weet je zeker dat je de groep <strong>{selectedGroup?.name}</strong> wilt verwijderen?
-                    Dit verwijdert ook alle bijbehorende schema's.
+                    {t('notifications.deleteGroupConfirm', { name: selectedGroup?.name })}
                   </p>
 
                   <div className="mt-6 flex justify-end gap-3">
@@ -795,7 +796,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       onClick={() => setShowDeleteConfirm(false)}
                       className="btn-secondary"
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
@@ -803,7 +804,7 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
                       disabled={deleting}
                       className="btn-danger"
                     >
-                      {deleting ? 'Verwijderen...' : 'Verwijderen'}
+                      {deleting ? t('common.deleting') : t('common.delete')}
                     </button>
                   </div>
                 </Dialog.Panel>

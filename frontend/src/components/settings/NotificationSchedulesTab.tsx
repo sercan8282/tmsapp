@@ -3,6 +3,7 @@
  * Admin interface for creating and managing scheduled notifications
  */
 import { useState, useEffect, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Dialog, Transition } from '@headlessui/react'
 import {
   PlusIcon,
@@ -29,6 +30,7 @@ interface NotificationSchedulesTabProps {
 }
 
 export default function NotificationSchedulesTab({ onSuccess, onError }: NotificationSchedulesTabProps) {
+  const { t } = useTranslation()
   const [schedules, setSchedules] = useState<NotificationSchedule[]>([])
   const [groups, setGroups] = useState<NotificationGroup[]>([])
   const [choices, setChoices] = useState<ScheduleChoices | null>(null)
@@ -77,7 +79,7 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
       setChoices(choicesData)
     } catch (err: any) {
       console.error('Failed to load schedules:', err)
-      onError?.('Kon schema\'s niet laden')
+      onError?.(t('notifications.loadSchedulesError'))
     } finally {
       setLoading(false)
     }
@@ -95,10 +97,10 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
       await loadData()
       setShowCreateModal(false)
       resetForm()
-      onSuccess?.('Schema aangemaakt')
+      onSuccess?.(t('notifications.scheduleCreated'))
     } catch (err: any) {
       console.error('Failed to create schedule:', err)
-      onError?.(err.response?.data?.detail || 'Kon schema niet aanmaken')
+      onError?.(err.response?.data?.detail || t('notifications.scheduleCreateError'))
     } finally {
       setSaving(false)
     }
@@ -118,10 +120,10 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
       setShowEditModal(false)
       setSelectedSchedule(null)
       resetForm()
-      onSuccess?.('Schema bijgewerkt')
+      onSuccess?.(t('notifications.scheduleUpdated'))
     } catch (err: any) {
       console.error('Failed to update schedule:', err)
-      onError?.(err.response?.data?.detail || 'Kon schema niet bijwerken')
+      onError?.(err.response?.data?.detail || t('notifications.scheduleUpdateError'))
     } finally {
       setSaving(false)
     }
@@ -135,10 +137,10 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
       await loadData()
       setShowDeleteConfirm(false)
       setSelectedSchedule(null)
-      onSuccess?.('Schema verwijderd')
+      onSuccess?.(t('notifications.scheduleDeleted'))
     } catch (err: any) {
       console.error('Failed to delete schedule:', err)
-      onError?.(err.response?.data?.detail || 'Kon schema niet verwijderen')
+      onError?.(err.response?.data?.detail || t('notifications.scheduleDeleteError'))
     } finally {
       setDeleting(false)
     }
@@ -149,10 +151,10 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
       setSending(schedule.id)
       const result = await pushApi.sendScheduleNow(schedule.id)
       await loadData()
-      onSuccess?.(`Notificatie verzonden naar ${result.success_count} apparaten`)
+      onSuccess?.(t('notifications.notificationSentToDevices', { count: result.success_count }))
     } catch (err: any) {
       console.error('Failed to send notification:', err)
-      onError?.(err.response?.data?.detail || 'Kon notificatie niet verzenden')
+      onError?.(err.response?.data?.detail || t('notifications.sendError'))
     } finally {
       setSending(null)
     }
@@ -229,9 +231,9 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium text-gray-900">Notificatie Schema's</h3>
+          <h3 className="text-lg font-medium text-gray-900">{t('notifications.notificationSchedules')}</h3>
           <p className="text-sm text-gray-500">
-            Plan automatische notificaties voor groepen
+            {t('notifications.scheduleDescription')}
           </p>
         </div>
         <button
@@ -240,14 +242,14 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
           disabled={groups.length === 0}
         >
           <PlusIcon className="h-5 w-5 mr-2" />
-          Nieuw Schema
+          {t('notifications.newSchedule')}
         </button>
       </div>
 
       {groups.length === 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <p className="text-sm text-yellow-800">
-            Maak eerst een notificatie groep aan voordat je schema's kunt maken.
+            {t('notifications.createGroupFirst')}
           </p>
         </div>
       )}
@@ -256,9 +258,9 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
       {schedules.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Geen schema's</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">{t('notifications.noSchedules')}</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Maak een nieuw schema om automatische notificaties te plannen.
+            {t('notifications.createSchedulePrompt')}
           </p>
         </div>
       ) : (
@@ -283,7 +285,7 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                           </p>
                           {!schedule.is_active && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                              Inactief
+                              {t('common.inactive')}
                             </span>
                           )}
                         </div>
@@ -293,10 +295,10 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                         </div>
                         <div className="flex items-center gap-4 text-xs text-gray-400 mt-1">
                           {schedule.next_send_at && (
-                            <span>Volgende: {formatDateTime(schedule.next_send_at)}</span>
+                            <span>{t('notifications.next')}: {formatDateTime(schedule.next_send_at)}</span>
                           )}
                           {schedule.last_sent_at && (
-                            <span>Laatst: {formatDateTime(schedule.last_sent_at)}</span>
+                            <span>{t('notifications.last')}: {formatDateTime(schedule.last_sent_at)}</span>
                           )}
                         </div>
                       </div>
@@ -306,7 +308,7 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                         onClick={() => handleSendNow(schedule)}
                         disabled={!schedule.is_active || sending === schedule.id}
                         className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg disabled:opacity-50"
-                        title="Nu versturen"
+                        title={t('notifications.sendNow')}
                       >
                         {sending === schedule.id ? (
                           <ArrowPathIcon className="h-5 w-5 animate-spin" />
@@ -317,14 +319,14 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                       <button
                         onClick={() => openEditModal(schedule)}
                         className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
-                        title="Bewerken"
+                        title={t('common.edit')}
                       >
                         <PencilIcon className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => openDeleteConfirm(schedule)}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                        title="Verwijderen"
+                        title={t('common.delete')}
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -379,7 +381,7 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                 <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      {showEditModal ? 'Schema Bewerken' : 'Nieuw Notificatie Schema'}
+                      {showEditModal ? t('notifications.editSchedule') : t('notifications.newNotificationSchedule')}
                     </Dialog.Title>
                     <button
                       onClick={() => {
@@ -396,27 +398,27 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                     {/* Basic Info */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700">Schema Naam</label>
+                        <label className="block text-sm font-medium text-gray-700">{t('notifications.scheduleName')}</label>
                         <input
                           type="text"
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                           className="input-field mt-1"
-                          placeholder="bijv. Dagelijkse Update"
+                          placeholder={t('notifications.scheduleNamePlaceholder')}
                         />
                       </div>
                       
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700">Groep</label>
+                        <label className="block text-sm font-medium text-gray-700">{t('notifications.group')}</label>
                         <select
                           value={formData.group}
                           onChange={(e) => setFormData({ ...formData, group: e.target.value })}
                           className="input-field mt-1"
                         >
-                          <option value="">Selecteer een groep...</option>
+                          <option value="">{t('notifications.selectGroup')}</option>
                           {groups.map((group) => (
                             <option key={group.id} value={group.id}>
-                              {group.name} ({group.member_count} leden)
+                              {group.name} ({t('notifications.membersCount', { count: group.member_count })})
                             </option>
                           ))}
                         </select>
@@ -425,11 +427,11 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
 
                     {/* Schedule Settings */}
                     <div className="border-t pt-4">
-                      <h4 className="text-sm font-medium text-gray-900 mb-3">Planning</h4>
+                      <h4 className="text-sm font-medium text-gray-900 mb-3">{t('notifications.scheduling')}</h4>
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Frequentie</label>
+                          <label className="block text-sm font-medium text-gray-700">{t('notifications.frequency')}</label>
                           <select
                             value={formData.frequency}
                             onChange={(e) => setFormData({ 
@@ -449,7 +451,7 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Tijdstip</label>
+                          <label className="block text-sm font-medium text-gray-700">{t('notifications.time')}</label>
                           <input
                             type="time"
                             value={formData.send_time}
@@ -462,13 +464,13 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                       {/* Weekly day selector */}
                       {formData.frequency === 'weekly' && (
                         <div className="mt-4">
-                          <label className="block text-sm font-medium text-gray-700">Dag van de week</label>
+                          <label className="block text-sm font-medium text-gray-700">{t('notifications.dayOfWeek')}</label>
                           <select
                             value={formData.weekly_day ?? ''}
                             onChange={(e) => setFormData({ ...formData, weekly_day: parseInt(e.target.value) })}
                             className="input-field mt-1"
                           >
-                            <option value="">Selecteer een dag...</option>
+                            <option value="">{t('notifications.selectDay')}</option>
                             {choices?.weekdays.map((day) => (
                               <option key={day.value} value={day.value}>
                                 {day.label}
@@ -481,7 +483,7 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                       {/* Custom days selector */}
                       {formData.frequency === 'custom' && (
                         <div className="mt-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Selecteer dagen</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">{t('notifications.selectDays')}</label>
                           <div className="flex flex-wrap gap-2">
                             {choices?.weekdays.map((day) => (
                               <button
@@ -504,33 +506,33 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
 
                     {/* Notification Content */}
                     <div className="border-t pt-4">
-                      <h4 className="text-sm font-medium text-gray-900 mb-3">Notificatie Inhoud</h4>
+                      <h4 className="text-sm font-medium text-gray-900 mb-3">{t('notifications.notificationContent')}</h4>
                       
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Titel</label>
+                          <label className="block text-sm font-medium text-gray-700">{t('notifications.notificationTitle')}</label>
                           <input
                             type="text"
                             value={formData.title}
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             className="input-field mt-1"
-                            placeholder="Notificatie titel"
+                            placeholder={t('notifications.notificationTitlePlaceholder')}
                           />
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Bericht</label>
+                          <label className="block text-sm font-medium text-gray-700">{t('notifications.message')}</label>
                           <textarea
                             value={formData.body}
                             onChange={(e) => setFormData({ ...formData, body: e.target.value })}
                             className="input-field mt-1"
                             rows={3}
-                            placeholder="Notificatie bericht"
+                            placeholder={t('notifications.messagePlaceholder')}
                           />
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Link (optioneel)</label>
+                          <label className="block text-sm font-medium text-gray-700">{t('notifications.linkOptional')}</label>
                           <input
                             type="url"
                             value={formData.url}
@@ -553,11 +555,11 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                           className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                         />
                         <label htmlFor="schedule_is_active" className="ml-2 block text-sm text-gray-900">
-                          Schema actief
+                          {t('notifications.scheduleActive')}
                         </label>
                       </div>
                       <p className="mt-1 text-xs text-gray-500">
-                        Inactieve schema's worden niet automatisch verzonden
+                        {t('notifications.inactiveScheduleNote')}
                       </p>
                     </div>
                   </div>
@@ -571,7 +573,7 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                       }}
                       className="btn-secondary"
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
@@ -579,7 +581,7 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                       disabled={saving || !formData.name || !formData.group || !formData.title || !formData.body}
                       className="btn-primary"
                     >
-                      {saving ? 'Opslaan...' : (showEditModal ? 'Bijwerken' : 'Aanmaken')}
+                      {saving ? t('common.saving') : (showEditModal ? t('common.update') : t('common.create'))}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -617,10 +619,10 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
               >
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                   <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    Schema Verwijderen
+                    {t('notifications.deleteSchedule')}
                   </Dialog.Title>
                   <p className="mt-2 text-sm text-gray-500">
-                    Weet je zeker dat je het schema <strong>{selectedSchedule?.name}</strong> wilt verwijderen?
+                    {t('notifications.deleteScheduleConfirm', { name: selectedSchedule?.name })}
                   </p>
 
                   <div className="mt-6 flex justify-end gap-3">
@@ -629,7 +631,7 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                       onClick={() => setShowDeleteConfirm(false)}
                       className="btn-secondary"
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="button"
@@ -637,7 +639,7 @@ export default function NotificationSchedulesTab({ onSuccess, onError }: Notific
                       disabled={deleting}
                       className="btn-danger"
                     >
-                      {deleting ? 'Verwijderen...' : 'Verwijderen'}
+                      {deleting ? t('common.deleting') : t('common.delete')}
                     </button>
                   </div>
                 </Dialog.Panel>

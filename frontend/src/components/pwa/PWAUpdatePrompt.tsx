@@ -8,6 +8,7 @@
  * - Also check more frequently (every 5 minutes when active)
  */
 import { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
@@ -18,6 +19,7 @@ const isIOS = () => {
 }
 
 export default function PWAUpdatePrompt() {
+  const { t } = useTranslation()
   const [showPrompt, setShowPrompt] = useState(false)
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null)
   
@@ -134,12 +136,12 @@ export default function PWAUpdatePrompt() {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-gray-900">
-              Update beschikbaar
+              {t('pwa.updateAvailable')}
             </h3>
             <p className="mt-1 text-sm text-gray-500">
               {isIOS() 
-                ? 'Nieuwe versie wordt geladen...'
-                : 'Er is een nieuwe versie van TMS beschikbaar. Herlaad om de nieuwste versie te gebruiken.'
+                ? t('pwa.newVersionLoading')
+                : t('pwa.newVersionAvailable')
               }
             </p>
             <div className="mt-3 flex gap-2">
@@ -147,14 +149,14 @@ export default function PWAUpdatePrompt() {
                 onClick={handleUpdate}
                 className="btn-primary text-sm py-1.5 px-3"
               >
-                Nu updaten
+                {t('pwa.updateNow')}
               </button>
               {!isIOS() && (
                 <button
                   onClick={handleDismiss}
                   className="btn-secondary text-sm py-1.5 px-3"
                 >
-                  Later
+                  {t('pwa.later')}
                 </button>
               )}
             </div>

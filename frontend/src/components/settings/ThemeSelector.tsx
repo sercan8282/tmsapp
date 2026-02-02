@@ -1,7 +1,9 @@
 import { useThemeStore, themes, Theme } from '@/stores/themeStore'
 import { CheckCircleIcon, SwatchIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 
 export default function ThemeSelector() {
+  const { t } = useTranslation()
   const { currentTheme, setTheme } = useThemeStore()
 
   return (
@@ -9,10 +11,10 @@ export default function ThemeSelector() {
       <div>
         <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
           <SwatchIcon className="h-5 w-5" />
-          Kleurthema
+          {t('settings.colorTheme')}
         </h3>
         <p className="text-sm text-gray-500 mt-1">
-          Kies een kleurencombinatie voor de applicatie.
+          {t('settings.chooseColorCombination')}
         </p>
       </div>
 
@@ -37,6 +39,8 @@ interface ThemeCardProps {
 }
 
 function ThemeCard({ theme, isSelected, onSelect }: ThemeCardProps) {
+  const { t } = useTranslation()
+  
   return (
     <button
       onClick={onSelect}
@@ -72,7 +76,7 @@ function ThemeCard({ theme, isSelected, onSelect }: ThemeCardProps) {
             className="w-8 h-6 rounded"
             style={{ backgroundColor: theme.colors.sidebar }}
           />
-          <span className="text-xs text-gray-500">Sidebar</span>
+          <span className="text-xs text-gray-500">{t('settings.sidebar')}</span>
         </div>
 
         {/* Primary color preview */}
@@ -81,7 +85,7 @@ function ThemeCard({ theme, isSelected, onSelect }: ThemeCardProps) {
             className="w-8 h-6 rounded"
             style={{ backgroundColor: theme.colors.primary }}
           />
-          <span className="text-xs text-gray-500">Primair</span>
+          <span className="text-xs text-gray-500">{t('settings.primary')}</span>
         </div>
 
         {/* Background preview */}
@@ -90,7 +94,7 @@ function ThemeCard({ theme, isSelected, onSelect }: ThemeCardProps) {
             className="w-8 h-6 rounded border border-gray-200"
             style={{ backgroundColor: theme.colors.background }}
           />
-          <span className="text-xs text-gray-500">Achtergrond</span>
+          <span className="text-xs text-gray-500">{t('settings.background')}</span>
         </div>
 
         {/* Accent preview */}
@@ -99,7 +103,7 @@ function ThemeCard({ theme, isSelected, onSelect }: ThemeCardProps) {
             className="w-8 h-6 rounded"
             style={{ backgroundColor: theme.colors.accent }}
           />
-          <span className="text-xs text-gray-500">Accent</span>
+          <span className="text-xs text-gray-500">{t('settings.accent')}</span>
         </div>
       </div>
 

@@ -34,23 +34,23 @@ import ThemeSelector from '@/components/settings/ThemeSelector'
 import type { AppSettingsAdmin } from '@/types'
 import { CalendarDaysIcon } from '@heroicons/react/24/outline'
 
-// Tab configuration
-const tabs = [
-  { id: 'branding', name: 'Branding', icon: PhotoIcon },
-  { id: 'theme', name: 'Thema', icon: SwatchIcon },
-  { id: 'fonts', name: 'Fonts', icon: LanguageIcon, link: '/settings/fonts' },
-  { id: 'company', name: 'Bedrijfsgegevens', icon: BuildingOfficeIcon },
-  { id: 'invoice', name: 'Factuur', icon: DocumentTextIcon },
-  { id: 'email', name: 'E-mail', icon: EnvelopeIcon },
-  { id: 'ai', name: 'AI Extractie', icon: SparklesIcon },
-  { id: 'server', name: 'Server', icon: ServerIcon },
-  { id: 'leave', name: 'Verlof', icon: CalendarDaysIcon, link: '/settings/leave' },
-]
-
 export default function SettingsPage() {
   const { t } = useTranslation()
   const { fetchSettings } = useAppStore()
   const serverConfig = useServerConfigStore()
+
+  // Tab configuration - moved inside component for translations
+  const tabs = [
+    { id: 'branding', name: t('settings.branding', 'Branding'), icon: PhotoIcon },
+    { id: 'theme', name: t('settings.theme', 'Thema'), icon: SwatchIcon },
+    { id: 'fonts', name: t('settings.fonts', 'Fonts'), icon: LanguageIcon, link: '/settings/fonts' },
+    { id: 'company', name: t('settings.companyInfo', 'Bedrijfsgegevens'), icon: BuildingOfficeIcon },
+    { id: 'invoice', name: t('settings.invoiceSettings', 'Factuur'), icon: DocumentTextIcon },
+    { id: 'email', name: t('settings.emailSettings', 'E-mail'), icon: EnvelopeIcon },
+    { id: 'ai', name: t('settings.aiExtraction', 'AI Extractie'), icon: SparklesIcon },
+    { id: 'server', name: t('settings.server', 'Server'), icon: ServerIcon },
+    { id: 'leave', name: t('settings.leaveSettings', 'Verlof'), icon: CalendarDaysIcon, link: '/settings/leave' },
+  ]
   
   // State
   const [activeTab, setActiveTab] = useState('branding')

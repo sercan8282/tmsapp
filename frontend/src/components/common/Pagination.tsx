@@ -1,4 +1,5 @@
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 
 export const PAGE_SIZE_OPTIONS = [30, 50, 100] as const
 export type PageSize = typeof PAGE_SIZE_OPTIONS[number]
@@ -22,6 +23,8 @@ export default function Pagination({
   onPageSizeChange,
   showPageSizeSelector = true,
 }: PaginationProps) {
+  const { t } = useTranslation()
+
   if (totalCount === 0) return null
 
   const startItem = (currentPage - 1) * pageSize + 1
@@ -32,13 +35,13 @@ export default function Pagination({
       {/* Left: Count info */}
       <div className="text-sm text-gray-500 flex flex-col xs:flex-row items-center gap-2 xs:gap-4 w-full sm:w-auto justify-center sm:justify-start">
         <span className="whitespace-nowrap">
-          {startItem}-{endItem} van {totalCount}
+          {startItem}-{endItem} {t('common.of')} {totalCount}
         </span>
         
         {showPageSizeSelector && (
           <div className="flex items-center gap-2">
             <span className="text-gray-400 hidden xs:inline">|</span>
-            <label htmlFor="pageSize" className="text-gray-500 hidden sm:inline">Toon:</label>
+            <label htmlFor="pageSize" className="text-gray-500 hidden sm:inline">{t('common.show')}:</label>
             <select
               id="pageSize"
               value={pageSize}
@@ -47,7 +50,7 @@ export default function Pagination({
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
-                  {size} per pagina
+                  {size} {t('common.perPage')}
                 </option>
               ))}
             </select>
@@ -62,7 +65,7 @@ export default function Pagination({
             onClick={() => onPageChange(1)}
             disabled={currentPage === 1}
             className="p-2 min-w-[44px] min-h-[44px] text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed rounded hover:bg-gray-100"
-            title="Eerste pagina"
+            title={t('common.firstPage')}
           >
             ««
           </button>
@@ -70,7 +73,7 @@ export default function Pagination({
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
             className="p-2 min-w-[44px] min-h-[44px] text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed rounded hover:bg-gray-100"
-            title="Vorige pagina"
+            title={t('common.previousPage')}
           >
             <ChevronLeftIcon className="h-5 w-5" />
           </button>
@@ -105,7 +108,7 @@ export default function Pagination({
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
             className="p-2 min-w-[44px] min-h-[44px] text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed rounded hover:bg-gray-100"
-            title="Volgende pagina"
+            title={t('common.nextPage')}
           >
             <ChevronRightIcon className="h-5 w-5" />
           </button>
@@ -113,7 +116,7 @@ export default function Pagination({
             onClick={() => onPageChange(totalPages)}
             disabled={currentPage === totalPages}
             className="p-2 min-w-[44px] min-h-[44px] text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed rounded hover:bg-gray-100"
-            title="Laatste pagina"
+            title={t('common.lastPage')}
           >
             »»
           </button>
