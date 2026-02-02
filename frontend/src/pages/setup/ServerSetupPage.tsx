@@ -4,11 +4,13 @@
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useServerConfigStore } from '@/stores/serverConfigStore'
 import { ServerIcon, ArrowRightIcon, ExclamationCircleIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { useAppStore } from '@/stores/appStore'
 
 export default function ServerSetupPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { setServerUrl } = useServerConfigStore()
   const { fetchSettings } = useAppStore()
@@ -25,13 +27,13 @@ export default function ServerSetupPage() {
       
       // Only allow http and https
       if (!['http:', 'https:'].includes(parsed.protocol)) {
-        return 'URL moet beginnen met http:// of https://'
+        return t('settings.urlMustBeHttp')
       }
       
       // Prevent localhost in production builds
       if (import.meta.env.PROD && 
           (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')) {
-        return 'Localhost is niet toegestaan in productie'
+        return t('settings.localhostNotAllowed')
       }
       
       // Prevent IP addresses without explicit port (security best practice)
@@ -45,13 +47,13 @@ export default function ServerSetupPage() {
           (parts[0] === 192 && parts[1] === 168)
         
         if (!isPrivate && import.meta.env.PROD) {
-          return 'Publieke IP-adressen zijn niet toegestaan. Gebruik een domeinnaam.'
+          return t('settings.publicIpNotAllowed')
         }
       }
       
       return null
     } catch {
-      return 'Ongeldige URL'
+      return t('validation.invalidFormat')
     }
   }
 
@@ -80,7 +82,7 @@ export default function ServerSetupPage() {
       })
 
       if (!response.ok) {
-        throw new Error(`Server antwoordde met status ${response.status}`)
+        throw new Error(t('settings.serverResponseError', { status: response.status }))
       }
 
       const data = await response.json()
@@ -93,9 +95,9 @@ export default function ServerSetupPage() {
     } catch (err: any) {
       console.error('Connection test failed:', err)
       if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-        setError('Kan geen verbinding maken met de server. Controleer de URL en of de server bereikbaar is.')
+        setError(t('settings.connectionFailed'))
       } else {
-        setError(err.message || 'Kan geen verbinding maken met de server')
+        setError(err.message || t('settings.connectionFailed'))
       }
     } finally {
       setTesting(false)
@@ -139,10 +141,10 @@ export default function ServerSetupPage() {
         </div>
         
         <h1 className="text-center text-3xl font-bold text-white mb-2">
-          TMS Configuratie
+          {t('settings.serverConfiguration')}
         </h1>
         <p className="text-center text-white/80 mb-8">
-          Voer de server URL in om verbinding te maken
+          {t('settings.enterServerUrl')}
         </p>
 
         {/* Form Card */}
@@ -151,7 +153,7 @@ export default function ServerSetupPage() {
             {/* URL Input */}
             <div>
               <label htmlFor="serverUrl" className="block text-sm font-medium text-gray-700 mb-2">
-                Server URL
+                {t('settings.serverUrl')}
               </label>
               <input
                 id="serverUrl"
@@ -164,7 +166,7 @@ export default function ServerSetupPage() {
                 autoFocus
               />
               <p className="mt-2 text-xs text-gray-500">
-                Bijv: https://moveo-bv.nl of https://tms.bedrijf.nl
+                {t('settings.serverUrlExample')}
               </p>
             </div>
 
@@ -186,7 +188,7 @@ export default function ServerSetupPage() {
                 )}
                 <div>
                   <p className="font-medium text-green-800">{serverInfo.name}</p>
-                  <p className="text-sm text-green-600">Verbinding succesvol!</p>
+                  <p className="text-sm text-green-600">{t('settings.connectionSuccess')}</p>
                 </div>
               </div>
             )}
@@ -200,16 +202,16 @@ export default function ServerSetupPage() {
               {testing ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Verbinding testen...
+                  {t('settings.testingConnection')}
                 </>
               ) : success ? (
                 <>
-                  Doorgaan naar login
+                  {t('settings.continueToLogin')}
                   <ArrowRightIcon className="h-5 w-5" />
                 </>
               ) : (
                 <>
-                  Verbinding testen
+                  {t('settings.testConnection')}
                   <ArrowRightIcon className="h-5 w-5" />
                 </>
               )}
@@ -222,12 +224,12 @@ export default function ServerSetupPage() {
               <button
                 onClick={() => {
                   // In development, use relative URLs (Vite proxy)
-                  setServerUrl('', 'Lokale ontwikkeling')
+                  setServerUrl('', t('settings.localDevelopment'))
                   navigate('/login')
                 }}
                 className="w-full text-sm text-gray-500 hover:text-gray-700 py-2"
               >
-                🔧 Lokale ontwikkelomgeving (dev mode)
+                🔧 {t('settings.localDevMode')}
               </button>
             </div>
           )}
@@ -235,7 +237,7 @@ export default function ServerSetupPage() {
           {/* Help Text */}
           <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-xs text-gray-500 text-center">
-              Vraag je beheerder om de juiste server URL als je deze niet weet.
+              {t('settings.askAdminForUrl')}
             </p>
           </div>
         </div>

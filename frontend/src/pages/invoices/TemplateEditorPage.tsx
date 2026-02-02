@@ -8,6 +8,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeftIcon,
   PlusIcon,
@@ -92,32 +93,32 @@ const fieldTypeIcons: Record<TemplateFieldType, React.ElementType> = {
   variable: VariableIcon,
 }
 
-// Column type labels
-const columnTypeLabels: Record<ColumnType, string> = {
-  text: 'Tekst',
-  aantal: 'Aantal',
-  km: 'Kilometers',
-  uren: 'Uren',
-  prijs: 'Prijs (€)',
-  btw: 'BTW (%)',
-  percentage: 'Percentage',
-  berekend: 'Berekend',
-}
-
 // Available fonts
 const fontFamilies = ['Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New']
 
-// Available variables
-const availableVariables = [
-  { name: 'bedrijf.naam', label: 'Bedrijfsnaam' },
-  { name: 'bedrijf.adres', label: 'Bedrijfsadres' },
-  { name: 'bedrijf.kvk', label: 'KVK nummer' },
-  { name: 'bedrijf.btw', label: 'BTW nummer' },
-  { name: 'factuurnummer', label: 'Factuurnummer' },
-  { name: 'factuurdatum', label: 'Factuurdatum' },
-  { name: 'vervaldatum', label: 'Vervaldatum' },
-  { name: 'klant.naam', label: 'Klantnaam' },
-  { name: 'klant.adres', label: 'Klantadres' },
+// Helper function to get column type labels (called inside components with t())
+const getColumnTypeLabels = (t: (key: string) => string): Record<ColumnType, string> => ({
+  text: t('templates.editor.text'),
+  aantal: t('templates.editor.quantity'),
+  km: t('templates.editor.kilometers'),
+  uren: t('templates.editor.hours'),
+  prijs: t('templates.editor.price'),
+  btw: t('templates.editor.vat'),
+  percentage: t('templates.editor.percentage'),
+  berekend: t('templates.editor.calculated'),
+})
+
+// Helper function to get available variables (called inside components with t())
+const getAvailableVariables = (t: (key: string) => string) => [
+  { name: 'bedrijf.naam', label: t('templates.editor.companyName') },
+  { name: 'bedrijf.adres', label: t('templates.editor.companyAddress') },
+  { name: 'bedrijf.kvk', label: t('templates.editor.kvkNumber') },
+  { name: 'bedrijf.btw', label: t('templates.editor.vatNumber') },
+  { name: 'factuurnummer', label: t('templates.editor.invoiceNumber') },
+  { name: 'factuurdatum', label: t('templates.editor.invoiceDate') },
+  { name: 'vervaldatum', label: t('templates.editor.dueDate') },
+  { name: 'klant.naam', label: t('templates.editor.customerName') },
+  { name: 'klant.adres', label: t('templates.editor.customerAddress') },
 ]
 
 // ============================================
@@ -131,6 +132,8 @@ interface FieldEditorProps {
 }
 
 function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
+  const { t } = useTranslation()
+  const availableVariables = getAvailableVariables(t)
   const [localField, setLocalField] = useState<TemplateField>(
     field || {
       id: `field_${Date.now()}`,
@@ -161,7 +164,7 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
       setLocalField({ ...localField, imageUrl: result.url })
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } }
-      setUploadError(err.response?.data?.error || 'Upload mislukt')
+      setUploadError(err.response?.data?.error || t('templates.editor.uploadFailed'))
     } finally {
       setUploading(false)
     }
@@ -173,13 +176,13 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
         <div className="fixed inset-0 bg-gray-500/75" onClick={onClose} />
         <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
           <h3 className="text-lg font-semibold mb-4">
-            Veld Bewerken - {position}
+            {t('templates.editor.editField')} - {position}
           </h3>
 
           <div className="space-y-4">
             {/* Field Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('templates.editor.type')}</label>
               <div className="grid grid-cols-5 gap-2">
                 {(Object.keys(fieldTypeIcons) as TemplateFieldType[]).map((type) => {
                   const Icon = fieldTypeIcons[type]
@@ -205,26 +208,26 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
             {/* Content based on type */}
             {localField.type === 'text' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Tekst</label>
+                <label className="block text-sm font-medium text-gray-700">{t('templates.editor.text')}</label>
                 <textarea
                   value={localField.content}
                   onChange={(e) => setLocalField({ ...localField, content: e.target.value })}
                   rows={3}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                  placeholder="Voer tekst in..."
+                  placeholder={t('templates.editor.enterText')}
                 />
               </div>
             )}
 
             {localField.type === 'variable' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Variabele</label>
+                <label className="block text-sm font-medium text-gray-700">{t('templates.editor.variable')}</label>
                 <select
                   value={localField.content}
                   onChange={(e) => setLocalField({ ...localField, content: e.target.value })}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                 >
-                  <option value="">Selecteer variabele...</option>
+                  <option value="">{t('templates.editor.selectVariable')}</option>
                   {availableVariables.map((v) => (
                     <option key={v.name} value={v.name}>
                       {v.label} ({`{{${v.name}}}`})
@@ -237,7 +240,7 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
             {localField.type === 'image' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Afbeelding Uploaden</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('templates.editor.uploadImage')}</label>
                   <div className="flex items-center justify-center w-full">
                     <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer ${
                       uploading ? 'bg-gray-100 border-gray-300' : 'bg-gray-50 border-gray-300 hover:bg-gray-100 hover:border-primary-400'
@@ -248,17 +251,17 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          <span className="mt-2 text-sm text-gray-500">Uploaden...</span>
+                          <span className="mt-2 text-sm text-gray-500">{t('templates.editor.uploading')}</span>
                         </div>
                       ) : localField.imageUrl ? (
                         <div className="flex flex-col items-center">
                           <img src={localField.imageUrl} alt="Preview" className="max-h-20 object-contain" />
-                          <span className="mt-2 text-xs text-gray-500">Klik om te wijzigen</span>
+                          <span className="mt-2 text-xs text-gray-500">{t('templates.editor.clickToChange')}</span>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center">
                           <PhotoIcon className="h-10 w-10 text-gray-400" />
-                          <span className="mt-2 text-sm text-gray-500">Klik om afbeelding te uploaden</span>
+                          <span className="mt-2 text-sm text-gray-500">{t('templates.editor.clickToUpload')}</span>
                           <span className="text-xs text-gray-400">PNG, JPG, GIF, WEBP, SVG (max 5MB)</span>
                         </div>
                       )}
@@ -287,7 +290,7 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Breedte (pixels)</label>
+                    <label className="block text-sm font-medium text-gray-700">{t('templates.editor.widthPixels')}</label>
                     <input
                       type="number"
                       min="10"
@@ -299,7 +302,7 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Hoogte (pixels)</label>
+                    <label className="block text-sm font-medium text-gray-700">{t('templates.editor.heightPixels')}</label>
                     <input
                       type="number"
                       min="10"
@@ -311,17 +314,17 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
                     />
                   </div>
                 </div>
-                <p className="text-xs text-gray-500">Laat leeg voor automatische grootte. Vul alleen breedte in om aspect ratio te behouden.</p>
+                <p className="text-xs text-gray-500">{t('templates.editor.imageSizeNote')}</p>
               </div>
             )}
 
             {/* Styling Options */}
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Opmaak</h4>
+              <h4 className="text-sm font-medium text-gray-700 mb-3">{t('templates.editor.styling')}</h4>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Uitlijning</label>
+                  <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.alignment')}</label>
                   <div className="flex rounded-md overflow-hidden border">
                     {(['left', 'center', 'right'] as TextAlignment[]).map((align) => (
                       <button
@@ -341,7 +344,7 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
                 </div>
 
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Stijl</label>
+                  <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.style')}</label>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -369,7 +372,7 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
                 </div>
 
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Kleur</label>
+                  <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.color')}</label>
                   <input
                     type="color"
                     value={localField.style.color}
@@ -379,7 +382,7 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
                 </div>
 
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Grootte</label>
+                  <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.size')}</label>
                   <select
                     value={localField.style.fontSize}
                     onChange={(e) => handleStyleChange('fontSize', parseInt(e.target.value))}
@@ -392,7 +395,7 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-xs text-gray-500 mb-1">Lettertype</label>
+                  <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.font')}</label>
                   <select
                     value={localField.style.fontFamily}
                     onChange={(e) => handleStyleChange('fontFamily', e.target.value)}
@@ -415,7 +418,7 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
                 onClick={() => onSave(null)}
                 className="px-4 py-2 text-sm text-red-600 hover:text-red-800"
               >
-                Verwijderen
+                {t('common.delete')}
               </button>
             )}
             <div className="flex gap-2 ml-auto">
@@ -424,14 +427,14 @@ function FieldEditor({ field, position, onSave, onClose }: FieldEditorProps) {
                 onClick={onClose}
                 className="px-4 py-2 text-sm border rounded-md hover:bg-gray-50"
               >
-                Annuleren
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
                 onClick={() => onSave(localField)}
                 className="px-4 py-2 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700"
               >
-                Opslaan
+                {t('common.save')}
               </button>
             </div>
           </div>
@@ -451,6 +454,7 @@ interface SectionEditorProps {
 }
 
 function SectionEditor({ title, section, onChange }: SectionEditorProps) {
+  const { t } = useTranslation()
   const [editingPosition, setEditingPosition] = useState<'left' | 'center' | 'right' | null>(null)
 
   const handleFieldSave = (position: 'left' | 'center' | 'right', field: TemplateField | null) => {
@@ -459,7 +463,11 @@ function SectionEditor({ title, section, onChange }: SectionEditorProps) {
   }
 
   const renderFieldPreview = (field: TemplateField | null, position: 'left' | 'center' | 'right') => {
-    const positionLabels = { left: 'Links', center: 'Midden', right: 'Rechts' }
+    const positionLabels = { 
+      left: t('templates.editor.leftColumn'), 
+      center: t('templates.editor.centerColumn'), 
+      right: t('templates.editor.rightColumn') 
+    }
     
     return (
       <div
@@ -493,14 +501,14 @@ function SectionEditor({ title, section, onChange }: SectionEditorProps) {
                   }}>{line || '\u00A0'}</div>
                 ))
               ) : (
-                <span className="text-gray-400">(leeg)</span>
+                <span className="text-gray-400">({t('templates.editor.empty')})</span>
               )
             )}
           </div>
         ) : (
           <div className="text-center text-gray-400 h-full flex flex-col items-center justify-center">
             <PlusIcon className="h-6 w-6 mx-auto mb-1" />
-            <span className="text-xs">Klik om veld toe te voegen<br/>({positionLabels[position]})</span>
+            <span className="text-xs">{t('templates.editor.clickToAddField')}<br/>({positionLabels[position]})</span>
           </div>
         )}
       </div>
@@ -521,7 +529,7 @@ function SectionEditor({ title, section, onChange }: SectionEditorProps) {
       {editingPosition && (
         <FieldEditor
           field={section[editingPosition]}
-          position={`${title} - ${editingPosition === 'left' ? 'Links' : editingPosition === 'center' ? 'Midden' : 'Rechts'}`}
+          position={`${title} - ${editingPosition === 'left' ? t('templates.editor.leftColumn') : editingPosition === 'center' ? t('templates.editor.centerColumn') : t('templates.editor.rightColumn')}`}
           onSave={(field) => handleFieldSave(editingPosition, field)}
           onClose={() => setEditingPosition(null)}
         />
@@ -539,13 +547,15 @@ interface ColumnEditorProps {
 }
 
 function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
+  const { t } = useTranslation()
+  const columnTypeLabels = getColumnTypeLabels(t)
   const [editingColumn, setEditingColumn] = useState<TemplateColumn | null>(null)
   const [editingIndex, setEditingIndex] = useState<number>(-1)
 
   const addColumn = () => {
     const newColumn: TemplateColumn = {
       id: `kolom_${Date.now()}`,
-      naam: 'Nieuwe Kolom',
+      naam: t('templates.editor.newColumn'),
       type: 'text',
       breedte: 20,
     }
@@ -588,14 +598,14 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
   return (
     <div className="mb-6">
       <div className="flex justify-between items-center mb-3">
-        <h3 className="text-sm font-semibold text-gray-700">Tabel Kolommen</h3>
+        <h3 className="text-sm font-semibold text-gray-700">{t('templates.editor.tableColumns')}</h3>
         <button
           type="button"
           onClick={addColumn}
           className="text-sm text-primary-600 hover:text-primary-800 flex items-center"
         >
           <PlusIcon className="h-4 w-4 mr-1" />
-          Kolom Toevoegen
+          {t('templates.editor.addColumn')}
         </button>
       </div>
 
@@ -616,7 +626,7 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
 
         {/* Column list for editing */}
         <div className="space-y-2">
-          <p className="text-xs text-gray-500 mb-2">💡 Gebruik de pijltjes om de volgorde te wijzigen</p>
+          <p className="text-xs text-gray-500 mb-2">💡 {t('templates.editor.orderTip')}</p>
           {columns.map((col, colIndex) => (
             <div
               key={col.id}
@@ -640,7 +650,7 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
                   onClick={() => moveColumn(colIndex, 'up')}
                   disabled={colIndex === 0}
                   className="p-1 text-gray-400 hover:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Naar boven"
+                  title={t('templates.editor.moveUp')}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -651,7 +661,7 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
                   onClick={() => moveColumn(colIndex, 'down')}
                   disabled={colIndex === columns.length - 1}
                   className="p-1 text-gray-400 hover:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Naar beneden"
+                  title={t('templates.editor.moveDown')}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -664,7 +674,7 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
                     setEditingIndex(colIndex)
                   }}
                   className="p-1 text-gray-500 hover:text-primary-600"
-                  title="Bewerken"
+                  title={t('common.edit')}
                 >
                   <Cog6ToothIcon className="h-5 w-5" />
                 </button>
@@ -672,7 +682,7 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
                   type="button"
                   onClick={() => deleteColumn(colIndex)}
                   className="p-1 text-gray-500 hover:text-red-600"
-                  title="Verwijderen"
+                  title={t('common.delete')}
                 >
                   <TrashIcon className="h-5 w-5" />
                 </button>
@@ -688,11 +698,11 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="fixed inset-0 bg-gray-500/75" onClick={() => setEditingColumn(null)} />
             <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-              <h3 className="text-lg font-semibold mb-4">Kolom Bewerken</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('templates.editor.editColumn')}</h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Kolom ID</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('templates.editor.columnId')}</label>
                   <input
                     type="text"
                     value={editingColumn.id}
@@ -703,11 +713,11 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                     placeholder="unieke_naam"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Unieke ID voor berekeningen</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('templates.editor.columnIdDescription')}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Weergavenaam</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('templates.editor.displayName')}</label>
                   <input
                     type="text"
                     value={editingColumn.naam}
@@ -717,7 +727,7 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Type</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('templates.editor.type')}</label>
                   <select
                     value={editingColumn.type}
                     onChange={(e) => setEditingColumn({ ...editingColumn, type: e.target.value as ColumnType })}
@@ -730,7 +740,7 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Breedte (%)</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('templates.editor.width')}</label>
                   <input
                     type="number"
                     min="5"
@@ -743,7 +753,7 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
 
                 {editingColumn.type === 'berekend' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Formule</label>
+                    <label className="block text-sm font-medium text-gray-700">{t('templates.editor.formula')}</label>
                     <input
                       type="text"
                       value={editingColumn.formule || ''}
@@ -752,7 +762,7 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
                       placeholder="kolom_a * kolom_b"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Voorbeeld: <code>aantal * prijs</code>
+                      {t('templates.editor.formulaExample')}
                     </p>
                   </div>
                 )}
@@ -764,14 +774,14 @@ function ColumnEditor({ columns, onChange }: ColumnEditorProps) {
                   onClick={() => setEditingColumn(null)}
                   className="px-4 py-2 text-sm border rounded-md hover:bg-gray-50"
                 >
-                  Annuleren
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
                   onClick={saveColumn}
                   className="px-4 py-2 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700"
                 >
-                  Opslaan
+                  {t('common.save')}
                 </button>
               </div>
             </div>
@@ -793,14 +803,15 @@ interface DefaultsEditorProps {
 }
 
 function DefaultsEditor({ defaults, totals, onDefaultsChange, onTotalsChange }: DefaultsEditorProps) {
+  const { t } = useTranslation()
   return (
     <div className="mb-6 grid grid-cols-2 gap-6">
       {/* Default Tarieven */}
       <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Standaard Tarieven</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('templates.editor.defaultRates')}</h3>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-gray-500">Uurtarief (€)</label>
+            <label className="block text-xs text-gray-500">{t('templates.editor.hourlyRate')}</label>
             <input
               type="number"
               step="0.01"
@@ -810,7 +821,7 @@ function DefaultsEditor({ defaults, totals, onDefaultsChange, onTotalsChange }: 
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">KM Tarief (€)</label>
+            <label className="block text-xs text-gray-500">{t('templates.editor.kmRate')}</label>
             <input
               type="number"
               step="0.01"
@@ -820,7 +831,7 @@ function DefaultsEditor({ defaults, totals, onDefaultsChange, onTotalsChange }: 
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500">DOT Prijs</label>
+            <label className="block text-xs text-gray-500">{t('templates.editor.dotPrice')}</label>
             <div className="flex gap-2 mt-1">
               <input
                 type="number"
@@ -845,7 +856,7 @@ function DefaultsEditor({ defaults, totals, onDefaultsChange, onTotalsChange }: 
 
       {/* Totalen Config */}
       <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Totalen Configuratie</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('templates.editor.totalsConfig')}</h3>
         <div className="space-y-3">
           <label className="flex items-center">
             <input
@@ -854,7 +865,7 @@ function DefaultsEditor({ defaults, totals, onDefaultsChange, onTotalsChange }: 
               onChange={(e) => onTotalsChange({ ...totals, showSubtotaal: e.target.checked })}
               className="rounded border-gray-300 text-primary-600"
             />
-            <span className="ml-2 text-sm">Subtotaal (excl. BTW) tonen</span>
+            <span className="ml-2 text-sm">{t('templates.editor.showSubtotal')}</span>
           </label>
           <label className="flex items-center">
             <input
@@ -863,7 +874,7 @@ function DefaultsEditor({ defaults, totals, onDefaultsChange, onTotalsChange }: 
               onChange={(e) => onTotalsChange({ ...totals, showBtw: e.target.checked })}
               className="rounded border-gray-300 text-primary-600"
             />
-            <span className="ml-2 text-sm">BTW bedrag tonen</span>
+            <span className="ml-2 text-sm">{t('templates.editor.showVat')}</span>
           </label>
           <label className="flex items-center">
             <input
@@ -872,10 +883,10 @@ function DefaultsEditor({ defaults, totals, onDefaultsChange, onTotalsChange }: 
               onChange={(e) => onTotalsChange({ ...totals, showTotaal: e.target.checked })}
               className="rounded border-gray-300 text-primary-600"
             />
-            <span className="ml-2 text-sm">Totaal (incl. BTW) tonen</span>
+            <span className="ml-2 text-sm">{t('templates.editor.showTotal')}</span>
           </label>
           <div>
-            <label className="block text-xs text-gray-500">BTW Percentage</label>
+            <label className="block text-xs text-gray-500">{t('templates.editor.vatPercentage')}</label>
             <input
               type="number"
               step="0.1"
@@ -909,19 +920,20 @@ const defaultTableStyle: TemplateTableStyle = {
 }
 
 function TableStyleEditor({ tableStyle, onChange }: TableStyleEditorProps) {
+  const { t } = useTranslation()
   const style = { ...defaultTableStyle, ...tableStyle }
   
   return (
     <div className="mb-6">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3">Tabel Opmaak</h3>
+      <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('templates.editor.tableStyle')}</h3>
       <div className="bg-gray-50 rounded-lg p-4">
         <div className="grid grid-cols-2 gap-6">
           {/* Header styling */}
           <div>
-            <h4 className="text-xs font-medium text-gray-600 mb-2">Koptekst</h4>
+            <h4 className="text-xs font-medium text-gray-600 mb-2">{t('templates.editor.headerRow')}</h4>
             <div className="space-y-2">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Achtergrond</label>
+                <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.background')}</label>
                 <input
                   type="color"
                   value={style.headerBackground}
@@ -930,7 +942,7 @@ function TableStyleEditor({ tableStyle, onChange }: TableStyleEditorProps) {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Tekstkleur</label>
+                <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.textColor')}</label>
                 <input
                   type="color"
                   value={style.headerTextColor}
@@ -939,7 +951,7 @@ function TableStyleEditor({ tableStyle, onChange }: TableStyleEditorProps) {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Lettertype</label>
+                <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.font')}</label>
                 <select
                   value={style.headerFont}
                   onChange={(e) => onChange({ ...style, headerFont: e.target.value })}
@@ -955,10 +967,10 @@ function TableStyleEditor({ tableStyle, onChange }: TableStyleEditorProps) {
 
           {/* Row styling */}
           <div>
-            <h4 className="text-xs font-medium text-gray-600 mb-2">Rijen</h4>
+            <h4 className="text-xs font-medium text-gray-600 mb-2">{t('templates.editor.rows')}</h4>
             <div className="space-y-2">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Even rij achtergrond</label>
+                <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.evenRowBackground')}</label>
                 <input
                   type="color"
                   value={style.evenRowBackground}
@@ -967,7 +979,7 @@ function TableStyleEditor({ tableStyle, onChange }: TableStyleEditorProps) {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Oneven rij achtergrond</label>
+                <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.oddRowBackground')}</label>
                 <input
                   type="color"
                   value={style.oddRowBackground}
@@ -976,7 +988,7 @@ function TableStyleEditor({ tableStyle, onChange }: TableStyleEditorProps) {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Tekstkleur</label>
+                <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.textColor')}</label>
                 <input
                   type="color"
                   value={style.rowTextColor}
@@ -985,7 +997,7 @@ function TableStyleEditor({ tableStyle, onChange }: TableStyleEditorProps) {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Lettertype</label>
+                <label className="block text-xs text-gray-500 mb-1">{t('templates.editor.font')}</label>
                 <select
                   value={style.rowFont}
                   onChange={(e) => onChange({ ...style, rowFont: e.target.value })}
@@ -1002,7 +1014,7 @@ function TableStyleEditor({ tableStyle, onChange }: TableStyleEditorProps) {
 
         {/* Preview */}
         <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500 mb-2">Voorbeeld:</p>
+          <p className="text-xs text-gray-500 mb-2">{t('templates.editor.preview')}:</p>
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: style.headerBackground, color: style.headerTextColor, fontFamily: style.headerFont }}>
@@ -1177,6 +1189,7 @@ function PDFPreview({ layout }: PDFPreviewProps) {
 export default function TemplateEditorPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const isEditing = !!id
 
   const [templateName, setTemplateName] = useState('')
@@ -1205,7 +1218,7 @@ export default function TemplateEditorPage() {
 
   const handleSave = async () => {
     if (!templateName.trim()) {
-      alert('Vul een template naam in')
+      alert(t('templates.editor.enterTemplateName'))
       return
     }
 
@@ -1227,7 +1240,7 @@ export default function TemplateEditorPage() {
       navigate('/invoices/templates')
     } catch (error) {
       console.error('Save failed:', error)
-      alert('Opslaan mislukt')
+      alert(t('templates.editor.saveError'))
     } finally {
       setIsSaving(false)
     }
@@ -1250,7 +1263,7 @@ export default function TemplateEditorPage() {
             <ArrowLeftIcon className="h-5 w-5" />
           </button>
           <h1 className="text-xl font-semibold">
-            {isEditing ? 'Template Bewerken' : 'Nieuwe Template'}
+            {isEditing ? t('templates.editTemplate') : t('templates.newTemplate')}
           </h1>
         </div>
         <button
@@ -1258,7 +1271,7 @@ export default function TemplateEditorPage() {
           disabled={isSaving}
           className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50"
         >
-          {isSaving ? 'Opslaan...' : 'Template Opslaan'}
+          {isSaving ? t('templates.editor.saving') : t('templates.editor.saveTemplate')}
         </button>
       </div>
 
@@ -1270,13 +1283,13 @@ export default function TemplateEditorPage() {
           <div className="bg-white rounded-lg p-4 mb-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Template Naam</label>
+                <label className="block text-sm font-medium mb-1">{t('templates.templateName')}</label>
                 <input
                   type="text"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
                   className="w-full border rounded p-2"
-                  placeholder="Bijv: Standaard Factuur"
+                  placeholder={t('templates.editor.templateNamePlaceholder')}
                 />
               </div>
               <div className="flex items-center">
@@ -1287,17 +1300,17 @@ export default function TemplateEditorPage() {
                     onChange={(e) => setIsActive(e.target.checked)}
                     className="rounded"
                   />
-                  <span className="text-sm">Actief</span>
+                  <span className="text-sm">{t('common.active')}</span>
                 </label>
               </div>
             </div>
             <div className="mt-4">
-              <label className="block text-sm font-medium mb-1">Beschrijving</label>
+              <label className="block text-sm font-medium mb-1">{t('common.description')}</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full border rounded p-2 h-20"
-                placeholder="Optionele beschrijving..."
+                placeholder={t('templates.editor.descriptionPlaceholder')}
               />
             </div>
           </div>
@@ -1305,12 +1318,12 @@ export default function TemplateEditorPage() {
           {/* Sections */}
           <div className="bg-white rounded-lg p-4 mb-4">
             <SectionEditor
-              title="1. Header (Bovenkant)"
+              title={t('templates.editor.headerSection')}
               section={layout.header}
               onChange={(header) => setLayout({ ...layout, header })}
             />
             <SectionEditor
-              title="2. Subheader (Onder Header)"
+              title={t('templates.editor.subheaderSection')}
               section={layout.subheader}
               onChange={(subheader) => setLayout({ ...layout, subheader })}
             />
@@ -1341,7 +1354,7 @@ export default function TemplateEditorPage() {
           {/* Footer */}
           <div className="bg-white rounded-lg p-4">
             <SectionEditor
-              title="4. Footer (Onderkant)"
+              title={t('templates.editor.footerSection')}
               section={layout.footer}
               onChange={(footer) => setLayout({ ...layout, footer })}
             />
@@ -1350,7 +1363,7 @@ export default function TemplateEditorPage() {
 
         {/* Preview Panel */}
         <div className="w-1/2 bg-gray-200 p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 73px)' }}>
-          <h2 className="text-lg font-medium mb-4">Preview</h2>
+          <h2 className="text-lg font-medium mb-4">{t('templates.editor.preview')}</h2>
           <div className="transform scale-75 origin-top">
             <PDFPreview layout={layout} templateName={templateName} />
           </div>
