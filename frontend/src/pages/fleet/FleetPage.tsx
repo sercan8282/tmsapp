@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { 
   MagnifyingGlassIcon, 
   PlusIcon, 
@@ -76,7 +77,9 @@ function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmText = 'Bevestigen',
+  confirmText,
+  cancelText,
+  loadingText,
   isLoading = false,
 }: {
   isOpen: boolean
@@ -85,6 +88,8 @@ function ConfirmDialog({
   title: string
   message: string
   confirmText?: string
+  cancelText?: string
+  loadingText?: string
   isLoading?: boolean
 }) {
   return (
@@ -96,14 +101,14 @@ function ConfirmDialog({
           className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           disabled={isLoading}
         >
-          Annuleren
+          {cancelText}
         </button>
         <button
           onClick={onConfirm}
           className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
           disabled={isLoading}
         >
-          {isLoading ? 'Bezig...' : confirmText}
+          {isLoading ? loadingText : confirmText}
         </button>
       </div>
     </Modal>
@@ -117,12 +122,14 @@ function VehicleForm({
   onSave,
   onCancel,
   isLoading,
+  t,
 }: {
   vehicle?: Vehicle
   companies: Company[]
   onSave: (data: VehicleCreate | VehicleUpdate) => void
   onCancel: () => void
   isLoading: boolean
+  t: (key: string) => string
 }) {
   const [formData, setFormData] = useState({
     kenteken: vehicle?.kenteken || '',
@@ -140,8 +147,8 @@ function VehicleForm({
 
   const validate = () => {
     const newErrors: Record<string, string> = {}
-    if (!formData.kenteken.trim()) newErrors.kenteken = 'Kenteken is verplicht'
-    if (!formData.bedrijf) newErrors.bedrijf = 'Bedrijf is verplicht'
+    if (!formData.kenteken.trim()) newErrors.kenteken = t('validation.licensePlateRequired')
+    if (!formData.bedrijf) newErrors.bedrijf = t('validation.companyRequired')
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -163,7 +170,7 @@ function VehicleForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Kenteken *
+          {t('fleet.licensePlate')} *
         </label>
         <input
           type="text"
@@ -178,35 +185,35 @@ function VehicleForm({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Type wagen
+          {t('fleet.vehicleType')}
         </label>
         <input
           type="text"
           name="type_wagen"
           value={formData.type_wagen}
           onChange={handleChange}
-          placeholder="Bijv. Vrachtwagen, Bestelbus, Trailer"
+          placeholder={t('fleet.vehicleTypePlaceholder')}
           className="input"
         />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Ritnummer
+          {t('fleet.routeNumber')}
         </label>
         <input
           type="text"
           name="ritnummer"
           value={formData.ritnummer}
           onChange={handleChange}
-          placeholder="Interne ritnummer"
+          placeholder={t('fleet.routeNumberPlaceholder')}
           className="input"
         />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Bedrijf *
+          {t('companies.title')} *
         </label>
         <select
           name="bedrijf"
@@ -214,7 +221,7 @@ function VehicleForm({
           onChange={handleChange}
           className={`input ${errors.bedrijf ? 'border-red-500' : ''}`}
         >
-          <option value="">Selecteer bedrijf</option>
+          <option value="">{t('fleet.selectCompany')}</option>
           {companies.map(company => (
             <option key={company.id} value={company.id}>
               {company.naam}
@@ -231,14 +238,14 @@ function VehicleForm({
           className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           disabled={isLoading}
         >
-          Annuleren
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
           className="btn-primary"
           disabled={isLoading}
         >
-          {isLoading ? 'Bezig...' : vehicle ? 'Opslaan' : 'Aanmaken'}
+          {isLoading ? t('common.saving') : vehicle ? t('common.save') : t('common.create')}
         </button>
       </div>
     </form>
@@ -247,6 +254,7 @@ function VehicleForm({
 
 // Main FleetPage component
 export default function FleetPage() {
+  const { t } = useTranslation()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [totalCount, setTotalCount] = useState(0)
@@ -320,7 +328,7 @@ export default function FleetPage() {
       setVehicles(response.results || [])
       setTotalCount(response.count || 0)
     } catch (err) {
-      setError('Fout bij ophalen voertuigen')
+      setError(t('common.error'))
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -353,10 +361,10 @@ export default function FleetPage() {
     try {
       await createVehicle(data as VehicleCreate)
       setShowCreateModal(false)
-      showSuccess('Voertuig succesvol aangemaakt')
+      showSuccess(t('fleet.vehicleCreated'))
       fetchVehicles()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij aanmaken voertuig'))
+      setError(getErrorMessage(err, t('common.error')))
     } finally {
       setIsActionLoading(false)
     }
@@ -370,10 +378,10 @@ export default function FleetPage() {
       await updateVehicle(selectedVehicle.id, data as VehicleUpdate)
       setShowEditModal(false)
       setSelectedVehicle(null)
-      showSuccess('Voertuig succesvol bijgewerkt')
+      showSuccess(t('fleet.vehicleUpdated'))
       fetchVehicles()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij bijwerken voertuig'))
+      setError(getErrorMessage(err, t('common.error')))
     } finally {
       setIsActionLoading(false)
     }
@@ -387,10 +395,10 @@ export default function FleetPage() {
       await deleteVehicle(selectedVehicle.id)
       setShowDeleteModal(false)
       setSelectedVehicle(null)
-      showSuccess('Voertuig succesvol verwijderd')
+      showSuccess(t('fleet.vehicleDeleted'))
       fetchVehicles()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij verwijderen voertuig'))
+      setError(getErrorMessage(err, t('common.error')))
       setShowDeleteModal(false)
       setSelectedVehicle(null)
     } finally {
@@ -423,13 +431,13 @@ export default function FleetPage() {
     <div>
       {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Wagenpark</h1>
+        <h1 className="page-title">{t('fleet.title')}</h1>
         <button
           onClick={() => setShowCreateModal(true)}
           className="btn-primary"
         >
           <PlusIcon className="w-5 h-5 mr-2" />
-          Nieuw voertuig
+          {t('fleet.newVehicle')}
         </button>
       </div>
 
@@ -458,7 +466,7 @@ export default function FleetPage() {
             {/* Search */}
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Zoeken
+                {t('common.search')}
               </label>
               <div className="relative">
                 <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -466,7 +474,7 @@ export default function FleetPage() {
                   type="text"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                  placeholder="Zoek op kenteken, type, ritnummer..."
+                  placeholder={t('fleet.searchVehicles')}
                   className="input pl-10 min-h-[44px]"
                 />
               </div>
@@ -477,14 +485,14 @@ export default function FleetPage() {
               {/* Company filter */}
               <div className="flex-1 xs:w-40">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bedrijf
+                  {t('companies.title')}
                 </label>
                 <select
                   value={companyFilter}
                   onChange={(e) => { setCompanyFilter(e.target.value); setPage(1) }}
                   className="input min-h-[44px]"
                 >
-                  <option value="">Alle bedrijven</option>
+                  <option value="">{t('companies.allCompanies')}</option>
                   {companies.map(company => (
                     <option key={company.id} value={company.id}>
                       {company.naam}
@@ -497,14 +505,14 @@ export default function FleetPage() {
               {vehicleTypes.length > 0 && (
                 <div className="flex-1 xs:w-40">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type
+                    {t('fleet.vehicleType')}
                   </label>
                   <select
                     value={typeFilter}
                     onChange={(e) => { setTypeFilter(e.target.value); setPage(1) }}
                     className="input min-h-[44px]"
                   >
-                    <option value="">Alle types</option>
+                    <option value="">{t('common.allTypes')}</option>
                     {vehicleTypes.map(type => (
                       <option key={type} value={type}>
                         {type}
@@ -519,7 +527,7 @@ export default function FleetPage() {
             <button
               onClick={() => fetchVehicles()}
               className="p-2 min-w-[44px] min-h-[44px] text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg self-end"
-              title="Vernieuwen"
+              title={t('common.refresh')}
             >
               <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -538,22 +546,22 @@ export default function FleetPage() {
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('kenteken')}
                 >
-                  Kenteken <SortIcon field="kenteken" />
+                  {t('fleet.licensePlate')} <SortIcon field="kenteken" />
                 </th>
                 <th 
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('type_wagen')}
                 >
-                  Type <SortIcon field="type_wagen" />
+                  {t('fleet.vehicleType')} <SortIcon field="type_wagen" />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Ritnummer
+                  {t('fleet.routeNumber')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Bedrijf
+                  {t('companies.title')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                  Acties
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -563,7 +571,7 @@ export default function FleetPage() {
                   <td colSpan={5} className="px-4 py-12 text-center text-gray-500">
                     <div className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                      <span className="ml-3">Laden...</span>
+                      <span className="ml-3">{t('common.loading')}</span>
                     </div>
                   </td>
                 </tr>
@@ -571,12 +579,12 @@ export default function FleetPage() {
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center text-gray-500">
                     <TruckIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                    <p>Geen voertuigen gevonden</p>
+                    <p>{t('fleet.noVehicles')}</p>
                     <button
                       onClick={() => setShowCreateModal(true)}
                       className="mt-2 text-primary-600 hover:text-primary-700"
                     >
-                      Voeg je eerste voertuig toe
+                      {t('fleet.addVehicle')}
                     </button>
                   </td>
                 </tr>
@@ -596,14 +604,14 @@ export default function FleetPage() {
                         <button
                           onClick={() => { setSelectedVehicle(vehicle); setShowEditModal(true) }}
                           className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
-                          title="Bewerken"
+                          title={t('common.edit')}
                         >
                           <PencilSquareIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => { setSelectedVehicle(vehicle); setShowDeleteModal(true) }}
                           className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
-                          title="Verwijderen"
+                          title={t('common.delete')}
                         >
                           <TrashIcon className="w-5 h-5" />
                         </button>
@@ -622,18 +630,18 @@ export default function FleetPage() {
             <div className="px-4 py-12 text-center text-gray-500">
               <div className="flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                <span className="ml-3">Laden...</span>
+                <span className="ml-3">{t('common.loading')}</span>
               </div>
             </div>
           ) : vehicles.length === 0 ? (
             <div className="px-4 py-12 text-center text-gray-500">
               <TruckIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-              <p>Geen voertuigen gevonden</p>
+              <p>{t('fleet.noVehicles')}</p>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="mt-2 text-primary-600 hover:text-primary-700"
               >
-                Voeg je eerste voertuig toe
+                {t('fleet.addVehicle')}
               </button>
             </div>
           ) : (
@@ -651,14 +659,14 @@ export default function FleetPage() {
                     <button
                       onClick={() => { setSelectedVehicle(vehicle); setShowEditModal(true) }}
                       className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg"
-                      title="Bewerken"
+                      title={t('common.edit')}
                     >
                       <PencilSquareIcon className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => { setSelectedVehicle(vehicle); setShowDeleteModal(true) }}
                       className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-lg"
-                      title="Verwijderen"
+                      title={t('common.delete')}
                     >
                       <TrashIcon className="w-5 h-5" />
                     </button>
@@ -669,12 +677,12 @@ export default function FleetPage() {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   {vehicle.ritnummer && (
                     <div>
-                      <span className="text-gray-500">Ritnr: </span>
+                      <span className="text-gray-500">{t('fleet.routeNumber')}: </span>
                       <span className="text-gray-700">{vehicle.ritnummer}</span>
                     </div>
                   )}
                   <div>
-                    <span className="text-gray-500">Bedrijf: </span>
+                    <span className="text-gray-500">{t('companies.title')}: </span>
                     <span className="text-gray-700">{getCompanyName(vehicle)}</span>
                   </div>
                 </div>
@@ -698,7 +706,7 @@ export default function FleetPage() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="Nieuw voertuig"
+        title={t('fleet.newVehicle')}
         size="md"
       >
         <VehicleForm
@@ -706,6 +714,7 @@ export default function FleetPage() {
           onSave={handleCreate}
           onCancel={() => setShowCreateModal(false)}
           isLoading={isActionLoading}
+          t={t}
         />
       </Modal>
 
@@ -713,7 +722,7 @@ export default function FleetPage() {
       <Modal
         isOpen={showEditModal}
         onClose={() => { setShowEditModal(false); setSelectedVehicle(null) }}
-        title="Voertuig bewerken"
+        title={t('fleet.editVehicle')}
         size="md"
       >
         {selectedVehicle && (
@@ -723,6 +732,7 @@ export default function FleetPage() {
             onSave={handleUpdate}
             onCancel={() => { setShowEditModal(false); setSelectedVehicle(null) }}
             isLoading={isActionLoading}
+            t={t}
           />
         )}
       </Modal>
@@ -732,9 +742,11 @@ export default function FleetPage() {
         isOpen={showDeleteModal}
         onClose={() => { setShowDeleteModal(false); setSelectedVehicle(null) }}
         onConfirm={handleDelete}
-        title="Voertuig verwijderen"
-        message={`Weet je zeker dat je voertuig "${selectedVehicle?.kenteken}" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`}
-        confirmText="Verwijderen"
+        title={t('common.delete')}
+        message={t('fleet.deleteConfirm')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        loadingText={t('common.deleting')}
         isLoading={isActionLoading}
       />
     </div>

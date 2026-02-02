@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { 
   MagnifyingGlassIcon, 
   PlusIcon, 
@@ -75,7 +76,9 @@ function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmText = 'Bevestigen',
+  confirmText,
+  cancelText,
+  loadingText,
   isLoading = false,
 }: {
   isOpen: boolean
@@ -84,6 +87,8 @@ function ConfirmDialog({
   title: string
   message: string
   confirmText?: string
+  cancelText?: string
+  loadingText?: string
   isLoading?: boolean
 }) {
   return (
@@ -95,14 +100,14 @@ function ConfirmDialog({
           className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           disabled={isLoading}
         >
-          Annuleren
+          {cancelText}
         </button>
         <button
           onClick={onConfirm}
           className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
           disabled={isLoading}
         >
-          {isLoading ? 'Bezig...' : confirmText}
+          {isLoading ? loadingText : confirmText}
         </button>
       </div>
     </Modal>
@@ -121,6 +126,7 @@ function CompanyForm({
   onCancel: () => void
   isLoading: boolean
 }) {
+  const { t } = useTranslation()
   const [formData, setFormData] = useState({
     naam: company?.naam || '',
     kvk: company?.kvk || '',
@@ -141,9 +147,9 @@ function CompanyForm({
 
   const validate = () => {
     const newErrors: Record<string, string> = {}
-    if (!formData.naam.trim()) newErrors.naam = 'Naam is verplicht'
+    if (!formData.naam.trim()) newErrors.naam = t('validation.nameRequired')
     if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Ongeldig e-mailadres'
+      newErrors.email = t('validation.invalidEmail')
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -159,7 +165,7 @@ function CompanyForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Bedrijfsnaam *
+          {t('companies.companyName')} *
         </label>
         <input
           type="text"
@@ -174,7 +180,7 @@ function CompanyForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            KVK Nummer
+            {t('companies.kvkNumber')}
           </label>
           <input
             type="text"
@@ -186,7 +192,7 @@ function CompanyForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Telefoon
+            {t('common.phone')}
           </label>
           <input
             type="tel"
@@ -201,7 +207,7 @@ function CompanyForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Contactpersoon
+            {t('companies.contactPerson')}
           </label>
           <input
             type="text"
@@ -213,7 +219,7 @@ function CompanyForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            E-mail
+            {t('common.email')}
           </label>
           <input
             type="email"
@@ -228,7 +234,7 @@ function CompanyForm({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Adres
+          {t('common.address')}
         </label>
         <input
           type="text"
@@ -242,7 +248,7 @@ function CompanyForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Postcode
+            {t('common.zipCode')}
           </label>
           <input
             type="text"
@@ -254,7 +260,7 @@ function CompanyForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Stad
+            {t('common.city')}
           </label>
           <input
             type="text"
@@ -273,14 +279,14 @@ function CompanyForm({
           className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           disabled={isLoading}
         >
-          Annuleren
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
           className="btn-primary"
           disabled={isLoading}
         >
-          {isLoading ? 'Bezig...' : company ? 'Opslaan' : 'Aanmaken'}
+          {isLoading ? t('common.saving') : company ? t('common.save') : t('common.create')}
         </button>
       </div>
     </form>
@@ -289,6 +295,7 @@ function CompanyForm({
 
 // Main CompaniesPage component
 export default function CompaniesPage() {
+  const { t } = useTranslation()
   const [companies, setCompanies] = useState<Company[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -341,12 +348,12 @@ export default function CompaniesPage() {
       setCompanies(response.results || [])
       setTotalCount(response.count || 0)
     } catch (err) {
-      setError('Fout bij ophalen bedrijven')
+      setError(t('companies.fetchError'))
       console.error(err)
     } finally {
       setIsLoading(false)
     }
-  }, [page, pageSize, search, sortField, sortDirection])
+  }, [page, pageSize, search, sortField, sortDirection, t])
 
   useEffect(() => {
     fetchCompanies()
@@ -374,10 +381,10 @@ export default function CompaniesPage() {
     try {
       await createCompany(data as CompanyCreate)
       setShowCreateModal(false)
-      showSuccess('Bedrijf succesvol aangemaakt')
+      showSuccess(t('companies.companyCreated'))
       fetchCompanies()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij aanmaken bedrijf'))
+      setError(getErrorMessage(err, t('companies.createError')))
     } finally {
       setIsActionLoading(false)
     }
@@ -391,10 +398,10 @@ export default function CompaniesPage() {
       await updateCompany(selectedCompany.id, data as CompanyUpdate)
       setShowEditModal(false)
       setSelectedCompany(null)
-      showSuccess('Bedrijf succesvol bijgewerkt')
+      showSuccess(t('companies.companyUpdated'))
       fetchCompanies()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij bijwerken bedrijf'))
+      setError(getErrorMessage(err, t('companies.updateError')))
     } finally {
       setIsActionLoading(false)
     }
@@ -408,10 +415,10 @@ export default function CompaniesPage() {
       await deleteCompany(selectedCompany.id)
       setShowDeleteModal(false)
       setSelectedCompany(null)
-      showSuccess('Bedrijf succesvol verwijderd')
+      showSuccess(t('companies.companyDeleted'))
       fetchCompanies()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij verwijderen bedrijf'))
+      setError(getErrorMessage(err, t('companies.deleteError')))
       setShowDeleteModal(false)
       setSelectedCompany(null)
     } finally {
@@ -440,13 +447,13 @@ export default function CompaniesPage() {
     <div>
       {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Bedrijven</h1>
+        <h1 className="page-title">{t('companies.title')}</h1>
         <button
           onClick={() => setShowCreateModal(true)}
           className="btn-primary"
         >
           <PlusIcon className="w-5 h-5 mr-2" />
-          Nieuw bedrijf
+          {t('companies.newCompany')}
         </button>
       </div>
 
@@ -475,7 +482,7 @@ export default function CompaniesPage() {
             {/* Search */}
             <div className="flex-1 min-w-64">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Zoeken
+                {t('common.search')}
               </label>
               <div className="relative">
                 <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -483,7 +490,7 @@ export default function CompaniesPage() {
                   type="text"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                  placeholder="Zoek op naam, KVK, contactpersoon..."
+                  placeholder={t('companies.searchCompanies')}
                   className="input pl-10"
                 />
               </div>
@@ -493,7 +500,7 @@ export default function CompaniesPage() {
             <button
               onClick={() => fetchCompanies()}
               className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-              title="Vernieuwen"
+              title={t('common.refresh')}
             >
               <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -512,25 +519,25 @@ export default function CompaniesPage() {
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('naam')}
                 >
-                  Bedrijf <SortIcon field="naam" />
+                  {t('companies.companyName')} <SortIcon field="naam" />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  KVK
+                  {t('companies.kvkNumber')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Contactpersoon
+                  {t('companies.contactPerson')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Contact
+                  {t('companies.contact')}
                 </th>
                 <th 
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('stad')}
                 >
-                  Locatie <SortIcon field="stad" />
+                  {t('companies.location')} <SortIcon field="stad" />
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                  Acties
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -540,7 +547,7 @@ export default function CompaniesPage() {
                   <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
                     <div className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                      <span className="ml-3">Laden...</span>
+                      <span className="ml-3">{t('common.loading')}</span>
                     </div>
                   </td>
                 </tr>
@@ -548,12 +555,12 @@ export default function CompaniesPage() {
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
                     <BuildingOfficeIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                    <p>Geen bedrijven gevonden</p>
+                    <p>{t('companies.noCompanies')}</p>
                     <button
                       onClick={() => setShowCreateModal(true)}
                       className="mt-2 text-primary-600 hover:text-primary-700"
                     >
-                      Voeg je eerste bedrijf toe
+                      {t('companies.addFirstCompany')}
                     </button>
                   </td>
                 </tr>

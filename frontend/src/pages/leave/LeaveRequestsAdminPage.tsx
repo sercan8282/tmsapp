@@ -3,6 +3,7 @@
  * Admin interface for approving/rejecting/editing leave requests
  */
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   CheckIcon,
   XMarkIcon,
@@ -24,30 +25,31 @@ import {
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected'
 
-const STATUS_BADGES = {
+const getStatusBadges = (t: (key: string) => string) => ({
   pending: {
     icon: ClockIcon,
-    label: 'In afwachting',
+    label: t('leave.pending'),
     className: 'bg-yellow-100 text-yellow-700',
   },
   approved: {
     icon: CheckCircleIcon,
-    label: 'Goedgekeurd',
+    label: t('leave.approved'),
     className: 'bg-green-100 text-green-700',
   },
   rejected: {
     icon: XCircleIcon,
-    label: 'Afgewezen',
+    label: t('leave.rejected'),
     className: 'bg-red-100 text-red-700',
   },
   cancelled: {
     icon: XMarkIcon,
-    label: 'Geannuleerd',
+    label: t('leave.cancelled'),
     className: 'bg-gray-100 text-gray-700',
   },
-}
+})
 
 export default function LeaveRequestsAdminPage() {
+  const { t } = useTranslation()
   const [requests, setRequests] = useState<LeaveRequest[]>([])
   const [filteredRequests, setFilteredRequests] = useState<LeaveRequest[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending')
@@ -82,7 +84,7 @@ export default function LeaveRequestsAdminPage() {
       data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       setRequests(data)
     } catch (err: any) {
-      setError(err.message || 'Er is iets misgegaan')
+      setError(err.message || t('common.error'))
     } finally {
       setIsLoading(false)
     }
@@ -101,14 +103,14 @@ export default function LeaveRequestsAdminPage() {
       
       if (action === 'delete') {
         setRequests(requests.filter(r => r.id !== requestId))
-        showSuccess('Verlofaanvraag verwijderd')
+        showSuccess(t('leave.requestDeleted'))
       } else {
         // Refetch to get updated status
         await fetchRequests()
-        showSuccess(action === 'approve' ? 'Verlof goedgekeurd' : 'Verlof afgewezen')
+        showSuccess(action === 'approve' ? t('leave.requestApproved') : t('leave.requestRejected'))
       }
     } catch (err: any) {
-      setError(err.message || `Kon actie niet uitvoeren`)
+      setError(err.message || t('leave.actionError'))
     } finally {
       setIsProcessing(null)
     }
@@ -139,9 +141,9 @@ export default function LeaveRequestsAdminPage() {
       await adminUpdateLeaveRequest(editingRequest.id, editForm)
       await fetchRequests()
       closeEditModal()
-      showSuccess('Verlofaanvraag bijgewerkt')
+      showSuccess(t('leave.requestUpdated'))
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Kon niet opslaan')
+      setError(err.response?.data?.error || err.message || t('leave.saveError'))
     } finally {
       setIsSaving(false)
     }
@@ -169,12 +171,12 @@ export default function LeaveRequestsAdminPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Verlofaanvragen</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('leave.adminRequests')}</h1>
           <p className="text-gray-500">
             {pendingCount > 0 ? (
-              <span className="text-yellow-600 font-medium">{pendingCount} aanvragen wachten op goedkeuring</span>
+              <span className="text-yellow-600 font-medium">{t('leave.pendingRequests', { count: pendingCount })}</span>
             ) : (
-              'Alle aanvragen zijn verwerkt'
+              t('leave.allRequestsProcessed')
             )}
           </p>
         </div>
@@ -198,10 +200,10 @@ export default function LeaveRequestsAdminPage() {
           <FunnelIcon className="w-5 h-5 text-gray-400" />
           <div className="flex flex-wrap gap-2">
             {[
-              { value: 'all', label: 'Alle', count: requests.length },
-              { value: 'pending', label: 'In afwachting', count: pendingCount },
-              { value: 'approved', label: 'Goedgekeurd', count: approvedCount },
-              { value: 'rejected', label: 'Afgewezen', count: rejectedCount },
+              { value: 'all', label: t('common.all'), count: requests.length },
+              { value: 'pending', label: t('leave.pending'), count: pendingCount },
+              { value: 'approved', label: t('leave.approved'), count: approvedCount },
+              { value: 'rejected', label: t('leave.rejected'), count: rejectedCount },
             ].map((filter) => (
               <button
                 key={filter.value}
@@ -233,11 +235,12 @@ export default function LeaveRequestsAdminPage() {
         {filteredRequests.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <ClockIcon className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">Geen aanvragen gevonden</p>
+            <p className="text-gray-500">{t('leave.noRequests')}</p>
           </div>
         ) : (
           <div className="divide-y">
             {filteredRequests.map((request) => {
+              const STATUS_BADGES = getStatusBadges(t)
               const statusInfo = STATUS_BADGES[request.status as keyof typeof STATUS_BADGES] || STATUS_BADGES.pending
               const StatusIcon = statusInfo.icon
               const isCurrentProcessing = isProcessing === request.id
@@ -256,11 +259,11 @@ export default function LeaveRequestsAdminPage() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
                         <div>
-                          <span className="text-gray-500">Type:</span>{' '}
+                          <span className="text-gray-500">{t('leave.leaveType')}:</span>{' '}
                           <span className="text-gray-900">{getLeaveTypeLabel(request.leave_type)}</span>
                         </div>
                         <div>
-                          <span className="text-gray-500">Periode:</span>{' '}
+                          <span className="text-gray-500">{t('leave.period')}:</span>{' '}
                           <span className="text-gray-900">
                             {new Date(request.start_date).toLocaleDateString('nl-NL')}
                             {request.start_date !== request.end_date && (
@@ -269,22 +272,22 @@ export default function LeaveRequestsAdminPage() {
                           </span>
                         </div>
                         <div>
-                          <span className="text-gray-500">Uren:</span>{' '}
-                          <span className="text-gray-900 font-medium">{request.hours || request.hours_requested} uur</span>
+                          <span className="text-gray-500">{t('leave.hours')}:</span>{' '}
+                          <span className="text-gray-900 font-medium">{request.hours || request.hours_requested} {t('timeEntries.hour')}</span>
                         </div>
                       </div>
                       {(request.notes || request.reason) && (
                         <p className="text-sm text-gray-600 mt-2">
-                          <span className="text-gray-500">Opmerking:</span> {request.notes || request.reason}
+                          <span className="text-gray-500">{t('leave.comment')}:</span> {request.notes || request.reason}
                         </p>
                       )}
                       {request.admin_comment && (
                         <p className="text-sm text-gray-600 mt-1">
-                          <span className="text-gray-500">Admin opmerking:</span> {request.admin_comment}
+                          <span className="text-gray-500">{t('leave.adminComment')}:</span> {request.admin_comment}
                         </p>
                       )}
                       <p className="text-xs text-gray-400 mt-2">
-                        Aangevraagd op {new Date(request.created_at).toLocaleString('nl-NL')}
+                        {t('leave.requestedOn')} {new Date(request.created_at).toLocaleString('nl-NL')}
                       </p>
                     </div>
 
@@ -295,10 +298,10 @@ export default function LeaveRequestsAdminPage() {
                         <button
                           onClick={() => openEditModal(request)}
                           className="btn btn-secondary flex items-center gap-2"
-                          title="Bewerken"
+                          title={t('common.edit')}
                         >
                           <PencilIcon className="w-4 h-4" />
-                          Bewerken
+                          {t('common.edit')}
                         </button>
                       )}
                       
@@ -310,7 +313,7 @@ export default function LeaveRequestsAdminPage() {
                             className="btn btn-primary flex items-center gap-2"
                           >
                             <CheckIcon className="w-4 h-4" />
-                            Goedkeuren
+                            {t('leave.approve')}
                           </button>
                           <button
                             onClick={() => handleAction(request.id, 'reject')}
@@ -318,14 +321,14 @@ export default function LeaveRequestsAdminPage() {
                             className="btn btn-secondary flex items-center gap-2"
                           >
                             <XMarkIcon className="w-4 h-4" />
-                            Afwijzen
+                            {t('leave.reject')}
                           </button>
                         </>
                       )}
                       {request.status === 'approved' && (
                         <button
                           onClick={() => {
-                            if (confirm('Weet je zeker dat je dit goedgekeurde verlof wilt verwijderen? De uren worden teruggestort.')) {
+                            if (confirm(t('leave.deleteConfirmation'))) {
                               handleAction(request.id, 'delete')
                             }
                           }}
@@ -333,7 +336,7 @@ export default function LeaveRequestsAdminPage() {
                           className="btn btn-secondary flex items-center gap-2 text-red-600 hover:text-red-700"
                         >
                           <TrashIcon className="w-4 h-4" />
-                          Verwijderen
+                          {t('common.delete')}
                         </button>
                       )}
                     </div>
@@ -352,7 +355,7 @@ export default function LeaveRequestsAdminPage() {
             <div className="fixed inset-0 bg-black/30" onClick={closeEditModal} />
             <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Verlofaanvraag bewerken
+                {t('leave.editRequest')}
               </h2>
               <p className="text-sm text-gray-500 mb-4">
                 {editingRequest.user_naam}
@@ -362,7 +365,7 @@ export default function LeaveRequestsAdminPage() {
                 {/* Leave Type */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type verlof
+                    {t('leave.leaveType')}
                   </label>
                   <select
                     value={editForm.leave_type || ''}
@@ -381,7 +384,7 @@ export default function LeaveRequestsAdminPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Startdatum
+                      {t('leave.startDate')}
                     </label>
                     <input
                       type="date"
@@ -392,7 +395,7 @@ export default function LeaveRequestsAdminPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Einddatum
+                      {t('leave.endDate')}
                     </label>
                     <input
                       type="date"
@@ -406,7 +409,7 @@ export default function LeaveRequestsAdminPage() {
                 {/* Hours */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Aantal uren
+                    {t('leave.hoursRequested')}
                   </label>
                   <input
                     type="number"
@@ -421,7 +424,7 @@ export default function LeaveRequestsAdminPage() {
                 {/* Reason */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Opmerking
+                    {t('leave.comment')}
                   </label>
                   <textarea
                     value={editForm.reason || ''}
@@ -438,14 +441,14 @@ export default function LeaveRequestsAdminPage() {
                   className="btn btn-secondary"
                   disabled={isSaving}
                 >
-                  Annuleren
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleSaveEdit}
                   className="btn btn-primary"
                   disabled={isSaving}
                 >
-                  {isSaving ? 'Opslaan...' : 'Opslaan'}
+                  {isSaving ? t('common.saving') : t('common.save')}
                 </button>
               </div>
             </div>

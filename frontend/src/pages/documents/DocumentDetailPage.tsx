@@ -3,6 +3,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   DocumentIcon,
   ArrowDownTrayIcon,
@@ -26,6 +27,7 @@ import {
 export default function DocumentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [document, setDocument] = useState<SignedDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +90,7 @@ export default function DocumentDetailPage() {
       setDocument(data);
       setError(null);
     } catch (err) {
-      setError('Kon document niet laden');
+      setError(t('errors.loadError', 'Kon document niet laden'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -96,7 +98,7 @@ export default function DocumentDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Weet je zeker dat je dit document wilt verwijderen?')) {
+    if (!confirm(t('documents.deleteConfirm'))) {
       return;
     }
 
@@ -105,7 +107,7 @@ export default function DocumentDetailPage() {
       navigate('/documents');
     } catch (err) {
       console.error('Fout bij verwijderen:', err);
-      alert('Kon document niet verwijderen');
+      alert(t('errors.deleteError', 'Kon document niet verwijderen'));
     }
   };
 
@@ -130,7 +132,7 @@ export default function DocumentDetailPage() {
       window.document.body.removeChild(a);
     } catch (err) {
       console.error('Download error:', err);
-      alert('Kon bestand niet downloaden');
+      alert(t('errors.downloadError', 'Kon bestand niet downloaden'));
     } finally {
       setDownloading(false);
     }
@@ -138,7 +140,7 @@ export default function DocumentDetailPage() {
 
   const openEmailModal = () => {
     setEmailAddress('');
-    setEmailSubject(document ? `Ondertekend document: ${document.title}` : '');
+    setEmailSubject(document ? t('documents.signedDocumentSubject', { title: document.title, defaultValue: `Ondertekend document: ${document.title}` }) : '');
     setEmailMessage('');
     setEmailError(null);
     setEmailSuccess(null);
@@ -166,7 +168,7 @@ export default function DocumentDetailPage() {
       }, 2000);
     } catch (err: any) {
       console.error('Email error:', err);
-      setEmailError(err.response?.data?.error || 'Kon e-mail niet verzenden');
+      setEmailError(err.response?.data?.error || t('errors.emailError', 'Kon e-mail niet verzenden'));
     } finally {
       setSendingEmail(false);
     }
@@ -194,9 +196,9 @@ export default function DocumentDetailPage() {
   if (error || !document) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">{error || 'Document niet gevonden'}</p>
+        <p className="text-red-600">{error || t('documents.notFound', 'Document niet gevonden')}</p>
         <Link to="/documents" className="mt-4 text-blue-600 hover:text-blue-800">
-          Terug naar documenten
+          {t('documents.backToDocuments', 'Terug naar documenten')}
         </Link>
       </div>
     );
@@ -210,7 +212,7 @@ export default function DocumentDetailPage() {
         className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
       >
         <ArrowLeftIcon className="h-4 w-4 mr-1" />
-        Terug naar documenten
+        {t('documents.backToDocuments', 'Terug naar documenten')}
       </Link>
 
       {/* Header */}
@@ -230,12 +232,12 @@ export default function DocumentDetailPage() {
             {document.status === 'pending' ? (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
                 <ClockIcon className="h-4 w-4 mr-1" />
-                Wacht op handtekening
+                {t('documents.signatureRequired')}
               </span>
             ) : (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                 <CheckCircleIcon className="h-4 w-4 mr-1" />
-                Ondertekend
+                {t('documents.signed')}
               </span>
             )}
           </div>
@@ -244,21 +246,21 @@ export default function DocumentDetailPage() {
         {/* Info grid */}
         <div className="mt-6 grid grid-cols-2 gap-4 border-t pt-4">
           <div>
-            <dt className="text-sm font-medium text-gray-500">Geüpload door</dt>
+            <dt className="text-sm font-medium text-gray-500">{t('documents.uploadedBy')}</dt>
             <dd className="mt-1 text-sm text-gray-900">{document.uploaded_by_name}</dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-gray-500">Geüpload op</dt>
+            <dt className="text-sm font-medium text-gray-500">{t('documents.uploadDate')}</dt>
             <dd className="mt-1 text-sm text-gray-900">{formatDate(document.created_at)}</dd>
           </div>
           {document.signed_by_name && (
             <>
               <div>
-                <dt className="text-sm font-medium text-gray-500">Ondertekend door</dt>
+                <dt className="text-sm font-medium text-gray-500">{t('documents.signedBy', 'Ondertekend door')}</dt>
                 <dd className="mt-1 text-sm text-gray-900">{document.signed_by_name}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-gray-500">Ondertekend op</dt>
+                <dt className="text-sm font-medium text-gray-500">{t('documents.signedOn', 'Ondertekend op')}</dt>
                 <dd className="mt-1 text-sm text-gray-900">{formatDate(document.signed_at)}</dd>
               </div>
             </>
@@ -268,7 +270,7 @@ export default function DocumentDetailPage() {
         {/* Signature details */}
         {document.signature_data && (
           <div className="mt-4 border-t pt-4">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Handtekening details</h3>
+            <h3 className="text-sm font-medium text-gray-500 mb-2">{t('documents.signatureDetails', 'Handtekening details')}</h3>
             <div className="text-sm text-gray-600">
               Pagina {document.signature_data.page}, positie ({document.signature_data.x.toFixed(1)}%, {document.signature_data.y.toFixed(1)}%)
             </div>
@@ -278,7 +280,7 @@ export default function DocumentDetailPage() {
 
       {/* Actions */}
       <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Acties</h2>
+        <h2 className="text-lg font-medium text-gray-900 mb-4">{t('common.actions')}</h2>
         <div className="flex flex-wrap gap-3">
           {document.status === 'pending' && (
             <Link
@@ -286,7 +288,7 @@ export default function DocumentDetailPage() {
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
             >
               <PencilSquareIcon className="h-5 w-5 mr-2" />
-              Ondertekenen
+              {t('documents.sign')}
             </Link>
           )}
           
@@ -298,7 +300,7 @@ export default function DocumentDetailPage() {
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
               >
                 <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-                Download ondertekend
+                {t('documents.downloadSigned', 'Download ondertekend')}
               </button>
               
               <button
@@ -306,7 +308,7 @@ export default function DocumentDetailPage() {
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
               >
                 <EnvelopeIcon className="h-5 w-5 mr-2" />
-                E-mail verzenden
+                {t('documents.sendEmail', 'E-mail verzenden')}
               </button>
               
               <Link
@@ -314,7 +316,7 @@ export default function DocumentDetailPage() {
                 className="inline-flex items-center px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-white hover:bg-blue-50"
               >
                 <PencilSquareIcon className="h-5 w-5 mr-2" />
-                Opnieuw ondertekenen
+                {t('documents.resignDocument', 'Opnieuw ondertekenen')}
               </Link>
             </>
           )}
@@ -325,7 +327,7 @@ export default function DocumentDetailPage() {
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
           >
             <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-            Download origineel
+            {t('documents.downloadOriginal', 'Download origineel')}
           </button>
           
           <button
@@ -333,7 +335,7 @@ export default function DocumentDetailPage() {
             className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50"
           >
             <TrashIcon className="h-5 w-5 mr-2" />
-            Verwijderen
+            {t('common.delete')}
           </button>
         </div>
       </div>
@@ -344,7 +346,7 @@ export default function DocumentDetailPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-medium text-gray-900">
-                Document e-mailen
+                {t('documents.emailDocument', 'Document e-mailen')}
               </h3>
               <button
                 onClick={() => setShowEmailModal(false)}
@@ -369,7 +371,7 @@ export default function DocumentDetailPage() {
               
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  E-mailadres *
+                  {t('common.email')} *
                 </label>
                 <input
                   type="email"
@@ -378,13 +380,13 @@ export default function DocumentDetailPage() {
                   onChange={(e) => setEmailAddress(e.target.value)}
                   required
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  placeholder="ontvanger@voorbeeld.nl"
+                  placeholder={t('documents.emailPlaceholder', 'ontvanger@voorbeeld.nl')}
                 />
               </div>
               
               <div>
                 <label htmlFor="subject" className="block text-sm font-medium text-gray-700">
-                  Onderwerp
+                  {t('documents.subject', 'Onderwerp')}
                 </label>
                 <input
                   type="text"
@@ -397,7 +399,7 @@ export default function DocumentDetailPage() {
               
               <div>
                 <label htmlFor="message" className="block text-sm font-medium text-gray-700">
-                  Bericht (optioneel)
+                  {t('documents.messageOptional', 'Bericht (optioneel)')}
                 </label>
                 <textarea
                   id="message"
@@ -405,7 +407,7 @@ export default function DocumentDetailPage() {
                   onChange={(e) => setEmailMessage(e.target.value)}
                   rows={3}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  placeholder="Voeg een persoonlijk bericht toe..."
+                  placeholder={t('documents.messagePlaceholder', 'Voeg een persoonlijk bericht toe...')}
                 />
               </div>
               
@@ -415,7 +417,7 @@ export default function DocumentDetailPage() {
                   onClick={() => setShowEmailModal(false)}
                   className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                 >
-                  Annuleren
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -425,12 +427,12 @@ export default function DocumentDetailPage() {
                   {sendingEmail ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Verzenden...
+                      {t('common.sending')}
                     </>
                   ) : (
                     <>
                       <EnvelopeIcon className="h-5 w-5 mr-2" />
-                      Verzenden
+                      {t('common.send')}
                     </>
                   )}
                 </button>
@@ -442,7 +444,7 @@ export default function DocumentDetailPage() {
 
       {/* Preview section */}
       <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Preview</h2>
+        <h2 className="text-lg font-medium text-gray-900 mb-4">{t('common.preview')}</h2>
         <div className="border rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center min-h-96">
           {pdfBlobUrl ? (
             <iframe

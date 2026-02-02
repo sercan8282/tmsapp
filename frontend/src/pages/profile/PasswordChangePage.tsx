@@ -4,6 +4,7 @@
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   KeyIcon,
   ArrowLeftIcon,
@@ -15,6 +16,7 @@ import {
 import { authApi } from '@/api/auth'
 
 export default function PasswordChangePage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   
   const [formData, setFormData] = useState({
@@ -36,12 +38,12 @@ export default function PasswordChangePage() {
     
     // Validation
     if (formData.new_password !== formData.new_password_confirm) {
-      setError('Nieuwe wachtwoorden komen niet overeen')
+      setError(t('auth.passwordMismatch'))
       return
     }
     
     if (formData.new_password.length < 8) {
-      setError('Nieuw wachtwoord moet minimaal 8 tekens bevatten')
+      setError(t('profile.passwordRequirements'))
       return
     }
     
@@ -65,7 +67,7 @@ export default function PasswordChangePage() {
       } else if (errorData?.error) {
         setError(errorData.error)
       } else {
-        setError('Kon wachtwoord niet wijzigen')
+        setError(t('errors.saveFailed'))
       }
     } finally {
       setLoading(false)
@@ -79,10 +81,10 @@ export default function PasswordChangePage() {
           <div className="p-6 text-center">
             <CheckCircleIcon className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Wachtwoord gewijzigd!
+              {t('auth.passwordChanged')}
             </h2>
             <p className="text-gray-500">
-              Je wachtwoord is succesvol gewijzigd. Je wordt doorgestuurd...
+              {t('auth.passwordChanged')}
             </p>
           </div>
         </div>
@@ -99,11 +101,11 @@ export default function PasswordChangePage() {
           className="flex items-center text-gray-500 hover:text-gray-700 mb-4"
         >
           <ArrowLeftIcon className="h-5 w-5 mr-1" />
-          Terug
+          {t('common.back')}
         </button>
         <div className="flex items-center gap-3">
           <KeyIcon className="h-8 w-8 text-primary-500" />
-          <h1 className="text-2xl font-bold text-gray-900">Wachtwoord wijzigen</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('profile.changePassword')}</h1>
         </div>
       </div>
 
@@ -120,7 +122,7 @@ export default function PasswordChangePage() {
           {/* Current Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Huidig wachtwoord
+              {t('profile.currentPassword')}
             </label>
             <div className="relative">
               <input
@@ -148,7 +150,7 @@ export default function PasswordChangePage() {
           {/* New Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nieuw wachtwoord
+              {t('profile.newPassword')}
             </label>
             <div className="relative">
               <input
@@ -173,14 +175,14 @@ export default function PasswordChangePage() {
               </button>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Minimaal 8 tekens, niet te veel gelijkend op je e-mailadres
+              {t('profile.passwordRequirements')}
             </p>
           </div>
 
           {/* Confirm New Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Bevestig nieuw wachtwoord
+              {t('profile.confirmPassword')}
             </label>
             <div className="relative">
               <input
@@ -213,14 +215,14 @@ export default function PasswordChangePage() {
               onClick={() => navigate(-1)}
               className="btn-secondary flex-1"
             >
-              Annuleren
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={loading}
               className="btn-primary flex-1"
             >
-              {loading ? 'Bezig...' : 'Wachtwoord wijzigen'}
+              {loading ? t('common.saving') : t('profile.changePassword')}
             </button>
           </div>
         </form>

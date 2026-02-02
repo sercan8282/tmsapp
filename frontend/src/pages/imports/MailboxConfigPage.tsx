@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Save, Loader2, TestTube, CheckCircle, XCircle, Eye, EyeOff, FolderOpen } from 'lucide-react';
@@ -13,6 +14,7 @@ import {
 } from '../../api/emailImport';
 
 const MailboxConfigPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
@@ -161,7 +163,7 @@ const MailboxConfigPage: React.FC = () => {
   // Load folders function
   const loadFolders = async () => {
     if (isNew || !id) {
-      setFoldersError('Sla de configuratie eerst op om mappen te laden');
+      setFoldersError(t('imports.saveFirstToLoadFolders', 'Sla de configuratie eerst op om mappen te laden'));
       return;
     }
     
@@ -173,10 +175,10 @@ const MailboxConfigPage: React.FC = () => {
       if (result.success) {
         setFolders(result.folders);
       } else {
-        setFoldersError(result.message || 'Kon mappen niet laden');
+        setFoldersError(result.message || t('imports.couldNotLoadFolders', 'Kon mappen niet laden'));
       }
     } catch (error: any) {
-      setFoldersError(error.message || 'Kon mappen niet laden');
+      setFoldersError(error.message || t('imports.couldNotLoadFolders', 'Kon mappen niet laden'));
     } finally {
       setFoldersLoading(false);
     }
@@ -252,13 +254,13 @@ const MailboxConfigPage: React.FC = () => {
           className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          Terug naar E-mail Import
+          {t('imports.backToEmailImport', 'Terug naar E-mail Import')}
         </button>
         <h1 className="text-2xl font-bold text-gray-900">
-          {isNew ? 'Nieuwe Mailbox Configuratie' : 'Mailbox Configuratie Bewerken'}
+          {isNew ? t('imports.newMailboxConfig', 'Nieuwe Mailbox Configuratie') : t('imports.editMailboxConfig', 'Mailbox Configuratie Bewerken')}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Configureer een shared mailbox om facturen uit te lezen
+          {t('imports.configureMailbox', 'Configureer een shared mailbox om facturen uit te lezen')}
         </p>
       </div>
 
@@ -273,12 +275,12 @@ const MailboxConfigPage: React.FC = () => {
 
         {/* Basic Info */}
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Algemene Instellingen</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">{t('imports.generalSettings', 'Algemene Instellingen')}</h2>
 
           <div className="grid grid-cols-1 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Naam <span className="text-red-500">*</span>
+                {t('common.name')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -293,7 +295,7 @@ const MailboxConfigPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Beschrijving</label>
+              <label className="block text-sm font-medium text-gray-700">{t('common.description')}</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => handleChange('description', e.target.value)}
@@ -305,7 +307,7 @@ const MailboxConfigPage: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                E-mail Adres (Shared Mailbox) <span className="text-red-500">*</span>
+                {t('imports.sharedMailboxEmail', 'E-mail Adres (Shared Mailbox)')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
@@ -320,7 +322,7 @@ const MailboxConfigPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Protocol</label>
+              <label className="block text-sm font-medium text-gray-700">{t('imports.protocol', 'Protocol')}</label>
               <select
                 value={formData.protocol}
                 onChange={(e) => handleChange('protocol', e.target.value)}
@@ -331,8 +333,8 @@ const MailboxConfigPage: React.FC = () => {
               </select>
               <p className="mt-1 text-xs text-gray-500">
                 {formData.protocol === 'imap'
-                  ? 'Gebruik IMAP voor traditionele e-mail servers of Microsoft 365 met app-wachtwoord'
-                  : 'Gebruik OAuth voor Microsoft 365 met client credentials flow'}
+                  ? t('imports.imapDescription', 'Gebruik IMAP voor traditionele e-mail servers of Microsoft 365 met app-wachtwoord')
+                  : t('imports.ms365Description', 'Gebruik OAuth voor Microsoft 365 met client credentials flow')}
               </p>
             </div>
           </div>
@@ -341,12 +343,12 @@ const MailboxConfigPage: React.FC = () => {
         {/* IMAP Settings */}
         {formData.protocol === 'imap' && (
           <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">IMAP Instellingen</h2>
+            <h2 className="text-lg font-medium text-gray-900 mb-4">{t('imports.imapSettings', 'IMAP Instellingen')}</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  IMAP Server <span className="text-red-500">*</span>
+                  {t('imports.imapServer', 'IMAP Server')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -361,7 +363,7 @@ const MailboxConfigPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Poort</label>
+                <label className="block text-sm font-medium text-gray-700">{t('imports.port', 'Poort')}</label>
                 <input
                   type="number"
                   value={formData.imap_port}
@@ -378,13 +380,13 @@ const MailboxConfigPage: React.FC = () => {
                     onChange={(e) => handleChange('imap_use_ssl', e.target.checked)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700">SSL/TLS gebruiken</span>
+                  <span className="text-sm text-gray-700">{t('imports.useSSL', 'SSL/TLS gebruiken')}</span>
                 </label>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Gebruikersnaam {isNew && <span className="text-red-500">*</span>}
+                  {t('imports.username', 'Gebruikersnaam')} {isNew && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"
@@ -394,13 +396,13 @@ const MailboxConfigPage: React.FC = () => {
                   placeholder="gebruiker@bedrijf.nl"
                 />
                 {!isNew && existingConfig?.has_credentials && (
-                  <p className="mt-1 text-xs text-gray-500">Laat leeg om huidige waarde te behouden</p>
+                  <p className="mt-1 text-xs text-gray-500">{t('imports.leaveEmptyToKeep', 'Laat leeg om huidige waarde te behouden')}</p>
                 )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Wachtwoord {isNew && <span className="text-red-500">*</span>}
+                  {t('imports.password', 'Wachtwoord')} {isNew && <span className="text-red-500">*</span>}
                 </label>
                 <div className="relative">
                   <input
@@ -433,7 +435,7 @@ const MailboxConfigPage: React.FC = () => {
         {/* Microsoft 365 Settings */}
         {formData.protocol === 'ms365' && (
           <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Microsoft 365 OAuth Instellingen</h2>
+            <h2 className="text-lg font-medium text-gray-900 mb-4">{t('imports.ms365OAuthSettings', 'Microsoft 365 OAuth Instellingen')}</h2>
 
             <div className="grid grid-cols-1 gap-6">
               <div>
@@ -501,11 +503,11 @@ const MailboxConfigPage: React.FC = () => {
 
             <div className="mt-4 p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Let op:</strong> Zorg dat de Azure App Registration de volgende API permissions heeft:
+                <strong>{t('imports.note', 'Let op')}:</strong> {t('imports.ms365PermissionsNote', 'Zorg dat de Azure App Registration de volgende API permissions heeft:')}
               </p>
               <ul className="mt-2 text-sm text-blue-700 list-disc list-inside">
                 <li>Mail.Read (Application)</li>
-                <li>Mail.ReadWrite (Application) - indien mails verplaatst moeten worden</li>
+                <li>Mail.ReadWrite (Application) - {t('imports.ifMailsMoved', 'indien mails verplaatst moeten worden')}</li>
               </ul>
             </div>
           </div>
@@ -513,27 +515,27 @@ const MailboxConfigPage: React.FC = () => {
 
         {/* Processing Settings */}
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Verwerking Instellingen</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">{t('imports.processingSettings', 'Verwerking Instellingen')}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Standaard Factuurtype</label>
+              <label className="block text-sm font-medium text-gray-700">{t('imports.defaultInvoiceType', 'Standaard Factuurtype')}</label>
               <select
                 value={formData.default_invoice_type || 'purchase'}
                 onChange={(e) => handleChange('default_invoice_type', e.target.value)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="purchase">Inkoop</option>
-                <option value="credit">Credit</option>
-                <option value="sales">Verkoop</option>
+                <option value="purchase">{t('imports.purchase', 'Inkoop')}</option>
+                <option value="credit">{t('imports.credit', 'Credit')}</option>
+                <option value="sales">{t('imports.sales', 'Verkoop')}</option>
               </select>
               <p className="mt-1 text-xs text-gray-500">
-                Dit type wordt standaard toegepast bij imports uit deze mailbox
+                {t('imports.defaultTypeNote', 'Dit type wordt standaard toegepast bij imports uit deze mailbox')}
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Map om te monitoren</label>
+              <label className="block text-sm font-medium text-gray-700">{t('imports.folderToMonitor', 'Map om te monitoren')}</label>
               <div className="mt-1 flex gap-2">
                 {folders.length > 0 ? (
                   <select
@@ -545,7 +547,7 @@ const MailboxConfigPage: React.FC = () => {
                     }}
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="">Selecteer een map...</option>
+                    <option value="">{t('imports.selectFolder', 'Selecteer een map...')}</option>
                     {folders.map((folder) => (
                       <option key={folder.id} value={folder.id}>
                         {'  '.repeat(folder.depth)}{folder.display_name}
@@ -563,7 +565,7 @@ const MailboxConfigPage: React.FC = () => {
                       placeholder="INBOX"
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      Klik op de map-knop om een andere map te selecteren
+                      {t('imports.clickFolderButton', 'Klik op de map-knop om een andere map te selecteren')}
                     </p>
                   </div>
                 )}
@@ -573,7 +575,7 @@ const MailboxConfigPage: React.FC = () => {
                     onClick={loadFolders}
                     disabled={foldersLoading}
                     className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    title="Mappen laden"
+                    title={t('imports.loadFolders', 'Mappen laden')}
                   >
                     {foldersLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -587,12 +589,12 @@ const MailboxConfigPage: React.FC = () => {
                 <p className="mt-1 text-xs text-red-600">{foldersError}</p>
               )}
               {isNew && (
-                <p className="mt-1 text-xs text-gray-500">Sla eerst op om mappen te kunnen laden</p>
+                <p className="mt-1 text-xs text-gray-500">{t('imports.saveFirstToLoadFolders', 'Sla eerst op om mappen te kunnen laden')}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Verplaats naar map (optioneel)</label>
+              <label className="block text-sm font-medium text-gray-700">{t('imports.moveToFolder', 'Verplaats naar map (optioneel)')}</label>
               <div className="mt-1 flex gap-2">
                 {folders.length > 0 ? (
                   <select
@@ -604,7 +606,7 @@ const MailboxConfigPage: React.FC = () => {
                     }}
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="">Niet verplaatsen</option>
+                    <option value="">{t('imports.dontMove', 'Niet verplaatsen')}</option>
                     {folders.map((folder) => (
                       <option key={folder.id} value={folder.id}>
                         {'  '.repeat(folder.depth)}{folder.display_name}
@@ -623,11 +625,11 @@ const MailboxConfigPage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <p className="mt-1 text-xs text-gray-500">Laat leeg om mails in de oorspronkelijke map te laten</p>
+              <p className="mt-1 text-xs text-gray-500">{t('imports.leaveEmptyToKeepInFolder', 'Laat leeg om mails in de oorspronkelijke map te laten')}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Onderwerp filter (optioneel)</label>
+              <label className="block text-sm font-medium text-gray-700">{t('imports.subjectFilter', 'Onderwerp filter (optioneel)')}</label>
               <input
                 type="text"
                 value={formData.subject_filter}
@@ -638,7 +640,7 @@ const MailboxConfigPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Afzender filter (optioneel)</label>
+              <label className="block text-sm font-medium text-gray-700">{t('imports.senderFilter', 'Afzender filter (optioneel)')}</label>
               <input
                 type="text"
                 value={formData.sender_filter}
@@ -656,7 +658,7 @@ const MailboxConfigPage: React.FC = () => {
                   onChange={(e) => handleChange('only_unread', e.target.checked)}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">Alleen ongelezen e-mails verwerken</span>
+                <span className="text-sm text-gray-700">{t('imports.onlyUnread', 'Alleen ongelezen e-mails verwerken')}</span>
               </label>
 
               <label className="flex items-center gap-2">
@@ -666,7 +668,7 @@ const MailboxConfigPage: React.FC = () => {
                   onChange={(e) => handleChange('mark_as_read', e.target.checked)}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">E-mails als gelezen markeren na verwerking</span>
+                <span className="text-sm text-gray-700">{t('imports.markAsReadAfter', 'E-mails als gelezen markeren na verwerking')}</span>
               </label>
             </div>
           </div>
@@ -674,7 +676,7 @@ const MailboxConfigPage: React.FC = () => {
 
         {/* Auto Fetch Settings */}
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Automatisch Ophalen</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">{t('imports.autoFetch', 'Automatisch Ophalen')}</h2>
 
           <div className="space-y-4">
             <label className="flex items-center gap-2">
@@ -684,12 +686,12 @@ const MailboxConfigPage: React.FC = () => {
                 onChange={(e) => handleChange('auto_fetch_enabled', e.target.checked)}
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              <span className="text-sm text-gray-700">Automatisch e-mails ophalen</span>
+              <span className="text-sm text-gray-700">{t('imports.autoFetchEmails', 'Automatisch e-mails ophalen')}</span>
             </label>
 
             {formData.auto_fetch_enabled && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Interval (minuten)</label>
+                <label className="block text-sm font-medium text-gray-700">{t('imports.intervalMinutes', 'Interval (minuten)')}</label>
                 <input
                   type="number"
                   min={5}
@@ -698,7 +700,7 @@ const MailboxConfigPage: React.FC = () => {
                   onChange={(e) => handleChange('auto_fetch_interval_minutes', parseInt(e.target.value))}
                   className="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 />
-                <p className="mt-1 text-xs text-gray-500">Minimaal 5 minuten, maximaal 1440 (24 uur)</p>
+                <p className="mt-1 text-xs text-gray-500">{t('imports.intervalRange', 'Minimaal 5 minuten, maximaal 1440 (24 uur)')}</p>
               </div>
             )}
           </div>
@@ -737,7 +739,7 @@ const MailboxConfigPage: React.FC = () => {
                 ) : (
                   <TestTube className="w-4 h-4" />
                 )}
-                Test Verbinding
+                {t('imports.testConnection')}
               </button>
             )}
           </div>
@@ -748,7 +750,7 @@ const MailboxConfigPage: React.FC = () => {
               onClick={() => navigate('/imports/email')}
               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
             >
-              Annuleren
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -760,7 +762,7 @@ const MailboxConfigPage: React.FC = () => {
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              {isNew ? 'Aanmaken' : 'Opslaan'}
+              {isNew ? t('common.create') : t('common.save')}
             </button>
           </div>
         </div>

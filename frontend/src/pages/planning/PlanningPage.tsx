@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Dialog, Transition } from '@headlessui/react'
 import {
   PlusIcon,
@@ -37,21 +38,21 @@ import { getDriverReport, DriverReport, downloadDriverReportPdf, getDriverReport
 import clsx from '@/utils/clsx'
 
 const DAYS = [
-  { key: 'ma', label: 'Ma', full: 'Maandag' },
-  { key: 'di', label: 'Di', full: 'Dinsdag' },
-  { key: 'wo', label: 'Wo', full: 'Woensdag' },
-  { key: 'do', label: 'Do', full: 'Donderdag' },
-  { key: 'vr', label: 'Vr', full: 'Vrijdag' },
+  { key: 'ma', labelKey: 'planning.mon', fullKey: 'planning.monday' },
+  { key: 'di', labelKey: 'planning.tue', fullKey: 'planning.tuesday' },
+  { key: 'wo', labelKey: 'planning.wed', fullKey: 'planning.wednesday' },
+  { key: 'do', labelKey: 'planning.thu', fullKey: 'planning.thursday' },
+  { key: 'vr', labelKey: 'planning.fri', fullKey: 'planning.friday' },
 ] as const
 
 const ALL_DAYS = [
-  { key: 'ma', label: 'Ma', full: 'Maandag' },
-  { key: 'di', label: 'Di', full: 'Dinsdag' },
-  { key: 'wo', label: 'Wo', full: 'Woensdag' },
-  { key: 'do', label: 'Do', full: 'Donderdag' },
-  { key: 'vr', label: 'Vr', full: 'Vrijdag' },
-  { key: 'za', label: 'Za', full: 'Zaterdag' },
-  { key: 'zo', label: 'Zo', full: 'Zondag' },
+  { key: 'ma', labelKey: 'planning.mon', fullKey: 'planning.monday' },
+  { key: 'di', labelKey: 'planning.tue', fullKey: 'planning.tuesday' },
+  { key: 'wo', labelKey: 'planning.wed', fullKey: 'planning.wednesday' },
+  { key: 'do', labelKey: 'planning.thu', fullKey: 'planning.thursday' },
+  { key: 'vr', labelKey: 'planning.fri', fullKey: 'planning.friday' },
+  { key: 'za', labelKey: 'planning.sat', fullKey: 'planning.saturday' },
+  { key: 'zo', labelKey: 'planning.sun', fullKey: 'planning.sunday' },
 ] as const
 
 // Get current week number helper
@@ -65,6 +66,7 @@ function getCurrentWeekNumber(): number {
 
 // Chauffeur Planning View Component
 function ChauffeurPlanningView() {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [currentWeek, setCurrentWeek] = useState<number>(getCurrentWeekNumber())
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear())
@@ -113,9 +115,9 @@ function ChauffeurPlanningView() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Mijn Planning</h1>
+          <h1 className="page-title">{t('planning.myPlanning')}</h1>
           {chauffeurName && (
-            <p className="text-gray-500 mt-1">Chauffeur: {chauffeurName}</p>
+            <p className="text-gray-500 mt-1">{t('drivers.title')}: {chauffeurName}</p>
           )}
         </div>
       </div>
@@ -133,7 +135,7 @@ function ChauffeurPlanningView() {
             
             <div className="text-center min-w-[200px]">
               <div className="text-2xl font-bold text-gray-900">
-                Week {currentWeek}
+                {t('common.week')} {currentWeek}
               </div>
               <div className="text-sm text-gray-500">{currentYear}</div>
             </div>
@@ -160,7 +162,7 @@ function ChauffeurPlanningView() {
       ) : entries.length === 0 ? (
         <div className="card p-8 text-center">
           <TruckIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">Geen planning voor deze week</p>
+          <p className="text-gray-500">{t('planning.noPlanningForWeek')}</p>
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -170,19 +172,19 @@ function ChauffeurPlanningView() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dag
+                    {t('timeEntries.day')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Voertuig
+                    {t('timeEntries.vehicle')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ritnummer
+                    {t('timeEntries.routeNumber')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
+                    {t('fleet.vehicleType')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Bedrijf
+                    {t('fleet.company')}
                   </th>
                 </tr>
               </thead>
@@ -230,11 +232,11 @@ function ChauffeurPlanningView() {
                 
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="text-gray-600">
-                    <span className="text-gray-500">Ritnummer:</span>{' '}
+                    <span className="text-gray-500">{t('timeEntries.routeNumber')}:</span>{' '}
                     <span className="font-mono font-medium">{entry.ritnummer || '-'}</span>
                   </div>
                   <div className="text-gray-600">
-                    <span className="text-gray-500">Type:</span>{' '}
+                    <span className="text-gray-500">{t('fleet.vehicleType')}:</span>{' '}
                     <span className="font-medium">{entry.voertuig_type}</span>
                   </div>
                 </div>
@@ -249,6 +251,7 @@ function ChauffeurPlanningView() {
 
 // Admin/Manager Planning View
 function AdminPlanningView() {
+  const { t } = useTranslation()
   const isReadOnly = false
   
   // State
@@ -308,7 +311,7 @@ function AdminPlanningView() {
       }
     } catch (err) {
       console.error('Failed to load initial data:', err)
-      setError('Kon data niet laden')
+      setError(t('common.error'))
     } finally {
       setLoading(false)
     }
@@ -364,7 +367,7 @@ function AdminPlanningView() {
       setShowCreateModal(false)
       loadPlanning()
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Kon planning niet aanmaken')
+      setError(err.response?.data?.detail || t('common.error'))
     } finally {
       setSaving(false)
     }
@@ -379,7 +382,7 @@ function AdminPlanningView() {
       setPlanning(null)
       setShowDeleteModal(false)
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Kon planning niet verwijderen')
+      setError(err.response?.data?.detail || t('common.error'))
     } finally {
       setSaving(false)
     }
@@ -398,7 +401,7 @@ function AdminPlanningView() {
       setCurrentWeek(newPlanning.weeknummer)
       setCurrentYear(newPlanning.jaar)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Kon planning niet kopiëren')
+      setError(err.response?.data?.error || t('common.error'))
     } finally {
       setSaving(false)
     }
@@ -422,7 +425,7 @@ function AdminPlanningView() {
         setEmailSuccess(null)
       }, 2000)
     } catch (err: any) {
-      setEmailError(err.response?.data?.error || 'Kon e-mail niet verzenden')
+      setEmailError(err.response?.data?.error || t('common.error'))
     } finally {
       setEmailSending(false)
     }
@@ -434,18 +437,18 @@ function AdminPlanningView() {
       loadPlanning()
       setEditingEntry(null)
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Kon toewijzing niet opslaan')
+      setError(err.response?.data?.detail || t('common.error'))
     }
   }
 
   // Export planning to PDF
   const handleExportPDF = () => {
     if (!planning?.entries || planning.entries.length === 0) {
-      setError('Geen planning data om te exporteren')
+      setError(t('common.noData'))
       return
     }
 
-    const companyName = companies.find(c => c.id === selectedCompany)?.naam || 'Onbekend'
+    const companyName = companies.find(c => c.id === selectedCompany)?.naam || t('common.none')
     
     // Create PDF in landscape mode for better table fit
     const doc = new jsPDF({
@@ -456,10 +459,10 @@ function AdminPlanningView() {
 
     // Title
     doc.setFontSize(18)
-    doc.text(`Weekplanning Week ${currentWeek} - ${currentYear}`, 14, 15)
+    doc.text(`${t('planning.weekPlanning')} ${t('common.week')} ${currentWeek} - ${currentYear}`, 14, 15)
     
     doc.setFontSize(12)
-    doc.text(`Bedrijf: ${companyName}`, 14, 23)
+    doc.text(`${t('fleet.company')}: ${companyName}`, 14, 23)
     
     // Prepare table data
     // Columns: Weeknummer, Dag, Route, Chauffeur, Telefoonnummer, ADR, Kenteken
@@ -601,7 +604,7 @@ function AdminPlanningView() {
     <div className="space-y-6">
       {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Weekplanning</h1>
+        <h1 className="page-title">{t('planning.weekPlanning')}</h1>
         {planning && (
           <div className="flex flex-wrap gap-2">
             <button
@@ -609,7 +612,7 @@ function AdminPlanningView() {
               className="btn-secondary text-sm px-3 py-2"
             >
               <DocumentArrowDownIcon className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Exporteer PDF</span>
+              <span className="hidden sm:inline">{t('planning.export')}</span>
             </button>
             <button
               onClick={() => {
@@ -621,7 +624,7 @@ function AdminPlanningView() {
               className="btn-secondary text-sm px-3 py-2"
             >
               <EnvelopeIcon className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Planning mailen</span>
+              <span className="hidden sm:inline">{t('planning.sendEmail')}</span>
             </button>
             {!isReadOnly && (
               <>
@@ -631,14 +634,14 @@ function AdminPlanningView() {
                   className="btn-secondary text-sm px-3 py-2"
                 >
                   <DocumentDuplicateIcon className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Kopieer naar volgende week</span>
+                  <span className="hidden sm:inline">{t('common.copy')} {t('common.next').toLowerCase()} {t('common.week').toLowerCase()}</span>
                 </button>
                 <button
                   onClick={() => setShowDeleteModal(true)}
                   className="btn-danger text-sm px-3 py-2"
                 >
                   <TrashIcon className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Verwijderen</span>
+                  <span className="hidden sm:inline">{t('common.delete')}</span>
                 </button>
               </>
             )}
@@ -659,14 +662,14 @@ function AdminPlanningView() {
           {/* Company selector */}
           <div className="w-64">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Bedrijf
+              {t('fleet.company')}
             </label>
             <select
               value={selectedCompany}
               onChange={(e) => setSelectedCompany(e.target.value)}
               className="input-field w-full"
             >
-              <option value="">Selecteer...</option>
+              <option value="">{t('common.selectOption')}</option>
               {companies.map((company) => (
                 <option key={company.id} value={company.id}>
                   {company.naam}
@@ -684,7 +687,7 @@ function AdminPlanningView() {
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
             <div className="px-4 py-2 bg-primary-50 rounded-lg font-medium text-primary-700 min-w-[140px] text-center">
-              Week {currentWeek} / {currentYear}
+              {t('common.week')} {currentWeek} / {currentYear}
             </div>
             <button
               onClick={handleNextWeek}
@@ -701,7 +704,7 @@ function AdminPlanningView() {
               className="btn-primary ml-auto"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
-              Planning aanmaken
+              {t('planning.createPlanning')}
             </button>
           )}
         </div>
@@ -716,14 +719,14 @@ function AdminPlanningView() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
-                    Voertuig
+                    {t('timeEntries.vehicle')}
                   </th>
                   {DAYS.map((day) => (
                     <th
                       key={day.key}
                       className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]"
                     >
-                      {day.full}
+                      {t(day.fullKey)}
                     </th>
                   ))}
                 </tr>
@@ -786,7 +789,7 @@ function AdminPlanningView() {
                                 </div>
                               ) : (
                                 <div className="text-xs text-gray-400 text-center">
-                                  {isReadOnly ? 'Niet toegewezen' : 'Klik om toe te wijzen'}
+                                  {isReadOnly ? t('planning.noPlanning') : t('planning.assignDriver')}
                                 </div>
                               )}
                             </div>
@@ -820,7 +823,7 @@ function AdminPlanningView() {
                     
                     return (
                       <div key={day.key} className="text-center">
-                        <div className="text-xs font-medium text-gray-500 mb-1">{day.label}</div>
+                        <div className="text-xs font-medium text-gray-500 mb-1">{t(day.labelKey)}</div>
                         {entry ? (
                           <div
                             onClick={() => !isReadOnly && setEditingEntry(entry.id)}
@@ -865,8 +868,7 @@ function AdminPlanningView() {
           
           {getEntriesByVehicle().length === 0 && (
             <div className="p-8 text-center text-gray-500">
-              Geen voertuigen gevonden voor dit bedrijf.
-              Voeg eerst voertuigen toe in het Vloot beheer.
+              {t('fleet.noVehicles')}
             </div>
           )}
         </div>
@@ -875,10 +877,10 @@ function AdminPlanningView() {
           <div className="p-8 text-center">
             <TruckIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-lg font-medium text-gray-900">
-              Geen planning voor deze week
+              {t('planning.noPlanningForWeek')}
             </h3>
             <p className="mt-1 text-gray-500">
-              Er is nog geen planning aangemaakt voor week {currentWeek} van {currentYear}.
+              {t('planning.noPlanningCreated', { week: currentWeek, year: currentYear })}
             </p>
             {!isReadOnly && (
               <div className="mt-6">
@@ -887,7 +889,7 @@ function AdminPlanningView() {
                   className="btn-primary"
                 >
                   <PlusIcon className="h-5 w-5 mr-2" />
-                  Planning aanmaken
+                  {t('planning.createPlanning')}
                 </button>
               </div>
             )}
@@ -896,7 +898,7 @@ function AdminPlanningView() {
       ) : (
         <div className="card">
           <div className="p-8 text-center text-gray-500">
-            Selecteer eerst een bedrijf om de planning te bekijken.
+            {t('planning.selectCompany')}
           </div>
         </div>
       )}
@@ -930,7 +932,7 @@ function AdminPlanningView() {
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <Dialog.Title className="text-lg font-semibold">
-                      Planning aanmaken
+                      {t('planning.createPlanning')}
                     </Dialog.Title>
                     <button
                       onClick={() => setShowCreateModal(false)}
@@ -942,18 +944,18 @@ function AdminPlanningView() {
 
                   <div className="space-y-4">
                     <p className="text-sm text-gray-600">
-                      Er wordt een nieuwe planning aangemaakt voor:
+                      {t('planning.createPlanning')}:
                     </p>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <dl className="space-y-2">
                         <div className="flex justify-between">
-                          <dt className="text-sm text-gray-500">Bedrijf:</dt>
+                          <dt className="text-sm text-gray-500">{t('fleet.company')}:</dt>
                           <dd className="text-sm font-medium">
                             {companies.find(c => c.id === selectedCompany)?.naam}
                           </dd>
                         </div>
                         <div className="flex justify-between">
-                          <dt className="text-sm text-gray-500">Week:</dt>
+                          <dt className="text-sm text-gray-500">{t('common.week')}:</dt>
                           <dd className="text-sm font-medium">
                             {currentWeek} / {currentYear}
                           </dd>
@@ -961,7 +963,7 @@ function AdminPlanningView() {
                       </dl>
                     </div>
                     <p className="text-sm text-gray-500">
-                      Alle voertuigen van dit bedrijf worden automatisch toegevoegd aan de planning.
+                      {t('common.info')}
                     </p>
                   </div>
 
@@ -971,14 +973,14 @@ function AdminPlanningView() {
                       onClick={() => setShowCreateModal(false)}
                       className="btn-secondary"
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       onClick={handleCreatePlanning}
                       disabled={saving}
                       className="btn-primary"
                     >
-                      {saving ? 'Bezig...' : 'Aanmaken'}
+                      {saving ? t('common.creating') : t('common.create')}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -1021,11 +1023,10 @@ function AdminPlanningView() {
                     </div>
                     <div>
                       <Dialog.Title className="text-lg font-semibold text-gray-900">
-                        Planning verwijderen
+                        {t('common.delete')} {t('planning.title').toLowerCase()}
                       </Dialog.Title>
                       <p className="mt-2 text-sm text-gray-500">
-                        Weet je zeker dat je de planning voor week {currentWeek} / {currentYear} wilt verwijderen?
-                        Alle chauffeur toewijzingen gaan verloren.
+                        {t('common.confirm')} {t('common.week').toLowerCase()} {currentWeek} / {currentYear}?
                       </p>
                     </div>
                   </div>
@@ -1036,14 +1037,14 @@ function AdminPlanningView() {
                       onClick={() => setShowDeleteModal(false)}
                       className="btn-secondary"
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       onClick={handleDeletePlanning}
                       disabled={saving}
                       className="btn-danger"
                     >
-                      {saving ? 'Bezig...' : 'Verwijderen'}
+                      {saving ? t('common.deleting') : t('common.delete')}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -1085,12 +1086,12 @@ function AdminPlanningView() {
                       <EnvelopeIcon className="h-6 w-6 text-primary-600" />
                     </div>
                     <Dialog.Title className="text-lg font-semibold text-gray-900">
-                      Planning mailen
+                      {t('planning.sendEmail')}
                     </Dialog.Title>
                   </div>
                   
                   <p className="text-sm text-gray-500 mb-4">
-                    De planning voor week {currentWeek} wordt als PDF bijlage verzonden.
+                    {t('planning.title')} {t('common.week').toLowerCase()} {currentWeek} PDF.
                   </p>
 
                   {emailSuccess ? (
@@ -1107,14 +1108,14 @@ function AdminPlanningView() {
                       
                       <div className="mb-4">
                         <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                          E-mailadres
+                          {t('common.email')}
                         </label>
                         <input
                           type="email"
                           id="email"
                           value={emailAddress}
                           onChange={(e) => setEmailAddress(e.target.value)}
-                          placeholder="ontvanger@voorbeeld.nl"
+                          placeholder="email@example.com"
                           className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                         />
                       </div>
@@ -1127,7 +1128,7 @@ function AdminPlanningView() {
                       onClick={() => setShowEmailModal(false)}
                       className="btn-secondary"
                     >
-                      {emailSuccess ? 'Sluiten' : 'Annuleren'}
+                      {emailSuccess ? t('common.close') : t('common.cancel')}
                     </button>
                     {!emailSuccess && (
                       <button
@@ -1135,7 +1136,7 @@ function AdminPlanningView() {
                         disabled={emailSending || !emailAddress}
                         className="btn-primary"
                       >
-                        {emailSending ? 'Verzenden...' : 'Verzenden'}
+                        {emailSending ? t('common.sending') : t('common.send')}
                       </button>
                     )}
                   </div>
@@ -1158,6 +1159,7 @@ interface DriverSelectorProps {
 }
 
 function DriverSelector({ drivers, value, onChange, onCancel }: DriverSelectorProps) {
+  const { t } = useTranslation()
   return (
     <div className="relative">
       <select
@@ -1167,7 +1169,7 @@ function DriverSelector({ drivers, value, onChange, onCancel }: DriverSelectorPr
         onBlur={onCancel}
         className="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500"
       >
-        <option value="">-- Niet toegewezen --</option>
+        <option value="">-- {t('planning.noPlanning')} --</option>
         {drivers.map((driver) => (
           <option key={driver.id} value={driver.id}>
             {driver.naam} {driver.adr ? '(ADR)' : ''}
@@ -1180,6 +1182,7 @@ function DriverSelector({ drivers, value, onChange, onCancel }: DriverSelectorPr
 
 // Historie View Component (Admin only)
 function HistorieView() {
+  const { t } = useTranslation()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
@@ -1279,7 +1282,7 @@ function HistorieView() {
           {/* Chauffeur Search */}
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Zoek chauffeur
+              {t('drivers.searchDrivers')}
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -1299,7 +1302,7 @@ function HistorieView() {
                 }}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-                placeholder="Typ om te zoeken..."
+                placeholder={t('common.searchPlaceholder')}
                 className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
               />
               {searchQuery && (
@@ -1334,7 +1337,7 @@ function HistorieView() {
               
               {searchFocused && searchQuery && !selectedDriver && filteredDrivers.length === 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-4 text-center text-gray-500">
-                  Geen chauffeurs gevonden
+                  {t('drivers.noDrivers')}
                 </div>
               )}
             </div>
@@ -1344,14 +1347,14 @@ function HistorieView() {
           {selectedDriver && availableYears.length > 0 && (
             <div className="md:w-48">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Jaar
+                {t('common.year')}
               </label>
               <select
                 value={selectedYear}
                 onChange={(e) => handleYearChange(e.target.value ? parseInt(e.target.value) : '')}
                 className="block w-full py-2 px-3 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
               >
-                <option value="">Alle jaren</option>
+                <option value="">{t('drivers.allYears')}</option>
                 {availableYears.map((year) => (
                   <option key={year} value={year}>
                     {year}
@@ -1367,7 +1370,7 @@ function HistorieView() {
       {loading && (
         <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto" />
-          <p className="mt-4 text-gray-500">Rapport laden...</p>
+          <p className="mt-4 text-gray-500">{t('common.loading')}</p>
         </div>
       )}
 
@@ -1387,14 +1390,14 @@ function HistorieView() {
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-sm text-gray-500">
-                  {report.weeks.length} weken met ritten
+                  {report.weeks.length} {t('drivers.weeksWithTrips')}
                 </span>
                 <button
                   onClick={() => downloadDriverReportPdf(selectedDriver.id.toString(), selectedDriver.naam)}
                   className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700"
                 >
                   <DocumentArrowDownIcon className="h-4 w-4" />
-                  Exporteer PDF
+                  {t('drivers.exportPdf')}
                 </button>
               </div>
             </div>
@@ -1404,7 +1407,7 @@ function HistorieView() {
           {report.weeks.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               <ClockIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>Geen ingediende uren gevonden voor deze chauffeur</p>
+              <p>{t('drivers.noSubmittedHours')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -1412,11 +1415,11 @@ function HistorieView() {
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-100">
-                      Week
+                      {t('common.week')}
                     </th>
                     {ALL_DAYS.map(day => (
                       <th key={day.key} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                        {day.full}
+                        {t(day.fullKey)}
                       </th>
                     ))}
                   </tr>
@@ -1466,8 +1469,8 @@ function HistorieView() {
       {!loading && !selectedDriver && (
         <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
           <MagnifyingGlassIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Selecteer een chauffeur</h3>
-          <p className="text-gray-500">Zoek en selecteer een chauffeur om het rittenrapport te bekijken</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('drivers.selectDriver')}</h3>
+          <p className="text-gray-500">{t('drivers.searchAndSelect')}</p>
         </div>
       )}
     </div>
@@ -1476,6 +1479,7 @@ function HistorieView() {
 
 // Main export - shows different view based on user role
 export default function PlanningPage() {
+  const { t } = useTranslation()
   const { user } = useAuthStore()
   const [activeTab, setActiveTab] = useState<'planning' | 'historie'>('planning')
   
@@ -1504,7 +1508,7 @@ export default function PlanningPage() {
               )}
             >
               <CalendarDaysIcon className="h-5 w-5 inline-block mr-2" />
-              Planning
+              {t('planning.title')}
             </button>
             <button
               onClick={() => setActiveTab('historie')}
@@ -1516,7 +1520,7 @@ export default function PlanningPage() {
               )}
             >
               <ClockIcon className="h-5 w-5 inline-block mr-2" />
-              Historie
+              {t('planning.history')}
             </button>
           </nav>
         </div>

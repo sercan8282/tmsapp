@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { 
   getInvoice, 
@@ -26,6 +27,7 @@ function formatCurrency(value: number): string {
 }
 
 export default function InvoiceEditPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   
@@ -62,7 +64,7 @@ export default function InvoiceEditPage() {
         setBtwPercentage(invoiceData.btw_percentage)
         setOpmerkingen(invoiceData.opmerkingen || '')
       } catch (err) {
-        setError('Kon factuur niet laden')
+        setError(t('errors.loadFailed'))
         console.error(err)
       } finally {
         setIsLoading(false)
@@ -99,20 +101,20 @@ export default function InvoiceEditPage() {
       const updatedLine = await updateInvoiceLine(lineId, updates)
       setLines(lines.map(l => l.id === lineId ? updatedLine : l))
     } catch (err) {
-      toast.error('Regel bijwerken mislukt')
+      toast.error(t('timeEntries.updateFailed'))
     }
   }
 
   // Delete line
   const handleDeleteLine = async (lineId: string) => {
-    if (!confirm('Weet je zeker dat je deze regel wilt verwijderen?')) return
+    if (!confirm(t('invoices.deleteLineConfirm'))) return
     
     try {
       await deleteInvoiceLine(lineId)
       setLines(lines.filter(l => l.id !== lineId))
-      toast.success('Regel verwijderd')
+      toast.success(t('invoices.lineDeleted'))
     } catch (err) {
-      toast.error('Regel verwijderen mislukt')
+      toast.error(t('timeEntries.deleteFailed'))
     }
   }
 
@@ -123,14 +125,14 @@ export default function InvoiceEditPage() {
     try {
       const newLine = await createInvoiceLine({
         invoice: id,
-        omschrijving: 'Nieuwe regel',
+        omschrijving: t('invoices.newLine'),
         aantal: 1,
         prijs_per_eenheid: 0,
       })
       setLines([...lines, newLine])
-      toast.success('Regel toegevoegd')
+      toast.success(t('invoices.lineAdded'))
     } catch (err) {
-      toast.error('Regel toevoegen mislukt')
+      toast.error(t('timeEntries.createError'))
     }
   }
 
@@ -154,11 +156,11 @@ export default function InvoiceEditPage() {
         opmerkingen: opmerkingen || undefined,
       })
       
-      toast.success('Factuur opgeslagen')
+      toast.success(t('invoices.invoiceUpdated'))
       navigate('/invoices')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Kon factuur niet opslaan')
-      toast.error('Opslaan mislukt')
+      setError(err.response?.data?.detail || t('errors.saveFailed'))
+      toast.error(t('errors.saveFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -175,9 +177,9 @@ export default function InvoiceEditPage() {
   if (error || !invoice) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">{error || 'Factuur niet gevonden'}</p>
+        <p className="text-red-600">{error || t('invoices.notFound')}</p>
         <button onClick={() => navigate('/invoices')} className="btn-secondary mt-4">
-          Terug naar overzicht
+          {t('invoices.backToOverview')}
         </button>
       </div>
     )
@@ -196,7 +198,7 @@ export default function InvoiceEditPage() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Factuur {invoice.factuurnummer} bewerken
+              {t('invoices.editInvoice')} {invoice.factuurnummer}
             </h1>
             <p className="text-gray-500">{invoice.bedrijf_naam}</p>
           </div>
@@ -207,14 +209,14 @@ export default function InvoiceEditPage() {
             onClick={() => navigate('/invoices')}
             className="btn-secondary"
           >
-            Annuleren
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
             className="btn-primary"
           >
-            {isSaving ? 'Opslaan...' : 'Opslaan'}
+            {isSaving ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -230,26 +232,26 @@ export default function InvoiceEditPage() {
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Factuurregels</h2>
+              <h2 className="text-lg font-semibold">{t('invoices.lines')}</h2>
               <button
                 onClick={handleAddLine}
                 className="btn-secondary flex items-center gap-2"
               >
                 <PlusIcon className="h-4 w-4" />
-                Regel toevoegen
+                {t('invoices.addLine')}
               </button>
             </div>
 
             {lines.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">Geen factuurregels</p>
+              <p className="text-gray-500 text-center py-8">{t('invoices.noLines')}</p>
             ) : (
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2 text-sm font-medium text-gray-500">Omschrijving</th>
-                    <th className="text-right py-2 text-sm font-medium text-gray-500 w-24">Aantal</th>
-                    <th className="text-right py-2 text-sm font-medium text-gray-500 w-32">Prijs</th>
-                    <th className="text-right py-2 text-sm font-medium text-gray-500 w-32">Totaal</th>
+                    <th className="text-left py-2 text-sm font-medium text-gray-500">{t('invoices.lineDescription')}</th>
+                    <th className="text-right py-2 text-sm font-medium text-gray-500 w-24">{t('common.quantity')}</th>
+                    <th className="text-right py-2 text-sm font-medium text-gray-500 w-32">{t('common.price')}</th>
+                    <th className="text-right py-2 text-sm font-medium text-gray-500 w-32">{t('common.total')}</th>
                     <th className="w-10"></th>
                   </tr>
                 </thead>
@@ -303,15 +305,15 @@ export default function InvoiceEditPage() {
               <div className="flex justify-end">
                 <div className="w-64 space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Subtotaal:</span>
+                    <span className="text-gray-500">{t('invoices.subtotal')}:</span>
                     <span>{formatCurrency(subtotaal)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">BTW ({btwPercentage}%):</span>
+                    <span className="text-gray-500">{t('invoices.vat')} ({btwPercentage}%):</span>
                     <span>{formatCurrency(btw)}</span>
                   </div>
                   <div className="flex justify-between font-medium text-lg border-t pt-2">
-                    <span>Totaal:</span>
+                    <span>{t('common.total')}:</span>
                     <span>{formatCurrency(totaal)}</span>
                   </div>
                 </div>
@@ -323,28 +325,28 @@ export default function InvoiceEditPage() {
         {/* Sidebar - invoice details */}
         <div className="space-y-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold mb-4">Factuurgegevens</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('invoices.invoiceDetails')}</h2>
             
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
+                  {t('common.status')}
                 </label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as Invoice['status'])}
                   className="w-full border rounded-lg px-3 py-2"
                 >
-                  <option value="concept">Concept</option>
-                  <option value="definitief">Definitief</option>
-                  <option value="verzonden">Verzonden</option>
-                  <option value="betaald">Betaald</option>
+                  <option value="concept">{t('invoices.draft')}</option>
+                  <option value="definitief">{t('invoices.definitive')}</option>
+                  <option value="verzonden">{t('invoices.sent')}</option>
+                  <option value="betaald">{t('invoices.paid')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Factuurnummer
+                  {t('invoices.invoiceNumber')}
                 </label>
                 <input
                   type="text"
@@ -356,7 +358,7 @@ export default function InvoiceEditPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Factuurdatum
+                  {t('invoices.invoiceDate')}
                 </label>
                 <input
                   type="date"
@@ -368,7 +370,7 @@ export default function InvoiceEditPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Vervaldatum
+                  {t('invoices.dueDate')}
                 </label>
                 <input
                   type="date"
@@ -380,7 +382,7 @@ export default function InvoiceEditPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  BTW percentage
+                  {t('invoices.vatRate')}
                 </label>
                 <input
                   type="number"
@@ -392,14 +394,14 @@ export default function InvoiceEditPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Opmerkingen
+                  {t('common.notes')}
                 </label>
                 <textarea
                   value={opmerkingen}
                   onChange={(e) => setOpmerkingen(e.target.value)}
                   rows={4}
                   className="w-full border rounded-lg px-3 py-2"
-                  placeholder="Optionele opmerkingen..."
+                  placeholder={t('invoices.optionalNotes')}
                 />
               </div>
             </div>

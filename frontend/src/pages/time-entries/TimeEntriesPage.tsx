@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { 
   PlusIcon, 
   PencilSquareIcon, 
@@ -88,6 +89,8 @@ function ConfirmDialog({
   title,
   message,
   confirmText = 'Bevestigen',
+  cancelText = 'Annuleren',
+  loadingText = 'Bezig...',
   confirmColor = 'red',
   isLoading = false,
 }: {
@@ -97,6 +100,8 @@ function ConfirmDialog({
   title: string
   message: string
   confirmText?: string
+  cancelText?: string
+  loadingText?: string
   confirmColor?: 'red' | 'green' | 'blue'
   isLoading?: boolean
 }) {
@@ -115,14 +120,14 @@ function ConfirmDialog({
           className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           disabled={isLoading}
         >
-          Annuleren
+          {cancelText}
         </button>
         <button
           onClick={onConfirm}
           className={`px-4 py-2 text-white rounded-lg disabled:opacity-50 ${colorClasses[confirmColor]}`}
           disabled={isLoading}
         >
-          {isLoading ? 'Bezig...' : confirmText}
+          {isLoading ? loadingText : confirmText}
         </button>
       </div>
     </Modal>
@@ -136,12 +141,14 @@ function TimeEntryForm({
   onSave,
   onCancel,
   isLoading,
+  t,
 }: {
   entry?: TimeEntry
   vehicles: Vehicle[]
   onSave: (data: TimeEntryCreate | TimeEntryUpdate) => void
   onCancel: () => void
   isLoading: boolean
+  t: (key: string) => string
 }) {
   const [formData, setFormData] = useState({
     ritnummer: entry?.ritnummer || '',
@@ -174,19 +181,19 @@ function TimeEntryForm({
   const validate = () => {
     const newErrors: Record<string, string> = {}
     
-    if (!formData.ritnummer.trim()) newErrors.ritnummer = 'Ritnummer is verplicht'
-    if (!formData.datum) newErrors.datum = 'Datum is verplicht'
-    if (!formData.kenteken.trim()) newErrors.kenteken = 'Kenteken is verplicht'
-    if (!formData.km_start) newErrors.km_start = 'KM start is verplicht'
-    if (!formData.km_eind) newErrors.km_eind = 'KM eind is verplicht'
-    if (!formData.aanvang) newErrors.aanvang = 'Aanvangstijd is verplicht'
-    if (!formData.eind) newErrors.eind = 'Eindtijd is verplicht'
+    if (!formData.ritnummer.trim()) newErrors.ritnummer = t('timeEntries.errors.routeNumberRequired')
+    if (!formData.datum) newErrors.datum = t('timeEntries.errors.dateRequired')
+    if (!formData.kenteken.trim()) newErrors.kenteken = t('timeEntries.errors.licensePlateRequired')
+    if (!formData.km_start) newErrors.km_start = t('timeEntries.errors.kmStartRequired')
+    if (!formData.km_eind) newErrors.km_eind = t('timeEntries.errors.kmEndRequired')
+    if (!formData.aanvang) newErrors.aanvang = t('timeEntries.errors.startTimeRequired')
+    if (!formData.eind) newErrors.eind = t('timeEntries.errors.endTimeRequired')
     
     // Validate km_eind > km_start
     const kmStart = parseInt(formData.km_start)
     const kmEind = parseInt(formData.km_eind)
     if (!isNaN(kmStart) && !isNaN(kmEind) && kmEind < kmStart) {
-      newErrors.km_eind = 'KM eind moet groter zijn dan KM start'
+      newErrors.km_eind = t('timeEntries.errors.kmEndGreater')
     }
     
     setErrors(newErrors)
@@ -239,7 +246,7 @@ function TimeEntryForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Datum *
+            {t('common.date')} *
           </label>
           <input
             type="date"
@@ -252,14 +259,14 @@ function TimeEntryForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Ritnummer *
+            {t('timeEntries.routeNumber')} *
           </label>
           <input
             type="text"
             name="ritnummer"
             value={formData.ritnummer}
             onChange={handleChange}
-            placeholder="Bijv. R001"
+            placeholder={t('timeEntries.routeNumberPlaceholder')}
             className={`input ${errors.ritnummer ? 'border-red-500' : ''}`}
           />
           {errors.ritnummer && <p className="text-red-500 text-xs mt-1">{errors.ritnummer}</p>}
@@ -268,7 +275,7 @@ function TimeEntryForm({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Kenteken *
+          {t('fleet.licensePlate')} *
         </label>
         <select
           name="kenteken"
@@ -276,7 +283,7 @@ function TimeEntryForm({
           onChange={handleChange}
           className={`input ${errors.kenteken ? 'border-red-500' : ''}`}
         >
-          <option value="">Selecteer voertuig</option>
+          <option value="">{t('timeEntries.selectVehicle')}</option>
           {vehicles.map(v => (
             <option key={v.id} value={v.kenteken}>
               {v.kenteken} {v.type_wagen ? `- ${v.type_wagen}` : ''}
@@ -290,7 +297,7 @@ function TimeEntryForm({
             name="kenteken"
             value={formData.kenteken}
             onChange={handleChange}
-            placeholder="Of voer handmatig in"
+            placeholder={t('timeEntries.orEnterManually')}
             className="input mt-2 uppercase"
           />
         )}
@@ -299,7 +306,7 @@ function TimeEntryForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            KM Start *
+            {t('timeEntries.kmStart')} *
           </label>
           <input
             type="number"
@@ -313,7 +320,7 @@ function TimeEntryForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            KM Eind *
+            {t('timeEntries.kmEnd')} *
           </label>
           <input
             type="number"
@@ -330,7 +337,7 @@ function TimeEntryForm({
       <div className="grid grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Aanvang *
+            {t('timeEntries.startTime')} *
           </label>
           <input
             type="time"
@@ -343,7 +350,7 @@ function TimeEntryForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Eind *
+            {t('timeEntries.endTime')} *
           </label>
           <input
             type="time"
@@ -356,7 +363,7 @@ function TimeEntryForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Pauze (min)
+            {t('timeEntries.breakMinutes')}
           </label>
           <select
             name="pauze_minuten"
@@ -364,12 +371,12 @@ function TimeEntryForm({
             onChange={(e) => setFormData(prev => ({ ...prev, pauze_minuten: parseInt(e.target.value) }))}
             className="input"
           >
-            <option value={0}>0 min</option>
-            <option value={15}>15 min</option>
-            <option value={30}>30 min</option>
-            <option value={45}>45 min</option>
-            <option value={60}>1 uur</option>
-            <option value={90}>1,5 uur</option>
+            <option value={0}>0 {t('timeEntries.minutes')}</option>
+            <option value={15}>15 {t('timeEntries.minutes')}</option>
+            <option value={30}>30 {t('timeEntries.minutes')}</option>
+            <option value={45}>45 {t('timeEntries.minutes')}</option>
+            <option value={60}>1 {t('timeEntries.hour')}</option>
+            <option value={90}>1,5 {t('timeEntries.hour')}</option>
           </select>
         </div>
       </div>
@@ -377,11 +384,11 @@ function TimeEntryForm({
       {/* Calculated values */}
       <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-2 gap-4">
         <div>
-          <span className="text-sm text-gray-500">Totaal KM</span>
-          <p className="text-lg font-semibold text-gray-900">{totaalKm} km</p>
+          <span className="text-sm text-gray-500">{t('timeEntries.totalKm')}</span>
+          <p className="text-lg font-semibold text-gray-900">{totaalKm} {t('timeEntries.km')}</p>
         </div>
         <div>
-          <span className="text-sm text-gray-500">Totaal Uren</span>
+          <span className="text-sm text-gray-500">{t('timeEntries.totalHours')}</span>
           <p className="text-lg font-semibold text-gray-900">{calculateTotaalUren()}</p>
         </div>
       </div>
@@ -393,14 +400,14 @@ function TimeEntryForm({
           className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           disabled={isLoading}
         >
-          Annuleren
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
           className="btn-primary"
           disabled={isLoading}
         >
-          {isLoading ? 'Bezig...' : entry ? 'Opslaan' : 'Toevoegen'}
+          {isLoading ? t('common.saving') : entry ? t('common.save') : t('common.add')}
         </button>
       </div>
     </form>
@@ -414,12 +421,14 @@ function WeekSummaryCard({
   jaar,
   onSubmit,
   isSubmitting,
+  t,
 }: { 
   summary: WeekSummary | null
   weeknummer: number
   jaar: number
   onSubmit: () => void
   isSubmitting: boolean
+  t: (key: string) => string
 }) {
   if (!summary) return null
 
@@ -429,31 +438,31 @@ function WeekSummaryCard({
       <div className="hidden md:flex items-center justify-between">
         <div className="flex items-center gap-6">
           <div>
-            <span className="text-sm text-gray-500">Week {weeknummer}, {jaar}</span>
-            <p className="text-2xl font-bold text-gray-900">{summary.totaal_entries} registraties</p>
+            <span className="text-sm text-gray-500">{t('common.week')} {weeknummer}, {jaar}</span>
+            <p className="text-2xl font-bold text-gray-900">{summary.totaal_entries} {t('timeEntries.entriesCount')}</p>
           </div>
           <div className="h-12 w-px bg-gray-200" />
           <div>
-            <span className="text-sm text-gray-500">Totaal KM</span>
-            <p className="text-lg font-semibold text-gray-900">{summary.totaal_km.toLocaleString()} km</p>
+            <span className="text-sm text-gray-500">{t('timeEntries.totalKm')}</span>
+            <p className="text-lg font-semibold text-gray-900">{summary.totaal_km.toLocaleString()} {t('timeEntries.km')}</p>
           </div>
           <div className="h-12 w-px bg-gray-200" />
           <div>
-            <span className="text-sm text-gray-500">Totaal Uren</span>
+            <span className="text-sm text-gray-500">{t('timeEntries.totalHours')}</span>
             <p className="text-lg font-semibold text-gray-900">{summary.totaal_uren}</p>
           </div>
           <div className="h-12 w-px bg-gray-200" />
           <div>
-            <span className="text-sm text-gray-500">Status</span>
+            <span className="text-sm text-gray-500">{t('common.status')}</span>
             <div className="flex items-center gap-2 mt-1">
               {summary.concept_count > 0 && (
                 <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                  {summary.concept_count} concept
+                  {summary.concept_count} {t('timeEntries.concept')}
                 </span>
               )}
               {summary.ingediend_count > 0 && (
                 <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                  {summary.ingediend_count} ingediend
+                  {summary.ingediend_count} {t('timeEntries.submitted')}
                 </span>
               )}
             </div>
@@ -466,7 +475,7 @@ function WeekSummaryCard({
             className="btn-primary flex items-center"
           >
             <PaperAirplaneIcon className="w-4 h-4 mr-2" />
-            {isSubmitting ? 'Bezig...' : 'Week indienen'}
+            {isSubmitting ? t('common.saving') : t('timeEntries.submitWeek')}
           </button>
         )}
       </div>
@@ -475,8 +484,8 @@ function WeekSummaryCard({
       <div className="md:hidden">
         <div className="flex justify-between items-start mb-3">
           <div>
-            <span className="text-sm text-gray-500">Week {weeknummer}, {jaar}</span>
-            <p className="text-xl font-bold text-gray-900">{summary.totaal_entries} registraties</p>
+            <span className="text-sm text-gray-500">{t('common.week')} {weeknummer}, {jaar}</span>
+            <p className="text-xl font-bold text-gray-900">{summary.totaal_entries} {t('timeEntries.entriesCount')}</p>
           </div>
           <div className="flex items-center gap-1">
             {summary.concept_count > 0 && (
@@ -493,11 +502,11 @@ function WeekSummaryCard({
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="bg-gray-50 rounded-lg p-2">
-            <span className="text-xs text-gray-500">Totaal KM</span>
+            <span className="text-xs text-gray-500">{t('timeEntries.totalKm')}</span>
             <p className="text-sm font-semibold text-gray-900">{summary.totaal_km.toLocaleString()}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-2">
-            <span className="text-xs text-gray-500">Totaal Uren</span>
+            <span className="text-xs text-gray-500">{t('timeEntries.totalHours')}</span>
             <p className="text-sm font-semibold text-gray-900">{summary.totaal_uren}</p>
           </div>
         </div>
@@ -508,7 +517,7 @@ function WeekSummaryCard({
             className="btn-primary w-full flex items-center justify-center"
           >
             <PaperAirplaneIcon className="w-4 h-4 mr-2" />
-            {isSubmitting ? 'Bezig...' : 'Week indienen'}
+            {isSubmitting ? t('common.saving') : t('timeEntries.submitWeek')}
           </button>
         )}
       </div>
@@ -518,6 +527,7 @@ function WeekSummaryCard({
 
 // Main TimeEntriesPage component
 export default function TimeEntriesPage() {
+  const { t } = useTranslation()
   const { user } = useAuthStore()
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -619,7 +629,7 @@ export default function TimeEntriesPage() {
       setTotalCount(entriesResponse.count || 0)
       setWeekSummary(summaryResponse)
     } catch (err) {
-      setError('Fout bij ophalen urenregistraties')
+      setError(t('timeEntries.fetchError'))
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -679,10 +689,10 @@ export default function TimeEntriesPage() {
     try {
       await createTimeEntry(data as TimeEntryCreate)
       setShowCreateModal(false)
-      showSuccess('Urenregistratie succesvol toegevoegd')
+      showSuccess(t('timeEntries.entryCreated'))
       fetchEntries()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij toevoegen urenregistratie'))
+      setError(getErrorMessage(err, t('timeEntries.createError')))
     } finally {
       setIsActionLoading(false)
     }
@@ -696,10 +706,10 @@ export default function TimeEntriesPage() {
       await updateTimeEntry(selectedEntry.id, data as TimeEntryUpdate)
       setShowEditModal(false)
       setSelectedEntry(null)
-      showSuccess('Urenregistratie succesvol bijgewerkt')
+      showSuccess(t('timeEntries.entryUpdated'))
       fetchEntries()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij bijwerken urenregistratie'))
+      setError(getErrorMessage(err, t('timeEntries.updateError')))
     } finally {
       setIsActionLoading(false)
     }
@@ -713,10 +723,10 @@ export default function TimeEntriesPage() {
       await deleteTimeEntry(selectedEntry.id)
       setShowDeleteModal(false)
       setSelectedEntry(null)
-      showSuccess('Urenregistratie succesvol verwijderd')
+      showSuccess(t('timeEntries.entryDeleted'))
       fetchEntries()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij verwijderen urenregistratie'))
+      setError(getErrorMessage(err, t('timeEntries.deleteError')))
       setShowDeleteModal(false)
       setSelectedEntry(null)
     } finally {
@@ -728,12 +738,12 @@ export default function TimeEntriesPage() {
   const handleSubmitWeek = async () => {
     setIsActionLoading(true)
     try {
-      const result = await submitWeek(selectedWeek, selectedYear)
+      await submitWeek(selectedWeek, selectedYear)
       setShowSubmitModal(false)
-      showSuccess(result.message)
+      showSuccess(t('timeEntries.weekSubmitted'))
       fetchEntries()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij indienen uren'))
+      setError(getErrorMessage(err, t('timeEntries.submitError')))
       setShowSubmitModal(false)
     } finally {
       setIsActionLoading(false)
@@ -762,13 +772,13 @@ export default function TimeEntriesPage() {
     <div className="max-w-full overflow-hidden">
       {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Urenregistratie</h1>
+        <h1 className="page-title">{t('timeEntries.title')}</h1>
         <button
           onClick={() => setShowCreateModal(true)}
           className="btn-primary"
         >
           <PlusIcon className="w-5 h-5 mr-2" />
-          Dag toevoegen
+          {t('timeEntries.addDay')}
         </button>
       </div>
 
@@ -822,7 +832,7 @@ export default function TimeEntriesPage() {
               onClick={goToCurrentWeek}
               className="text-sm text-primary-600 hover:text-primary-700"
             >
-              Huidige week
+              {t('timeEntries.currentWeek')}
             </button>
             
             {/* Status filter */}
@@ -831,16 +841,16 @@ export default function TimeEntriesPage() {
               onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1) }}
               className="input w-40"
             >
-              <option value="all">Alle statussen</option>
-              <option value="concept">Concept</option>
-              <option value="ingediend">Ingediend</option>
+              <option value="all">{t('timeEntries.allStatuses')}</option>
+              <option value="concept">{t('timeEntries.concept')}</option>
+              <option value="ingediend">{t('timeEntries.submitted')}</option>
             </select>
 
             {/* Refresh button */}
             <button
               onClick={() => fetchEntries()}
               className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-              title="Vernieuwen"
+              title={t('common.refresh')}
             >
               <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -877,7 +887,7 @@ export default function TimeEntriesPage() {
               onClick={goToCurrentWeek}
               className="text-sm text-primary-600 hover:text-primary-700"
             >
-              Vandaag
+              {t('common.today')}
             </button>
             
             <select
@@ -885,15 +895,15 @@ export default function TimeEntriesPage() {
               onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1) }}
               className="input flex-1 text-sm"
             >
-              <option value="all">Alle</option>
-              <option value="concept">Concept</option>
-              <option value="ingediend">Ingediend</option>
+              <option value="all">{t('common.all')}</option>
+              <option value="concept">{t('timeEntries.concept')}</option>
+              <option value="ingediend">{t('timeEntries.submitted')}</option>
             </select>
 
             <button
               onClick={() => fetchEntries()}
               className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-              title="Vernieuwen"
+              title={t('common.refresh')}
             >
               <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -906,7 +916,7 @@ export default function TimeEntriesPage() {
         <div className="card p-4 mb-6 bg-blue-50 border-blue-200">
           <div className="flex items-center gap-2 mb-3">
             <MagnifyingGlassIcon className="w-5 h-5 text-blue-600" />
-            <span className="font-semibold text-blue-900">Admin zoeken</span>
+            <span className="font-semibold text-blue-900">{t('timeEntries.adminSearch')}</span>
           </div>
           
           {/* Desktop admin search */}
@@ -918,7 +928,7 @@ export default function TimeEntriesPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Zoek chauffeur..."
+                placeholder={t('timeEntries.searchDriver')}
                 className="input pl-9 w-full"
               />
               {searchQuery && (
@@ -943,9 +953,9 @@ export default function TimeEntriesPage() {
                 }}
                 className="input w-32"
               >
-                <option value="">Huidige week</option>
+                <option value="">{t('timeEntries.currentWeek')}</option>
                 {Array.from({ length: 52 }, (_, i) => i + 1).map(week => (
-                  <option key={week} value={week}>Week {week}</option>
+                  <option key={week} value={week}>{t('common.week')} {week}</option>
                 ))}
               </select>
             </div>
@@ -960,7 +970,7 @@ export default function TimeEntriesPage() {
                 className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
               >
                 <XMarkIcon className="w-4 h-4" />
-                Wis filters
+                {t('timeEntries.clearFilters')}
               </button>
             )}
 
@@ -969,7 +979,7 @@ export default function TimeEntriesPage() {
               <span className="text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
                 {[
                   debouncedSearch ? `"${debouncedSearch}"` : null,
-                  searchWeek !== null ? `Week ${searchWeek}` : null
+                  searchWeek !== null ? `${t('common.week')} ${searchWeek}` : null
                 ].filter(Boolean).join(' • ')}
               </span>
             )}
@@ -983,7 +993,7 @@ export default function TimeEntriesPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Zoek chauffeur..."
+                placeholder={t('timeEntries.searchDriver')}
                 className="input pl-9 w-full text-sm"
               />
               {searchQuery && (
@@ -1004,9 +1014,9 @@ export default function TimeEntriesPage() {
               }}
               className="input w-full text-sm"
             >
-              <option value="">Huidige week</option>
+              <option value="">{t('timeEntries.currentWeek')}</option>
               {Array.from({ length: 52 }, (_, i) => i + 1).map(week => (
-                <option key={week} value={week}>Week {week}</option>
+                <option key={week} value={week}>{t('common.week')} {week}</option>
               ))}
             </select>
             {(searchQuery || searchWeek !== null) && (
@@ -1018,7 +1028,7 @@ export default function TimeEntriesPage() {
                 className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
               >
                 <XMarkIcon className="w-4 h-4" />
-                Wis filters
+                {t('timeEntries.clearFilters')}
               </button>
             )}
           </div>
@@ -1032,6 +1042,7 @@ export default function TimeEntriesPage() {
         jaar={selectedYear}
         onSubmit={() => setShowSubmitModal(true)}
         isSubmitting={isActionLoading}
+        t={t}
       />
 
       {/* Table/Cards */}
@@ -1040,19 +1051,19 @@ export default function TimeEntriesPage() {
           <div className="px-4 py-12 text-center text-gray-500">
             <div className="flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-              <span className="ml-3">Laden...</span>
+              <span className="ml-3">{t('common.loading')}</span>
             </div>
           </div>
         ) : entries.length === 0 ? (
           <div className="px-4 py-12 text-center text-gray-500">
             <ClockIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-            <p>Geen urenregistraties gevonden{searchWeek !== null ? ` voor week ${searchWeek}` : ` voor week ${selectedWeek}`}{debouncedSearch ? ` met "${debouncedSearch}"` : ''}</p>
+            <p>{t('timeEntries.noEntries')}{searchWeek !== null ? ` ${t('timeEntries.forWeek')} ${searchWeek}` : ` ${t('timeEntries.forWeek')} ${selectedWeek}`}{debouncedSearch ? ` ${t('timeEntries.with')} "${debouncedSearch}"` : ''}</p>
             {!debouncedSearch && !searchWeek && (
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="mt-2 text-primary-600 hover:text-primary-700"
               >
-                Voeg je eerste registratie toe
+                {t('timeEntries.addFirstEntry')}
               </button>
             )}
           </div>
@@ -1067,31 +1078,31 @@ export default function TimeEntriesPage() {
                       className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('datum')}
                     >
-                      Datum <SortIcon field="datum" />
+                      {t('common.date')} <SortIcon field="datum" />
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                      Chauffeur
+                      {t('drivers.title')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                      Ritnummer
+                      {t('timeEntries.routeNumber')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                      Kenteken
+                      {t('fleet.licensePlate')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                      Tijd
+                      {t('common.time')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                      KM
+                      {t('timeEntries.km')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                      Uren
+                      {t('timeEntries.hours')}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
-                      Status
+                      {t('common.status')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                      Acties
+                      {t('common.actions')}
                     </th>
                   </tr>
                 </thead>
@@ -1118,11 +1129,11 @@ export default function TimeEntriesPage() {
                       <td className="px-4 py-3 text-center">
                         {entry.status === 'concept' ? (
                           <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                            Concept
+                            {t('timeEntries.concept')}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                            Ingediend
+                            {t('timeEntries.submitted')}
                           </span>
                         )}
                       </td>
@@ -1133,14 +1144,14 @@ export default function TimeEntriesPage() {
                               <button
                                 onClick={() => { setSelectedEntry(entry); setShowEditModal(true) }}
                                 className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
-                                title="Bewerken"
+                                title={t('common.edit')}
                               >
                                 <PencilSquareIcon className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => { setSelectedEntry(entry); setShowDeleteModal(true) }}
                                 className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
-                                title="Verwijderen"
+                                title={t('common.delete')}
                               >
                                 <TrashIcon className="w-4 h-4" />
                               </button>
@@ -1171,34 +1182,34 @@ export default function TimeEntriesPage() {
                     </div>
                     {entry.status === 'concept' ? (
                       <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                        Concept
+                        {t('timeEntries.concept')}
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                        Ingediend
+                        {t('timeEntries.submitted')}
                       </span>
                     )}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
                     <div>
-                      <span className="text-gray-500">Ritnr: </span>
+                      <span className="text-gray-500">{t('timeEntries.routeNumberShort')}: </span>
                       <span className="font-mono font-medium">{entry.ritnummer}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Kenteken: </span>
+                      <span className="text-gray-500">{t('fleet.licensePlate')}: </span>
                       <span className="font-mono font-medium">{entry.kenteken}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Tijd: </span>
+                      <span className="text-gray-500">{t('common.time')}: </span>
                       <span className="font-medium">{entry.aanvang}-{entry.eind}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Uren: </span>
+                      <span className="text-gray-500">{t('timeEntries.hours')}: </span>
                       <span className="font-bold text-primary-600">{entry.totaal_uren_display}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">KM: </span>
+                      <span className="text-gray-500">{t('timeEntries.km')}: </span>
                       <span className="font-medium">{entry.totaal_km.toLocaleString()}</span>
                     </div>
                   </div>
@@ -1210,7 +1221,7 @@ export default function TimeEntriesPage() {
                         className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100 min-h-[44px] text-sm"
                       >
                         <PencilSquareIcon className="h-4 w-4" />
-                        Bewerken
+                        {t('common.edit')}
                       </button>
                       <button
                         onClick={() => { setSelectedEntry(entry); setShowDeleteModal(true) }}
@@ -1230,7 +1241,7 @@ export default function TimeEntriesPage() {
         {totalPages > 1 && (
           <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              {totalCount} registratie{totalCount !== 1 ? 's' : ''} gevonden
+              {totalCount} {t('timeEntries.entriesCount')} {t('timeEntries.found')}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1238,17 +1249,17 @@ export default function TimeEntriesPage() {
                 disabled={page === 1}
                 className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Vorige
+                {t('common.previous')}
               </button>
               <span className="text-sm text-gray-600">
-                Pagina {page} van {totalPages}
+                {t('timeEntries.page')} {page} {t('common.of')} {totalPages}
               </span>
               <button
                 onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={page === totalPages}
                 className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Volgende
+                {t('common.next')}
               </button>
             </div>
           </div>
@@ -1259,7 +1270,7 @@ export default function TimeEntriesPage() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="Dag toevoegen"
+        title={t('timeEntries.addDay')}
         size="lg"
       >
         <TimeEntryForm
@@ -1267,6 +1278,7 @@ export default function TimeEntriesPage() {
           onSave={handleCreate}
           onCancel={() => setShowCreateModal(false)}
           isLoading={isActionLoading}
+          t={t}
         />
       </Modal>
 
@@ -1274,7 +1286,7 @@ export default function TimeEntriesPage() {
       <Modal
         isOpen={showEditModal}
         onClose={() => { setShowEditModal(false); setSelectedEntry(null) }}
-        title="Urenregistratie bewerken"
+        title={t('timeEntries.editEntry')}
         size="lg"
       >
         {selectedEntry && (
@@ -1284,6 +1296,7 @@ export default function TimeEntriesPage() {
             onSave={handleUpdate}
             onCancel={() => { setShowEditModal(false); setSelectedEntry(null) }}
             isLoading={isActionLoading}
+            t={t}
           />
         )}
       </Modal>
@@ -1293,9 +1306,11 @@ export default function TimeEntriesPage() {
         isOpen={showDeleteModal}
         onClose={() => { setShowDeleteModal(false); setSelectedEntry(null) }}
         onConfirm={handleDelete}
-        title="Urenregistratie verwijderen"
-        message={`Weet je zeker dat je de registratie van ${selectedEntry?.datum} wilt verwijderen?`}
-        confirmText="Verwijderen"
+        title={t('timeEntries.deleteEntry')}
+        message={t('timeEntries.deleteConfirmMessage', { date: selectedEntry?.datum })}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        loadingText={t('common.deleting')}
         confirmColor="red"
         isLoading={isActionLoading}
       />
@@ -1305,9 +1320,11 @@ export default function TimeEntriesPage() {
         isOpen={showSubmitModal}
         onClose={() => setShowSubmitModal(false)}
         onConfirm={handleSubmitWeek}
-        title="Week indienen"
-        message={`Weet je zeker dat je alle concept uren voor week ${selectedWeek} wilt indienen? Na indienen kunnen de uren niet meer worden aangepast.`}
-        confirmText="Indienen"
+        title={t('timeEntries.submitWeek')}
+        message={t('timeEntries.submitWeekMessage', { week: selectedWeek })}
+        confirmText={t('common.submit')}
+        cancelText={t('common.cancel')}
+        loadingText={t('common.saving')}
         confirmColor="green"
         isLoading={isActionLoading}
       />

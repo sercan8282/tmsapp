@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -46,30 +47,7 @@ const parseAmount = (value: unknown): number => {
   return isNaN(parsed) ? 0 : parsed;
 };
 
-// Field type labels in Dutch
-const fieldLabels: Record<string, string> = {
-  invoice_number: 'Factuurnummer',
-  invoice_date: 'Factuurdatum',
-  due_date: 'Vervaldatum',
-  supplier_name: 'Leverancier/Klant',
-  supplier_address: 'Adres',
-  supplier_vat: 'BTW Nummer',
-  supplier_kvk: 'KVK',
-  subtotal: 'Subtotaal',
-  vat_amount: 'BTW Bedrag',
-  vat_percentage: 'BTW %',
-  total: 'Totaal',
-  iban: 'IBAN',
-  reference: 'Referentie',
-  description: 'Omschrijving',
-};
-
-// Invoice type options
-const invoiceTypes = [
-  { value: 'inkoop', label: 'Inkoopfactuur', icon: ShoppingCart, color: 'blue', description: 'Factuur van leverancier' },
-  { value: 'verkoop', label: 'Verkoopfactuur', icon: Receipt, color: 'green', description: 'Factuur aan klant' },
-  { value: 'credit', label: 'Creditnota', icon: CreditCard, color: 'orange', description: 'Credit/terugbetaling' },
-];
+// Field labels and invoice types will be initialized in component with translations
 
 interface Selection {
   startX: number;
@@ -79,12 +57,38 @@ interface Selection {
 }
 
 const InvoiceImportDetailPage: React.FC = () => {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+
+  // Field type labels
+  const fieldLabels: Record<string, string> = {
+    invoice_number: t('invoices.invoiceNumber'),
+    invoice_date: t('invoices.invoiceDate'),
+    due_date: t('invoices.dueDate'),
+    supplier_name: t('imports.supplierCustomer', 'Leverancier/Klant'),
+    supplier_address: t('common.address'),
+    supplier_vat: t('companies.vatNumber'),
+    supplier_kvk: t('companies.kvkNumber', 'KVK'),
+    subtotal: t('invoices.subtotal'),
+    vat_amount: t('imports.vatAmount', 'BTW Bedrag'),
+    vat_percentage: t('imports.vatPercentage', 'BTW %'),
+    total: t('common.total'),
+    iban: t('companies.iban', 'IBAN'),
+    reference: t('imports.reference', 'Referentie'),
+    description: t('common.description'),
+  };
+
+  // Invoice type options
+  const invoiceTypes = [
+    { value: 'inkoop', label: t('imports.purchaseInvoice', 'Inkoopfactuur'), icon: ShoppingCart, color: 'blue', description: t('imports.purchaseDescription', 'Factuur van leverancier') },
+    { value: 'verkoop', label: t('imports.salesInvoice', 'Verkoopfactuur'), icon: Receipt, color: 'green', description: t('imports.salesDescription', 'Factuur aan klant') },
+    { value: 'credit', label: t('imports.creditNote', 'Creditnota'), icon: CreditCard, color: 'orange', description: t('imports.creditDescription', 'Credit/terugbetaling') },
+  ];
 
   // State
   const [currentPage, setCurrentPage] = useState(0);
@@ -394,12 +398,12 @@ const InvoiceImportDetailPage: React.FC = () => {
     return (
       <div className="max-w-2xl mx-auto mt-12 p-6 bg-red-50 rounded-lg text-center">
         <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
-        <h2 className="mt-4 text-lg font-medium text-red-800">Import niet gevonden</h2>
+        <h2 className="mt-4 text-lg font-medium text-red-800">{t('imports.importNotFound', 'Import niet gevonden')}</h2>
         <button
           onClick={() => navigate('/imports')}
           className="mt-4 text-sm text-red-600 hover:text-red-800"
         >
-          Terug naar overzicht
+          {t('imports.backToOverview', 'Terug naar overzicht')}
         </button>
       </div>
     );
@@ -422,7 +426,7 @@ const InvoiceImportDetailPage: React.FC = () => {
             <div>
               <h1 className="text-xl font-semibold text-gray-900">{importData.file_name}</h1>
               <p className="text-sm text-gray-500">
-                {importData.pattern_name ? `Patroon: ${importData.pattern_name}` : 'Geen patroon herkend'}
+                {importData.pattern_name ? `${t('imports.pattern', 'Patroon')}: ${importData.pattern_name}` : t('imports.noPatternRecognized', 'Geen patroon herkend')}
                 {importData.ocr_confidence !== undefined && (
                   <span className="ml-2">
                     • OCR: {(importData.ocr_confidence * 100).toFixed(0)}%
@@ -444,7 +448,7 @@ const InvoiceImportDetailPage: React.FC = () => {
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                Correcties Opslaan
+                {t('imports.saveCorrections', 'Correcties Opslaan')}
               </button>
             )}
             
@@ -458,7 +462,7 @@ const InvoiceImportDetailPage: React.FC = () => {
               ) : (
                 <CheckCircle className="w-4 h-4" />
               )}
-              Opslaan als Factuur
+              {t('imports.saveAsInvoice', 'Opslaan als Factuur')}
             </button>
           </div>
         </div>
@@ -519,7 +523,7 @@ const InvoiceImportDetailPage: React.FC = () => {
             {importData.status === 'processing' ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500">
                 <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                <p className="text-sm">Verwerken...</p>
+                <p className="text-sm">{t('imports.statusProcessing', 'Verwerken...')}</p>
               </div>
             ) : imageLoadError && importData.original_file_url ? (
               // Fallback to PDF embed when OCR image is not available
@@ -531,7 +535,7 @@ const InvoiceImportDetailPage: React.FC = () => {
             ) : imageLoadError ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500">
                 <FileText className="w-12 h-12 mb-2 text-gray-300" />
-                <p className="text-sm">Geen preview beschikbaar</p>
+                <p className="text-sm">{t('imports.noPreviewAvailable', 'Geen preview beschikbaar')}</p>
               </div>
             ) : (
               <canvas
@@ -549,7 +553,7 @@ const InvoiceImportDetailPage: React.FC = () => {
           {editingField && (
             <div className="bg-blue-600 text-white px-4 py-2 text-center text-xs">
               <MousePointer2 className="w-3 h-3 inline mr-1" />
-              Selecteer "{fieldLabels[editingField]}" op document
+              {t('imports.selectOnDocument', 'Selecteer "{{field}}" op document', { field: fieldLabels[editingField] })}
               <button
                 onClick={() => {
                   setEditingField(null);
@@ -557,7 +561,7 @@ const InvoiceImportDetailPage: React.FC = () => {
                 }}
                 className="ml-3 underline hover:no-underline"
               >
-                Annuleren
+                {t('common.cancel')}
               </button>
             </div>
           )}
@@ -567,7 +571,7 @@ const InvoiceImportDetailPage: React.FC = () => {
         <div className="col-span-5 space-y-4">
           {/* Invoice Type Selection */}
           <div className="bg-white rounded-xl shadow-sm border p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Type Document</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('imports.documentType', 'Type Document')}</h3>
             <div className="grid grid-cols-3 gap-3">
               {invoiceTypes.map((type) => {
                 const Icon = type.icon;
@@ -606,8 +610,8 @@ const InvoiceImportDetailPage: React.FC = () => {
           {/* Extracted Fields - Compact Grid */}
           <div className="bg-white rounded-xl shadow-sm border p-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-900">Geëxtraheerde Gegevens</h3>
-              <p className="text-xs text-gray-500">Klik op ✏️ om veld te selecteren</p>
+              <h3 className="text-sm font-semibold text-gray-900">{t('imports.extractedData', 'Geëxtraheerde Gegevens')}</h3>
+              <p className="text-xs text-gray-500">{t('imports.clickToSelectField', 'Klik op ✏️ om veld te selecteren')}</p>
             </div>
             
             <div className="grid grid-cols-2 gap-3">
@@ -657,7 +661,7 @@ const InvoiceImportDetailPage: React.FC = () => {
           <div className="bg-white rounded-xl shadow-sm border p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-900">
-                Factuurregels ({importData.lines?.length || 0})
+                {t('invoices.lines', 'Factuurregels')} ({importData.lines?.length || 0})
               </h3>
               <button
                 onClick={() => {
@@ -673,7 +677,7 @@ const InvoiceImportDetailPage: React.FC = () => {
                 }}
                 className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
               >
-                + Regel toevoegen
+                + {t('invoices.addLine', 'Regel toevoegen')}
               </button>
             </div>
             
@@ -720,7 +724,7 @@ const InvoiceImportDetailPage: React.FC = () => {
                         <button
                           onClick={() => removeLine(index)}
                           className="p-1 text-red-500 hover:bg-red-50 rounded"
-                          title="Verwijderen"
+                          title={t('common.delete')}
                         >
                           ×
                         </button>
@@ -735,7 +739,7 @@ const InvoiceImportDetailPage: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500 italic">Geen factuurregels gevonden. Klik op '+ Regel toevoegen' om handmatig toe te voegen.</p>
+              <p className="text-sm text-gray-500 italic">{t('imports.noLinesFound', "Geen factuurregels gevonden. Klik op '+ Regel toevoegen' om handmatig toe te voegen.")}</p>
             )}
           </div>
 
@@ -743,11 +747,11 @@ const InvoiceImportDetailPage: React.FC = () => {
           <details className="bg-white rounded-xl shadow-sm border">
             <summary className="px-4 py-3 cursor-pointer hover:bg-gray-50 font-medium text-sm text-gray-700">
               <FileText className="w-4 h-4 inline mr-2" />
-              Ruwe OCR Tekst
+              {t('imports.rawOcrText', 'Ruwe OCR Tekst')}
             </summary>
             <div className="px-4 pb-4">
               <pre className="text-xs text-gray-600 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg max-h-48 overflow-auto">
-                {importData.ocr_text || 'Geen tekst beschikbaar'}
+                {importData.ocr_text || t('imports.noTextAvailable', 'Geen tekst beschikbaar')}
               </pre>
             </div>
           </details>

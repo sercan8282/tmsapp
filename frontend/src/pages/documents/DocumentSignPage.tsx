@@ -3,6 +3,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -31,6 +32,7 @@ interface SignaturePosition {
 export default function DocumentSignPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   // Document state
   const [document, setDocument] = useState<SignedDocument | null>(null);
@@ -92,7 +94,7 @@ export default function DocumentSignPage() {
       setPdfInfo(infoData);
       setError(null);
     } catch (err) {
-      setError('Kon document niet laden');
+      setError(t('errors.loadError', 'Kon document niet laden'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -159,12 +161,12 @@ export default function DocumentSignPage() {
 
   const handleSign = async () => {
     if (!signatureDataUrl || !signaturePosition) {
-      setError('Plaats eerst een handtekening op het document');
+      setError(t('documents.placeSignatureFirst', 'Plaats eerst een handtekening op het document'));
       return;
     }
 
     if (saveSignature && !signatureName.trim()) {
-      setError('Voer een naam in voor de opgeslagen handtekening');
+      setError(t('documents.enterSignatureName', 'Voer een naam in voor de opgeslagen handtekening'));
       return;
     }
 
@@ -185,7 +187,7 @@ export default function DocumentSignPage() {
       navigate(`/documents/${id}`);
     } catch (err: any) {
       console.error('Sign error:', err);
-      setError(err.response?.data?.error || 'Kon document niet ondertekenen');
+      setError(err.response?.data?.error || t('documents.signError', 'Kon document niet ondertekenen'));
     } finally {
       setSigning(false);
     }
@@ -204,7 +206,7 @@ export default function DocumentSignPage() {
       <div className="text-center py-12">
         <p className="text-red-600">{error}</p>
         <Link to="/documents" className="mt-4 text-blue-600 hover:text-blue-800">
-          Terug naar documenten
+          {t('documents.backToDocuments', 'Terug naar documenten')}
         </Link>
       </div>
     );
@@ -226,7 +228,7 @@ export default function DocumentSignPage() {
               {document?.title}
             </h1>
             <p className="text-sm text-gray-500">
-              Pagina {currentPage} van {pdfInfo?.page_count || 1}
+              {t('documents.pageOf', 'Pagina {{current}} van {{total}}', { current: currentPage, total: pdfInfo?.page_count || 1 })}
             </p>
           </div>
         </div>
@@ -279,12 +281,12 @@ export default function DocumentSignPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Ondertekenen...
+                {t('documents.signing', 'Ondertekenen...')}
               </>
             ) : (
               <>
                 <CheckIcon className="h-5 w-5 mr-2" />
-                Ondertekenen
+                {t('documents.sign')}
               </>
             )}
           </button>
@@ -364,12 +366,12 @@ export default function DocumentSignPage() {
         {/* Sidebar */}
         <div className="w-80 bg-white border-l overflow-y-auto p-4 space-y-6">
           <div>
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Handtekening</h2>
+            <h2 className="text-lg font-medium text-gray-900 mb-4">{t('documents.signature', 'Handtekening')}</h2>
             
             {!signatureDataUrl ? (
               <div className="space-y-4">
                 <p className="text-sm text-gray-500">
-                  Teken eerst uw handtekening hieronder, klik daarna op het document om deze te plaatsen.
+                  {t('documents.drawSignatureFirst', 'Teken eerst uw handtekening hieronder, klik daarna op het document om deze te plaatsen.')}
                 </p>
                 <SignaturePad
                   onSignatureChange={setSignatureDataUrl}
@@ -382,7 +384,7 @@ export default function DocumentSignPage() {
                 <div className="border rounded-lg p-2 bg-gray-50">
                   <img
                     src={signatureDataUrl}
-                    alt="Uw handtekening"
+                    alt={t('documents.yourSignature', 'Uw handtekening')}
                     className="max-w-full h-auto"
                   />
                 </div>
@@ -393,12 +395,12 @@ export default function DocumentSignPage() {
                   }}
                   className="w-full px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50"
                 >
-                  Andere handtekening
+                  {t('documents.differentSignature', 'Andere handtekening')}
                 </button>
                 
                 {!signaturePosition && (
                   <p className="text-sm text-blue-600 bg-blue-50 p-3 rounded">
-                    Klik op het document om de handtekening te plaatsen.
+                    {t('documents.clickToPlace', 'Klik op het document om de handtekening te plaatsen.')}
                   </p>
                 )}
               </div>
@@ -407,16 +409,16 @@ export default function DocumentSignPage() {
 
           {signaturePosition && (
             <div className="border-t pt-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Positie</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">{t('documents.position', 'Positie')}</h3>
               <div className="text-sm text-gray-500 space-y-1">
-                <p>Pagina: {signaturePosition.page}</p>
+                <p>{t('documents.page', 'Pagina')}: {signaturePosition.page}</p>
                 <p>X: {signaturePosition.x.toFixed(1)}%</p>
                 <p>Y: {signaturePosition.y.toFixed(1)}%</p>
               </div>
               
               <div className="mt-4">
                 <label className="text-sm font-medium text-gray-700">
-                  Breedte: {signaturePosition.width}%
+                  {t('documents.width', 'Breedte')}: {signaturePosition.width}%
                 </label>
                 <input
                   type="range"
@@ -442,7 +444,7 @@ export default function DocumentSignPage() {
                   onChange={(e) => setSaveSignature(e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <span className="text-sm text-gray-700">Handtekening opslaan</span>
+                <span className="text-sm text-gray-700">{t('documents.saveSignature')}</span>
               </label>
               
               {saveSignature && (
@@ -451,7 +453,7 @@ export default function DocumentSignPage() {
                     type="text"
                     value={signatureName}
                     onChange={(e) => setSignatureName(e.target.value)}
-                    placeholder="Naam voor handtekening"
+                    placeholder={t('documents.signatureNamePlaceholder', 'Naam voor handtekening')}
                     className="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -460,12 +462,12 @@ export default function DocumentSignPage() {
           )}
 
           <div className="border-t pt-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Instructies</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">{t('documents.instructions', 'Instructies')}</h3>
             <ol className="text-sm text-gray-500 space-y-2 list-decimal list-inside">
-              <li>Teken uw handtekening in het vak hierboven</li>
-              <li>Klik op de gewenste positie in het document</li>
-              <li>Pas eventueel de grootte aan</li>
-              <li>Klik op "Ondertekenen" om te voltooien</li>
+              <li>{t('documents.instruction1', 'Teken uw handtekening in het vak hierboven')}</li>
+              <li>{t('documents.instruction2', 'Klik op de gewenste positie in het document')}</li>
+              <li>{t('documents.instruction3', 'Pas eventueel de grootte aan')}</li>
+              <li>{t('documents.instruction4', 'Klik op "Ondertekenen" om te voltooien')}</li>
             </ol>
           </div>
         </div>

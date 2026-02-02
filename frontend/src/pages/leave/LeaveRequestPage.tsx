@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeftIcon,
   ExclamationTriangleIcon,
@@ -77,6 +78,7 @@ function calculateEndDate(startDate: string, hours: number): string {
 }
 
 export default function LeaveRequestPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [balance, setBalance] = useState<LeaveBalance | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -104,7 +106,7 @@ export default function LeaveRequestPage() {
         const data = await getMyLeaveBalance()
         setBalance(data)
       } catch (err) {
-        setError('Fout bij laden verlofsaldo')
+        setError(t('leave.balanceLoadError'))
         console.error(err)
       } finally {
         setIsLoading(false)
@@ -181,25 +183,25 @@ export default function LeaveRequestPage() {
   const validate = () => {
     const errors: Record<string, string> = {}
     
-    if (!formData.start_date) errors.start_date = 'Startdatum is verplicht'
-    if (!formData.end_date) errors.end_date = 'Einddatum is verplicht'
+    if (!formData.start_date) errors.start_date = t('leave.startDateRequired')
+    if (!formData.end_date) errors.end_date = t('leave.endDateRequired')
     if (formData.start_date && formData.end_date && formData.start_date > formData.end_date) {
-      errors.end_date = 'Einddatum moet na startdatum liggen'
+      errors.end_date = t('leave.endDateAfterStart')
     }
     if (!formData.hours_requested || formData.hours_requested <= 0) {
-      errors.hours_requested = 'Aantal uren moet groter zijn dan 0'
+      errors.hours_requested = t('leave.hoursGreaterThanZero')
     }
     
     // Check balance
     if (balance && formData.leave_type === 'vakantie') {
       if (formData.hours_requested > Number(balance.vacation_hours)) {
-        errors.hours_requested = `Onvoldoende verlofuren (beschikbaar: ${Number(balance.vacation_hours).toFixed(1)}u)`
+        errors.hours_requested = t('leave.insufficientVacationHours', { available: Number(balance.vacation_hours).toFixed(1) })
       }
     }
     
     if (balance && formData.leave_type === 'overuren') {
       if (formData.hours_requested > Number(balance.available_overtime_for_leave)) {
-        errors.hours_requested = `Onvoldoende overuren (beschikbaar: ${Number(balance.available_overtime_for_leave).toFixed(1)}u)`
+        errors.hours_requested = t('leave.insufficientOvertimeHours', { available: Number(balance.available_overtime_for_leave).toFixed(1) })
       }
     }
     
@@ -221,7 +223,7 @@ export default function LeaveRequestPage() {
     } catch (err: any) {
       const message = err.response?.data?.hours_requested?.[0] 
         || err.response?.data?.error 
-        || 'Fout bij indienen aanvraag'
+        || t('leave.submitError')
       setError(message)
     } finally {
       setIsSubmitting(false)
@@ -243,10 +245,10 @@ export default function LeaveRequestPage() {
           <CalendarDaysIcon className="w-8 h-8 text-green-600" />
         </div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">
-          Aanvraag ingediend!
+          {t('leave.requestSubmitted')}
         </h2>
         <p className="text-gray-500">
-          Je verlofaanvraag is ingediend en wacht op goedkeuring.
+          {t('leave.requestSubmittedDescription')}
         </p>
       </div>
     )
@@ -261,22 +263,22 @@ export default function LeaveRequestPage() {
           className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
         >
           <ArrowLeftIcon className="w-4 h-4 mr-2" />
-          Terug naar overzicht
+          {t('common.back')}
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">Verlof aanvragen</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('leave.requestLeave')}</h1>
       </div>
 
       {/* Balance Summary */}
       {balance && (
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="card p-4">
-            <p className="text-sm text-gray-500">Verlofuren beschikbaar</p>
+            <p className="text-sm text-gray-500">{t('leave.vacationHoursAvailable')}</p>
             <p className="text-2xl font-bold text-primary-600">
               {Number(balance.vacation_hours).toFixed(1)}u
             </p>
           </div>
           <div className="card p-4">
-            <p className="text-sm text-gray-500">Overuren opneembaar</p>
+            <p className="text-sm text-gray-500">{t('leave.overtimeAvailable')}</p>
             <p className="text-2xl font-bold text-green-600">
               {Number(balance.available_overtime_for_leave).toFixed(1)}u
             </p>
@@ -290,13 +292,13 @@ export default function LeaveRequestPage() {
           <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-medium text-yellow-800">
-              Let op: {concurrentCheck.concurrent_count} collega{'s'} hebben al verlof in deze periode
+              {t('leave.concurrentWarning', { count: concurrentCheck.concurrent_count })}
             </p>
             <p className="text-sm text-yellow-700 mt-1">
               {concurrentCheck.employees_on_leave.join(', ')}
             </p>
             <p className="text-sm text-yellow-600 mt-2">
-              Het kan zijn dat je aanvraag niet goedgekeurd wordt vanwege bezetting.
+              {t('leave.concurrentWarningNote')}
             </p>
           </div>
         </div>
@@ -314,7 +316,7 @@ export default function LeaveRequestPage() {
         {/* Leave Type */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Type verlof *
+            {t('leave.leaveType')} *
           </label>
           <select
             name="leave_type"
@@ -330,7 +332,7 @@ export default function LeaveRequestPage() {
           </select>
           {formData.leave_type === 'bijzonder_tandarts' || formData.leave_type === 'bijzonder_huisarts' ? (
             <p className="text-xs text-gray-500 mt-1">
-              Je krijgt 1 uur gratis per maand. Extra uren gaan van je verlofuren af.
+              {t('leave.specialLeaveNote')}
             </p>
           ) : null}
         </div>
@@ -339,7 +341,7 @@ export default function LeaveRequestPage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Startdatum *
+              {t('leave.startDate')} *
             </label>
             <input
               type="date"
@@ -354,7 +356,7 @@ export default function LeaveRequestPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Einddatum *
+              {t('leave.endDate')} *
             </label>
             <input
               type="date"
@@ -372,7 +374,7 @@ export default function LeaveRequestPage() {
         {/* Hours */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Aantal uren *
+            {t('leave.hoursRequested')} *
           </label>
           <input
             type="number"
@@ -389,19 +391,19 @@ export default function LeaveRequestPage() {
           <p className="text-xs text-gray-500 mt-1">
             {formData.hours_requested > 0 && formData.start_date && (
               <>
-                {Math.floor(formData.hours_requested / HOURS_PER_DAY)} dag(en)
-                {formData.hours_requested % HOURS_PER_DAY > 0 && ` en ${formData.hours_requested % HOURS_PER_DAY} uur`}
+                {Math.floor(formData.hours_requested / HOURS_PER_DAY)} {t('leave.days')}
+                {formData.hours_requested % HOURS_PER_DAY > 0 && ` ${t('common.and')} ${formData.hours_requested % HOURS_PER_DAY} ${t('timeEntries.hour')}`}
                 {' • '}
               </>
             )}
-            Uren worden automatisch berekend op basis van werkdagen (8 uur/dag). Je kunt dit aanpassen voor gedeeltelijk verlof.
+            {t('leave.hoursCalculationNote')}
           </p>
         </div>
 
         {/* Reason */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Reden / opmerking (optioneel)
+            {t('leave.reasonOptional')}
           </label>
           <textarea
             name="reason"
@@ -409,7 +411,7 @@ export default function LeaveRequestPage() {
             onChange={handleChange}
             rows={3}
             className="input w-full"
-            placeholder="Eventuele toelichting..."
+            placeholder={t('leave.reasonPlaceholder')}
           />
         </div>
 
@@ -420,14 +422,14 @@ export default function LeaveRequestPage() {
             onClick={() => navigate('/leave')}
             className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           >
-            Annuleren
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
             className="btn-primary"
           >
-            {isSubmitting ? 'Bezig...' : 'Aanvraag indienen'}
+            {isSubmitting ? t('common.saving') : t('leave.submitRequest')}
           </button>
         </div>
       </form>

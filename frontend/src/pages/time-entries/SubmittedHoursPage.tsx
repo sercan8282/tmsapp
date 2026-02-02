@@ -3,6 +3,7 @@
  * Full editing capabilities for all chauffeur time entries
  */
 import { useState, useEffect, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Dialog, Transition } from '@headlessui/react'
 import {
   MagnifyingGlassIcon,
@@ -41,6 +42,8 @@ function formatDate(dateStr: string): string {
 }
 
 export default function SubmittedHoursPage() {
+  const { t } = useTranslation()
+  
   // State
   const [loading, setLoading] = useState(true)
   const [weekHistory, setWeekHistory] = useState<WeekHistory[]>([])
@@ -107,7 +110,7 @@ export default function SubmittedHoursPage() {
       setFilteredWeeks(sorted)
     } catch (err) {
       console.error('Failed to load week history:', err)
-      toast.error('Kon wekenoverzicht niet laden')
+      toast.error(t('timeEntries.loadWeeksError'))
     } finally {
       setLoading(false)
     }
@@ -127,7 +130,7 @@ export default function SubmittedHoursPage() {
       setWeekEntries(response.results)
     } catch (err) {
       console.error('Failed to load week entries:', err)
-      toast.error('Kon uren niet laden')
+      toast.error(t('timeEntries.loadError'))
     } finally {
       setLoadingEntries(false)
     }
@@ -170,7 +173,7 @@ export default function SubmittedHoursPage() {
         km_eind: editForm.km_eind,
       })
       
-      toast.success('Urenregistratie bijgewerkt')
+      toast.success(t('timeEntries.entryUpdated'))
       setShowEditModal(false)
       setEditingEntry(null)
       
@@ -183,7 +186,7 @@ export default function SubmittedHoursPage() {
       loadWeekHistory()
     } catch (err) {
       console.error('Failed to update entry:', err)
-      toast.error('Bijwerken mislukt')
+      toast.error(t('timeEntries.updateFailed'))
     } finally {
       setSaving(false)
     }
@@ -200,8 +203,8 @@ export default function SubmittedHoursPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Ingediende Uren</h1>
-          <p className="text-gray-500 mt-1">Overzicht van alle ingediende urenregistraties</p>
+          <h1 className="page-title">{t('timeEntries.submittedHours')}</h1>
+          <p className="text-gray-500 mt-1">{t('timeEntries.submittedHoursDescription')}</p>
         </div>
       </div>
 
@@ -212,7 +215,7 @@ export default function SubmittedHoursPage() {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Zoeken op chauffeur, week of jaar..."
+              placeholder={t('timeEntries.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="form-input pl-10 w-full"
@@ -230,7 +233,7 @@ export default function SubmittedHoursPage() {
         ) : paginatedWeeks.length === 0 ? (
           <div className="p-8 text-center">
             <ClockIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Geen ingediende uren gevonden</p>
+            <p className="text-gray-500">{t('timeEntries.noSubmittedHours')}</p>
           </div>
         ) : (
           <>
@@ -240,22 +243,22 @@ export default function SubmittedHoursPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Week
+                      {t('common.week')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Jaar
+                      {t('common.year')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Chauffeur
+                      {t('drivers.title')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Ritten
+                      {t('timeEntries.trips')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Totaal KM
+                      {t('timeEntries.totalKm')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acties
+                      {t('common.actions')}
                     </th>
                   </tr>
                 </thead>
@@ -286,7 +289,7 @@ export default function SubmittedHoursPage() {
                           onClick={() => handleViewWeek(week)}
                           className="btn-secondary text-sm"
                         >
-                          Bekijken / Bewerken
+                          {t('timeEntries.viewEdit')}
                         </button>
                       </td>
                     </tr>
@@ -313,11 +316,11 @@ export default function SubmittedHoursPage() {
                   
                   <div className="grid grid-cols-2 gap-x-4 text-xs mb-2 ml-13">
                     <div>
-                      <span className="text-gray-500">Ritten: </span>
+                      <span className="text-gray-500">{t('timeEntries.trips')}: </span>
                       <span className="font-medium">{week.ingediend_count}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">KM: </span>
+                      <span className="text-gray-500">{t('timeEntries.km')}: </span>
                       <span className="font-medium">{week.totaal_km}</span>
                     </div>
                   </div>
@@ -326,7 +329,7 @@ export default function SubmittedHoursPage() {
                     onClick={() => handleViewWeek(week)}
                     className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100 min-h-[44px] text-sm mt-2"
                   >
-                    Bekijken / Bewerken
+                    {t('timeEntries.viewEdit')}
                   </button>
                 </div>
               ))}
@@ -392,7 +395,7 @@ export default function SubmittedHoursPage() {
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
                       </div>
                     ) : weekEntries.length === 0 ? (
-                      <p className="text-gray-500 text-center py-8">Geen uren gevonden</p>
+                      <p className="text-gray-500 text-center py-8">{t('timeEntries.noEntriesFound')}</p>
                     ) : (
                       <>
                         {/* Desktop Table */}
@@ -401,22 +404,22 @@ export default function SubmittedHoursPage() {
                             <thead className="bg-gray-50">
                               <tr>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                  Datum
+                                  {t('common.date')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                  Ritnr
+                                  {t('timeEntries.routeNumberShort')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                  Kenteken
+                                  {t('fleet.licensePlate')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                  Tijden
+                                  {t('timeEntries.times')}
                                 </th>
                                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                                  Uren
+                                  {t('timeEntries.hours')}
                                 </th>
                                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                                  KM
+                                  {t('timeEntries.km')}
                                 </th>
                                 <th className="px-4 py-3"></th>
                               </tr>
@@ -446,7 +449,7 @@ export default function SubmittedHoursPage() {
                                     <button
                                       onClick={() => handleEditEntry(entry)}
                                       className="text-primary-600 hover:text-primary-900 p-1"
-                                      title="Bewerken"
+                                      title={t('common.edit')}
                                     >
                                       <PencilIcon className="h-5 w-5" />
                                     </button>
@@ -476,19 +479,19 @@ export default function SubmittedHoursPage() {
                               
                               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                                 <div>
-                                  <span className="text-gray-500">Kenteken: </span>
+                                  <span className="text-gray-500">{t('fleet.licensePlate')}: </span>
                                   <span className="font-mono font-medium">{entry.kenteken}</span>
                                 </div>
                                 <div>
-                                  <span className="text-gray-500">Tijd: </span>
+                                  <span className="text-gray-500">{t('common.time')}: </span>
                                   <span className="font-medium">{entry.aanvang}-{entry.eind}</span>
                                 </div>
                                 <div>
-                                  <span className="text-gray-500">Uren: </span>
+                                  <span className="text-gray-500">{t('timeEntries.hours')}: </span>
                                   <span className="font-bold text-primary-600">{formatDuration(entry.totaal_uren)}</span>
                                 </div>
                                 <div>
-                                  <span className="text-gray-500">KM: </span>
+                                  <span className="text-gray-500">{t('timeEntries.km')}: </span>
                                   <span className="font-medium">{entry.totaal_km}</span>
                                 </div>
                               </div>
@@ -501,7 +504,7 @@ export default function SubmittedHoursPage() {
 
                   <div className="px-4 sm:px-6 py-4 border-t flex justify-end">
                     <button onClick={() => setShowWeekModal(false)} className="btn-secondary min-h-[44px]">
-                      Sluiten
+                      {t('common.close')}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -540,7 +543,7 @@ export default function SubmittedHoursPage() {
                 <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-4 sm:p-6 shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <Dialog.Title className="text-lg font-semibold">
-                      Urenregistratie bewerken
+                      {t('timeEntries.editEntry')}
                     </Dialog.Title>
                     <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
                       <XMarkIcon className="h-6 w-6" />
@@ -550,7 +553,7 @@ export default function SubmittedHoursPage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <label className="form-label">Ritnummer</label>
+                        <label className="form-label">{t('timeEntries.routeNumber')}</label>
                         <input
                           type="text"
                           value={editForm.ritnummer}
@@ -559,7 +562,7 @@ export default function SubmittedHoursPage() {
                         />
                       </div>
                       <div>
-                        <label className="form-label">Kenteken</label>
+                        <label className="form-label">{t('fleet.licensePlate')}</label>
                         <input
                           type="text"
                           value={editForm.kenteken}
@@ -570,7 +573,7 @@ export default function SubmittedHoursPage() {
                     </div>
 
                     <div>
-                      <label className="form-label">Datum</label>
+                      <label className="form-label">{t('common.date')}</label>
                       <input
                         type="date"
                         value={editForm.datum}
@@ -581,7 +584,7 @@ export default function SubmittedHoursPage() {
 
                     <div className="grid grid-cols-3 gap-2 sm:gap-4">
                       <div>
-                        <label className="form-label text-xs sm:text-sm">Aanvang</label>
+                        <label className="form-label text-xs sm:text-sm">{t('timeEntries.startTime')}</label>
                         <input
                           type="time"
                           value={editForm.aanvang}
@@ -590,7 +593,7 @@ export default function SubmittedHoursPage() {
                         />
                       </div>
                       <div>
-                        <label className="form-label text-xs sm:text-sm">Eind</label>
+                        <label className="form-label text-xs sm:text-sm">{t('timeEntries.endTime')}</label>
                         <input
                           type="time"
                           value={editForm.eind}
@@ -599,7 +602,7 @@ export default function SubmittedHoursPage() {
                         />
                       </div>
                       <div>
-                        <label className="form-label text-xs sm:text-sm">Pauze</label>
+                        <label className="form-label text-xs sm:text-sm">{t('timeEntries.breakTime')}</label>
                         <input
                           type="time"
                           value={editForm.pauze?.substring(0, 5) || '00:00'}
@@ -611,7 +614,7 @@ export default function SubmittedHoursPage() {
 
                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <label className="form-label">KM Start</label>
+                        <label className="form-label">{t('timeEntries.kmStart')}</label>
                         <input
                           type="number"
                           value={editForm.km_start}
@@ -620,7 +623,7 @@ export default function SubmittedHoursPage() {
                         />
                       </div>
                       <div>
-                        <label className="form-label">KM Eind</label>
+                        <label className="form-label">{t('timeEntries.kmEnd')}</label>
                         <input
                           type="number"
                           value={editForm.km_eind}
@@ -637,14 +640,14 @@ export default function SubmittedHoursPage() {
                       className="btn-secondary min-h-[44px]"
                       disabled={saving}
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       onClick={handleSaveEdit}
                       className="btn-primary min-h-[44px]"
                       disabled={saving}
                     >
-                      {saving ? 'Opslaan...' : 'Opslaan'}
+                      {saving ? t('common.saving') : t('common.save')}
                     </button>
                   </div>
                 </Dialog.Panel>

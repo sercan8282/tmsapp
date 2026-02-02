@@ -8,6 +8,7 @@
  */
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeftIcon,
   PlusIcon,
@@ -643,6 +644,7 @@ function TimeEntryImportModal({
 // ============================================
 
 export default function InvoiceCreatePage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   
   // Data state
@@ -718,7 +720,7 @@ export default function InvoiceCreatePage() {
         // Load initial invoice number
         await loadNextInvoiceNumber('verkoop')
       } catch (err) {
-        setError('Kon gegevens niet laden')
+        setError(t('errors.loadFailed'))
         console.error(err)
       } finally {
         setIsLoading(false)
@@ -932,15 +934,15 @@ export default function InvoiceCreatePage() {
   // Save invoice
   const handleSave = async () => {
     if (!selectedTemplate) {
-      setError('Selecteer een template')
+      setError(t('invoices.selectTemplateError'))
       return
     }
     if (!selectedCompany) {
-      setError('Selecteer een bedrijf')
+      setError(t('invoices.selectCompanyError'))
       return
     }
     if (lines.length === 0) {
-      setError('Voeg minimaal één regel toe')
+      setError(t('invoices.addLineError'))
       return
     }
 
@@ -1006,7 +1008,7 @@ export default function InvoiceCreatePage() {
       // Navigate to invoice list
       navigate('/invoices')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Kon factuur niet opslaan')
+      setError(err.response?.data?.detail || t('errors.saveFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -1032,8 +1034,8 @@ export default function InvoiceCreatePage() {
             <ArrowLeftIcon className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Nieuwe Factuur</h1>
-            <p className="text-sm text-gray-500">Maak een nieuwe factuur aan</p>
+            <h1 className="text-2xl font-bold text-gray-900">{t('invoices.newInvoice')}</h1>
+            <p className="text-sm text-gray-500">{t('invoices.createInvoiceDescription')}</p>
           </div>
         </div>
         <button
@@ -1042,7 +1044,7 @@ export default function InvoiceCreatePage() {
           className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2"
         >
           {isSaving && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />}
-          Factuur Opslaan
+          {t('invoices.saveInvoice')}
         </button>
       </div>
 
@@ -1056,15 +1058,15 @@ export default function InvoiceCreatePage() {
 
       {/* Step 1: Select Template */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">1. Selecteer Template</h2>
+        <h2 className="text-lg font-semibold mb-4">1. {t('invoices.selectTemplate')}</h2>
         {templates.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            <p>Geen templates gevonden</p>
+            <p>{t('templates.noTemplates')}</p>
             <button
               onClick={() => navigate('/invoices/templates/new')}
               className="mt-2 text-primary-600 hover:text-primary-700"
             >
-              Maak een template aan
+              {t('templates.createFirstTemplate')}
             </button>
           </div>
         ) : (
@@ -1087,23 +1089,23 @@ export default function InvoiceCreatePage() {
       {/* Step 2: Invoice Details */}
       {selectedTemplate && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">2. Factuurgegevens</h2>
+          <h2 className="text-lg font-semibold mb-4">2. {t('invoices.invoiceDetails')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bedrijf *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('invoices.company')} *</label>
               <select
                 value={selectedCompany}
                 onChange={(e) => setSelectedCompany(e.target.value)}
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
               >
-                <option value="">Selecteer bedrijf...</option>
+                <option value="">{t('invoices.selectCompany')}...</option>
                 {companies.map((company) => (
                   <option key={company.id} value={company.id}>{company.naam}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('invoices.type')}</label>
               <select
                 value={invoiceType}
                 onChange={(e) => {
@@ -1113,23 +1115,23 @@ export default function InvoiceCreatePage() {
                 }}
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
               >
-                <option value="verkoop">Factuur (F-)</option>
-                <option value="credit">Creditfactuur (C-)</option>
-                <option value="inkoop">Inkoopfactuur (I-)</option>
+                <option value="verkoop">{t('invoices.salesInvoice')} (F-)</option>
+                <option value="credit">{t('invoices.creditInvoice')} (C-)</option>
+                <option value="inkoop">{t('invoices.purchaseInvoice')} (I-)</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Factuurnummer</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('invoices.invoiceNumber')}</label>
               <input
                 type="text"
                 value={factuurnummer}
                 disabled
                 className="w-full rounded-md border-gray-300 bg-gray-50 shadow-sm text-gray-700 font-mono"
               />
-              <p className="text-xs text-gray-500 mt-1">Automatisch gegenereerd</p>
+              <p className="text-xs text-gray-500 mt-1">{t('invoices.autoGenerated')}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Factuurdatum</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('invoices.invoiceDate')}</label>
               <input
                 type="date"
                 value={factuurdatum}
@@ -1138,7 +1140,7 @@ export default function InvoiceCreatePage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Vervaldatum</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('invoices.dueDate')}</label>
               <input
                 type="date"
                 value={vervaldatum}
@@ -1148,13 +1150,13 @@ export default function InvoiceCreatePage() {
             </div>
           </div>
           <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Opmerkingen</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.notes')}</label>
             <textarea
               value={opmerkingen}
               onChange={(e) => setOpmerkingen(e.target.value)}
               rows={2}
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              placeholder="Optionele opmerkingen..."
+              placeholder={t('invoices.optionalNotes')}
             />
           </div>
         </div>
@@ -1164,21 +1166,21 @@ export default function InvoiceCreatePage() {
       {selectedTemplate && columns.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">3. Factuurregels</h2>
+            <h2 className="text-lg font-semibold">3. {t('invoices.lines')}</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowImportModal(true)}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
               >
                 <ClockIcon className="h-4 w-4" />
-                Uren Importeren
+                {t('invoices.importHours')}
               </button>
               <button
                 onClick={addLine}
                 className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 flex items-center gap-2"
               >
                 <PlusIcon className="h-4 w-4" />
-                Regel Toevoegen
+                {t('invoices.addLine')}
               </button>
             </div>
           </div>
@@ -1215,7 +1217,7 @@ export default function InvoiceCreatePage() {
             </div>
             {selectedCompany && (
               <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-xs text-gray-500 uppercase tracking-wide">Klant</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">{t('invoices.customer')}</p>
                 <p className="font-medium text-gray-900">
                   {companies.find(c => c.id === selectedCompany)?.naam || '-'}
                 </p>
@@ -1243,8 +1245,8 @@ export default function InvoiceCreatePage() {
           {/* Lines Table */}
           {lines.length === 0 ? (
             <div className="text-center py-12 text-gray-500 border-2 border-dashed rounded-lg">
-              <p className="mb-2">Nog geen regels toegevoegd</p>
-              <p className="text-sm">Klik op "Regel Toevoegen" of "Uren Importeren"</p>
+              <p className="mb-2">{t('invoices.noLinesYet')}</p>
+              <p className="text-sm">{t('invoices.clickToAddLines')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -1288,19 +1290,19 @@ export default function InvoiceCreatePage() {
               <div className="w-72 bg-gray-50 rounded-lg p-4">
                 {totalsConfig.showSubtotaal && (
                   <div className="flex justify-between py-1">
-                    <span className="text-gray-600">Subtotaal (excl. BTW):</span>
+                    <span className="text-gray-600">{t('invoices.subtotalExclVat')}:</span>
                     <span className="font-medium">{formatCurrency(calculateTotals.subtotaal)}</span>
                   </div>
                 )}
                 {totalsConfig.showBtw && (
                   <div className="flex justify-between py-1">
-                    <span className="text-gray-600">BTW ({totalsConfig.btwPercentage}%):</span>
+                    <span className="text-gray-600">{t('invoices.vat')} ({totalsConfig.btwPercentage}%):</span>
                     <span className="font-medium">{formatCurrency(calculateTotals.btw)}</span>
                   </div>
                 )}
                 {totalsConfig.showTotaal && (
                   <div className="flex justify-between py-2 border-t border-gray-300 mt-2 text-lg font-bold">
-                    <span>Totaal (incl. BTW):</span>
+                    <span>{t('invoices.totalInclVat')}:</span>
                     <span className="text-primary-600">{formatCurrency(calculateTotals.totaal)}</span>
                   </div>
                 )}

@@ -3,6 +3,7 @@
  * Admin interface for managing notification groups, schedules, sending and sent history
  */
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   BellIcon,
   UserGroupIcon,
@@ -17,17 +18,18 @@ import SendUserNotificationTab from '@/components/settings/SendUserNotificationT
 
 type SubTab = 'groups' | 'schedules' | 'send' | 'sent'
 
-const subTabs = [
-  { id: 'groups' as SubTab, name: 'Groepen', icon: UserGroupIcon },
-  { id: 'schedules' as SubTab, name: "Schema's", icon: CalendarDaysIcon },
-  { id: 'send' as SubTab, name: 'Versturen', icon: PaperAirplaneIcon },
-  { id: 'sent' as SubTab, name: 'Verzonden', icon: CheckCircleIcon },
-]
-
 export default function NotificationsPage() {
+  const { t } = useTranslation()
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('groups')
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const subTabs = [
+    { id: 'groups' as SubTab, name: t('notifications.groups', 'Groepen'), icon: UserGroupIcon },
+    { id: 'schedules' as SubTab, name: t('notifications.schedules', "Schema's"), icon: CalendarDaysIcon },
+    { id: 'send' as SubTab, name: t('notifications.send', 'Versturen'), icon: PaperAirplaneIcon },
+    { id: 'sent' as SubTab, name: t('notifications.sent', 'Verzonden'), icon: CheckCircleIcon },
+  ]
 
   const handleSuccess = (message: string) => {
     setSuccessMessage(message)
@@ -48,9 +50,9 @@ export default function NotificationsPage() {
         <div className="flex items-center gap-3">
           <BellIcon className="h-8 w-8 text-primary-600" />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Notificaties</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('notifications.title')}</h1>
             <p className="text-sm text-gray-500">
-              Beheer notificatie groepen, schema's en verstuur berichten.
+              {t('notifications.manageDescription', "Beheer notificatie groepen, schema's en verstuur berichten.")}
             </p>
           </div>
         </div>

@@ -3,6 +3,7 @@
  */
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   DocumentIcon,
   CloudArrowUpIcon,
@@ -12,6 +13,7 @@ import { uploadDocument } from '../../api/documents';
 
 export default function DocumentUploadPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -43,7 +45,7 @@ export default function DocumentUploadPage() {
         }
         setError(null);
       } else {
-        setError('Alleen PDF bestanden zijn toegestaan');
+        setError(t('documents.pdfOnly', 'Alleen PDF bestanden zijn toegestaan'));
       }
     }
   }, [title]);
@@ -58,7 +60,7 @@ export default function DocumentUploadPage() {
         }
         setError(null);
       } else {
-        setError('Alleen PDF bestanden zijn toegestaan');
+        setError(t('documents.pdfOnly', 'Alleen PDF bestanden zijn toegestaan'));
       }
     }
   };
@@ -67,12 +69,12 @@ export default function DocumentUploadPage() {
     e.preventDefault();
     
     if (!file) {
-      setError('Selecteer een PDF bestand');
+      setError(t('documents.selectPdfFile', 'Selecteer een PDF bestand'));
       return;
     }
     
     if (!title.trim()) {
-      setError('Voer een titel in');
+      setError(t('documents.enterTitle', 'Voer een titel in'));
       return;
     }
 
@@ -83,7 +85,7 @@ export default function DocumentUploadPage() {
       navigate(`/documents/${document.id}`);
     } catch (err: any) {
       console.error('Upload error:', err);
-      setError(err.response?.data?.error || 'Kon document niet uploaden');
+      setError(err.response?.data?.error || t('documents.uploadError', 'Kon document niet uploaden'));
     } finally {
       setUploading(false);
     }
@@ -98,9 +100,9 @@ export default function DocumentUploadPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Document uploaden</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('documents.uploadDocument')}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Upload een PDF document om te ondertekenen
+          {t('documents.uploadToSign', 'Upload een PDF document om te ondertekenen')}
         </p>
       </div>
 
@@ -148,11 +150,11 @@ export default function DocumentUploadPage() {
                   htmlFor="file-upload"
                   className="cursor-pointer text-blue-600 hover:text-blue-500 font-medium"
                 >
-                  Selecteer een bestand
+                  {t('documents.selectFile')}
                 </label>
-                <span className="text-gray-500"> of sleep het hierheen</span>
+                <span className="text-gray-500"> {t('documents.orDragHere', 'of sleep het hierheen')}</span>
               </div>
-              <p className="mt-2 text-xs text-gray-500">Alleen PDF bestanden, max. 20MB</p>
+              <p className="mt-2 text-xs text-gray-500">{t('documents.maxFileSize', { size: 20 })}</p>
               <input
                 id="file-upload"
                 type="file"
@@ -167,7 +169,7 @@ export default function DocumentUploadPage() {
         {/* Title */}
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-            Titel <span className="text-red-500">*</span>
+            {t('documents.documentTitle', 'Titel')} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -175,14 +177,14 @@ export default function DocumentUploadPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="Bijv. Arbeidscontract Jan Jansen"
+            placeholder={t('documents.titlePlaceholder', 'Bijv. Arbeidscontract Jan Jansen')}
           />
         </div>
 
         {/* Description */}
         <div>
           <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-            Beschrijving
+            {t('common.description')}
           </label>
           <textarea
             id="description"
@@ -190,7 +192,7 @@ export default function DocumentUploadPage() {
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="Optionele beschrijving..."
+            placeholder={t('documents.descriptionPlaceholder', 'Optionele beschrijving...')}
           />
         </div>
 
@@ -201,7 +203,7 @@ export default function DocumentUploadPage() {
             onClick={() => navigate('/documents')}
             className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            Annuleren
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
@@ -214,10 +216,10 @@ export default function DocumentUploadPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Uploaden...
+                {t('common.uploading', 'Uploaden...')}
               </>
             ) : (
-              'Uploaden'
+              t('common.upload')
             )}
           </button>
         </div>

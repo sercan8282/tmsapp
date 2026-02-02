@@ -1,18 +1,12 @@
 import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Upload, FileText, AlertCircle, CheckCircle, Clock, Loader2, Mail, Trash2, FileCheck, Square, CheckSquare } from 'lucide-react';
 import { uploadInvoice, getInvoiceImports, deleteInvoiceImport, bulkDeleteInvoiceImports, bulkConvertInvoiceImports, InvoiceImport } from '../../api/ocr';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-const statusConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-  pending: { color: 'bg-yellow-100 text-yellow-800', icon: <Clock className="w-4 h-4" />, label: 'In wachtrij' },
-  processing: { color: 'bg-blue-100 text-blue-800', icon: <Loader2 className="w-4 h-4 animate-spin" />, label: 'Verwerken' },
-  extracted: { color: 'bg-purple-100 text-purple-800', icon: <FileText className="w-4 h-4" />, label: 'Geëxtraheerd' },
-  review: { color: 'bg-orange-100 text-orange-800', icon: <AlertCircle className="w-4 h-4" />, label: 'Review nodig' },
-  completed: { color: 'bg-green-100 text-green-800', icon: <CheckCircle className="w-4 h-4" />, label: 'Voltooid' },
-  failed: { color: 'bg-red-100 text-red-800', icon: <AlertCircle className="w-4 h-4" />, label: 'Mislukt' },
-};
+// Status config will be initialized in component with translations
 
 // Tab Navigation Component
 const ImportTabs: React.FC = () => {
@@ -55,8 +49,18 @@ const ImportTabs: React.FC = () => {
 };
 
 const InvoiceImportPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const statusConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
+    pending: { color: 'bg-yellow-100 text-yellow-800', icon: <Clock className="w-4 h-4" />, label: t('imports.statusPending', 'In wachtrij') },
+    processing: { color: 'bg-blue-100 text-blue-800', icon: <Loader2 className="w-4 h-4 animate-spin" />, label: t('imports.statusProcessing', 'Verwerken') },
+    extracted: { color: 'bg-purple-100 text-purple-800', icon: <FileText className="w-4 h-4" />, label: t('imports.statusExtracted', 'Geëxtraheerd') },
+    review: { color: 'bg-orange-100 text-orange-800', icon: <AlertCircle className="w-4 h-4" />, label: t('imports.statusReviewNeeded', 'Review nodig') },
+    completed: { color: 'bg-green-100 text-green-800', icon: <CheckCircle className="w-4 h-4" />, label: t('imports.statusCompleted', 'Voltooid') },
+    failed: { color: 'bg-red-100 text-red-800', icon: <AlertCircle className="w-4 h-4" />, label: t('imports.statusFailed', 'Mislukt') },
+  };
   const [uploadProgress, setUploadProgress] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -84,7 +88,7 @@ const InvoiceImportPage: React.FC = () => {
     },
     onError: (error: Error) => {
       setUploadProgress(false);
-      setUploadError(error.message || 'Er ging iets mis bij het uploaden');
+      setUploadError(error.message || t('imports.uploadError', 'Er ging iets mis bij het uploaden'));
     },
   });
 
@@ -105,7 +109,7 @@ const InvoiceImportPage: React.FC = () => {
       alert(data.message);
     },
     onError: (error: Error) => {
-      alert(`Fout bij verwijderen: ${error.message}`);
+      alert(t('imports.deleteError', `Fout bij verwijderen: ${error.message}`));
     },
   });
 
@@ -119,7 +123,7 @@ const InvoiceImportPage: React.FC = () => {
       alert(data.message);
     },
     onError: (error: Error) => {
-      alert(`Fout bij omzetten: ${error.message}`);
+      alert(t('imports.convertError', `Fout bij omzetten: ${error.message}`));
     },
   });
 
@@ -144,14 +148,15 @@ const InvoiceImportPage: React.FC = () => {
 
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (window.confirm(`Weet je zeker dat je ${selectedIds.size} import(s) wilt verwijderen?`)) {
+    if (window.confirm(t('imports.bulkDeleteImportConfirm', `Weet je zeker dat je ${selectedIds.size} import(s) wilt verwijderen?`))) {
       bulkDeleteMutation.mutate(Array.from(selectedIds));
     }
   };
 
   const handleBulkConvert = () => {
     if (selectedIds.size === 0) return;
-    if (window.confirm(`Weet je zeker dat je ${selectedIds.size} import(s) wilt omzetten naar ${bulkInvoiceType === 'inkoop' ? 'inkoopfacturen' : bulkInvoiceType === 'verkoop' ? 'verkoopfacturen' : 'creditnota\'s'}?`)) {
+    const typeLabel = bulkInvoiceType === 'inkoop' ? t('imports.purchaseInvoices', 'inkoopfacturen') : bulkInvoiceType === 'verkoop' ? t('imports.salesInvoices', 'verkoopfacturen') : t('imports.creditNotes', "creditnota's");
+    if (window.confirm(t('imports.bulkConvertConfirm', `Weet je zeker dat je ${selectedIds.size} import(s) wilt omzetten naar ${typeLabel}?`))) {
       bulkConvertMutation.mutate({ ids: Array.from(selectedIds), invoice_type: bulkInvoiceType });
     }
   };
@@ -195,9 +200,9 @@ const InvoiceImportPage: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Factuur Import</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('imports.invoiceImport')}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Upload inkoopfacturen om automatisch gegevens te extraheren met OCR
+          {t('imports.invoiceImportDescription', 'Upload inkoopfacturen om automatisch gegevens te extraheren met OCR')}
         </p>
       </div>
 
@@ -223,23 +228,23 @@ const InvoiceImportPage: React.FC = () => {
           <div className="flex flex-col items-center">
             <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
             <p className="mt-4 text-lg font-medium text-gray-900">
-              Factuur wordt verwerkt...
+              {t('imports.processingInvoice', 'Factuur wordt verwerkt...')}
             </p>
             <p className="mt-1 text-sm text-gray-500">
-              OCR herkenning kan even duren
+              {t('imports.ocrProcessing', 'OCR herkenning kan even duren')}
             </p>
           </div>
         ) : (
           <div className="flex flex-col items-center">
             <Upload className={`w-12 h-12 ${isDragActive ? 'text-blue-500' : 'text-gray-400'}`} />
             <p className="mt-4 text-lg font-medium text-gray-900">
-              {isDragActive ? 'Laat los om te uploaden' : 'Sleep een factuur hierheen'}
+              {isDragActive ? t('imports.dropToUpload', 'Laat los om te uploaden') : t('imports.dragInvoice', 'Sleep een factuur hierheen')}
             </p>
             <p className="mt-1 text-sm text-gray-500">
-              of klik om een bestand te selecteren
+              {t('imports.clickToSelect', 'of klik om een bestand te selecteren')}
             </p>
             <p className="mt-2 text-xs text-gray-400">
-              PDF, JPG, PNG of TIFF (max. 20MB)
+              {t('imports.allowedFormats', 'PDF, JPG, PNG of TIFF (max. 20MB)')}
             </p>
           </div>
         )}
@@ -250,7 +255,7 @@ const InvoiceImportPage: React.FC = () => {
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-red-800">Upload mislukt</p>
+            <p className="text-sm font-medium text-red-800">{t('imports.uploadFailed', 'Upload mislukt')}</p>
             <p className="text-sm text-red-600">{uploadError}</p>
           </div>
         </div>
@@ -259,14 +264,14 @@ const InvoiceImportPage: React.FC = () => {
       {/* Recent Imports */}
       <div className="mt-12">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recente Imports</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('imports.recentImports', 'Recente Imports')}</h2>
           
           {/* Bulk Actions */}
           {imports.length > 0 && (
             <div className="flex items-center gap-3">
               {selectedIds.size > 0 && (
                 <>
-                  <span className="text-sm text-gray-600">{selectedIds.size} geselecteerd</span>
+                  <span className="text-sm text-gray-600">{selectedIds.size} {t('common.selected', 'geselecteerd')}</span>
                   
                   <select
                     value={bulkInvoiceType}
@@ -274,9 +279,9 @@ const InvoiceImportPage: React.FC = () => {
                     className="text-sm border-gray-300 rounded-md"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <option value="inkoop">Inkoopfactuur</option>
-                    <option value="verkoop">Verkoopfactuur</option>
-                    <option value="credit">Creditnota</option>
+                    <option value="inkoop">{t('imports.purchaseInvoice', 'Inkoopfactuur')}</option>
+                    <option value="verkoop">{t('imports.salesInvoice', 'Verkoopfactuur')}</option>
+                    <option value="credit">{t('imports.creditNote', 'Creditnota')}</option>
                   </select>
                   
                   <button
@@ -289,7 +294,7 @@ const InvoiceImportPage: React.FC = () => {
                     ) : (
                       <FileCheck className="w-4 h-4" />
                     )}
-                    Opslaan als factuur
+                    {t('imports.saveAsInvoice', 'Opslaan als factuur')}
                   </button>
                   
                   <button
@@ -302,7 +307,7 @@ const InvoiceImportPage: React.FC = () => {
                     ) : (
                       <Trash2 className="w-4 h-4" />
                     )}
-                    Verwijderen
+                    {t('common.delete')}
                   </button>
                 </>
               )}
@@ -317,7 +322,7 @@ const InvoiceImportPage: React.FC = () => {
         ) : imports.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <FileText className="w-12 h-12 text-gray-300 mx-auto" />
-            <p className="mt-4 text-gray-500">Nog geen facturen geïmporteerd</p>
+            <p className="mt-4 text-gray-500">{t('imports.noInvoicesImported', 'Nog geen facturen geïmporteerd')}</p>
           </div>
         ) : (
           <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -428,13 +433,13 @@ const InvoiceImportPage: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm('Weet je zeker dat je deze import wilt verwijderen?')) {
+                            if (window.confirm(t('imports.deleteImportConfirm', 'Weet je zeker dat je deze import wilt verwijderen?'))) {
                               deleteMutation.mutate(imp.id);
                             }
                           }}
                           className="text-red-600 hover:text-red-900"
                         >
-                          Verwijderen
+                          {t('common.delete')}
                         </button>
                       </td>
                     </tr>

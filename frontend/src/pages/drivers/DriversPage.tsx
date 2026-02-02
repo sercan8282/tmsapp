@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { 
   MagnifyingGlassIcon, 
   PlusIcon, 
@@ -78,7 +79,9 @@ function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmText = 'Bevestigen',
+  confirmText,
+  cancelText,
+  loadingText,
   isLoading = false,
 }: {
   isOpen: boolean
@@ -87,6 +90,8 @@ function ConfirmDialog({
   title: string
   message: string
   confirmText?: string
+  cancelText?: string
+  loadingText?: string
   isLoading?: boolean
 }) {
   return (
@@ -98,14 +103,14 @@ function ConfirmDialog({
           className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           disabled={isLoading}
         >
-          Annuleren
+          {cancelText}
         </button>
         <button
           onClick={onConfirm}
           className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
           disabled={isLoading}
         >
-          {isLoading ? 'Bezig...' : confirmText}
+          {isLoading ? loadingText : confirmText}
         </button>
       </div>
     </Modal>
@@ -120,6 +125,7 @@ function DriverForm({
   onSave,
   onCancel,
   isLoading,
+  t,
 }: {
   driver?: Driver
   companies: Company[]
@@ -127,6 +133,7 @@ function DriverForm({
   onSave: (data: DriverCreate | DriverUpdate) => void
   onCancel: () => void
   isLoading: boolean
+  t: (key: string) => string
 }) {
   const [formData, setFormData] = useState({
     naam: driver?.naam || '',
@@ -149,7 +156,7 @@ function DriverForm({
 
   const validate = () => {
     const newErrors: Record<string, string> = {}
-    if (!formData.naam.trim()) newErrors.naam = 'Naam is verplicht'
+    if (!formData.naam.trim()) newErrors.naam = t('validation.nameRequired')
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -172,7 +179,7 @@ function DriverForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Naam chauffeur *
+          {t('drivers.driverName')} *
         </label>
         <input
           type="text"
@@ -186,7 +193,7 @@ function DriverForm({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Telefoon
+          {t('common.phone')}
         </label>
         <input
           type="tel"
@@ -199,7 +206,7 @@ function DriverForm({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Bedrijf
+          {t('companies.title')}
         </label>
         <select
           name="bedrijf"
@@ -207,7 +214,7 @@ function DriverForm({
           onChange={handleChange}
           className="input"
         >
-          <option value="">Geen bedrijf</option>
+          <option value="">{t('common.none')}</option>
           {companies.map(company => (
             <option key={company.id} value={company.id}>
               {company.naam}
@@ -218,7 +225,7 @@ function DriverForm({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Gekoppelde gebruiker
+          {t('drivers.linkedUser')}
         </label>
         <select
           name="gekoppelde_gebruiker"
@@ -226,7 +233,7 @@ function DriverForm({
           onChange={handleChange}
           className="input"
         >
-          <option value="">Geen gebruiker</option>
+          <option value="">{t('drivers.noLinkedUser')}</option>
           {users.map(user => (
             <option key={user.id} value={user.id}>
               {user.voornaam && user.achternaam 
@@ -236,7 +243,7 @@ function DriverForm({
           ))}
         </select>
         <p className="text-xs text-gray-500 mt-1">
-          Koppel aan een gebruikersaccount voor toegang tot het systeem
+          {t('drivers.selectUser')}
         </p>
       </div>
 
@@ -250,10 +257,10 @@ function DriverForm({
           className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
         />
         <label htmlFor="adr" className="ml-2 text-sm text-gray-700">
-          ADR gecertificeerd
+          {t('drivers.adrCertified')}
         </label>
         <span className="ml-2 text-xs text-gray-500">
-          (voor transport van gevaarlijke stoffen)
+          ({t('drivers.adrDescription')})
         </span>
       </div>
 
@@ -264,14 +271,14 @@ function DriverForm({
           className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           disabled={isLoading}
         >
-          Annuleren
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
           className="btn-primary"
           disabled={isLoading}
         >
-          {isLoading ? 'Bezig...' : driver ? 'Opslaan' : 'Aanmaken'}
+          {isLoading ? t('common.saving') : driver ? t('common.save') : t('common.create')}
         </button>
       </div>
     </form>
@@ -280,6 +287,7 @@ function DriverForm({
 
 // Main DriversPage component
 export default function DriversPage() {
+  const { t } = useTranslation()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -355,7 +363,7 @@ export default function DriversPage() {
       setDrivers(response.results || [])
       setTotalCount(response.count || 0)
     } catch (err) {
-      setError('Fout bij ophalen chauffeurs')
+      setError(t('common.error'))
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -388,10 +396,10 @@ export default function DriversPage() {
     try {
       await createDriver(data as DriverCreate)
       setShowCreateModal(false)
-      showSuccess('Chauffeur succesvol aangemaakt')
+      showSuccess(t('drivers.driverCreated'))
       fetchDrivers()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij aanmaken chauffeur'))
+      setError(getErrorMessage(err, t('common.error')))
     } finally {
       setIsActionLoading(false)
     }
@@ -405,10 +413,10 @@ export default function DriversPage() {
       await updateDriver(selectedDriver.id, data as DriverUpdate)
       setShowEditModal(false)
       setSelectedDriver(null)
-      showSuccess('Chauffeur succesvol bijgewerkt')
+      showSuccess(t('drivers.driverUpdated'))
       fetchDrivers()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij bijwerken chauffeur'))
+      setError(getErrorMessage(err, t('common.error')))
     } finally {
       setIsActionLoading(false)
     }
@@ -422,10 +430,10 @@ export default function DriversPage() {
       await deleteDriver(selectedDriver.id)
       setShowDeleteModal(false)
       setSelectedDriver(null)
-      showSuccess('Chauffeur succesvol verwijderd')
+      showSuccess(t('drivers.driverDeleted'))
       fetchDrivers()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij verwijderen chauffeur'))
+      setError(getErrorMessage(err, t('common.error')))
       setShowDeleteModal(false)
       setSelectedDriver(null)
     } finally {
@@ -458,13 +466,13 @@ export default function DriversPage() {
     <div>
       {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Chauffeurs</h1>
+        <h1 className="page-title">{t('drivers.title')}</h1>
         <button
           onClick={() => setShowCreateModal(true)}
           className="btn-primary"
         >
           <PlusIcon className="w-5 h-5 mr-2" />
-          Nieuwe chauffeur
+          {t('drivers.newDriver')}
         </button>
       </div>
 
@@ -493,7 +501,7 @@ export default function DriversPage() {
             {/* Search */}
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Zoeken
+                {t('common.search')}
               </label>
               <div className="relative">
                 <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -501,7 +509,7 @@ export default function DriversPage() {
                   type="text"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                  placeholder="Zoek op naam, telefoon..."
+                  placeholder={t('drivers.searchDrivers')}
                   className="input pl-10 min-h-[44px]"
                 />
               </div>
@@ -512,14 +520,14 @@ export default function DriversPage() {
               {/* Company filter */}
               <div className="flex-1 xs:w-40">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bedrijf
+                  {t('companies.title')}
                 </label>
                 <select
                   value={companyFilter}
                   onChange={(e) => { setCompanyFilter(e.target.value); setPage(1) }}
                   className="input min-h-[44px]"
                 >
-                  <option value="">Alle bedrijven</option>
+                  <option value="">{t('companies.allCompanies')}</option>
                   {companies.map(company => (
                     <option key={company.id} value={company.id}>
                       {company.naam}
@@ -538,9 +546,9 @@ export default function DriversPage() {
                   onChange={(e) => { setAdrFilter(e.target.value as 'all' | 'yes' | 'no'); setPage(1) }}
                   className="input min-h-[44px]"
                 >
-                  <option value="all">Alle</option>
-                  <option value="yes">ADR gecertificeerd</option>
-                  <option value="no">Geen ADR</option>
+                  <option value="all">{t('common.all')}</option>
+                  <option value="yes">{t('drivers.adrCertified')}</option>
+                  <option value="no">{t('drivers.noAdr')}</option>
                 </select>
               </div>
             </div>
@@ -549,7 +557,7 @@ export default function DriversPage() {
             <button
               onClick={() => fetchDrivers()}
               className="p-2 min-w-[44px] min-h-[44px] text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg self-end"
-              title="Vernieuwen"
+              title={t('common.refresh')}
             >
               <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -568,22 +576,22 @@ export default function DriversPage() {
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('naam')}
                 >
-                  Naam <SortIcon field="naam" />
+                  {t('common.name')} <SortIcon field="naam" />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Telefoon
+                  {t('common.phone')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Bedrijf
+                  {t('companies.title')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Gekoppelde gebruiker
+                  {t('drivers.linkedUser')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
                   ADR
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                  Acties
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -593,7 +601,7 @@ export default function DriversPage() {
                   <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
                     <div className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                      <span className="ml-3">Laden...</span>
+                      <span className="ml-3">{t('common.loading')}</span>
                     </div>
                   </td>
                 </tr>
@@ -601,12 +609,12 @@ export default function DriversPage() {
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
                     <UserGroupIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                    <p>Geen chauffeurs gevonden</p>
+                    <p>{t('drivers.noDrivers')}</p>
                     <button
                       onClick={() => setShowCreateModal(true)}
                       className="mt-2 text-primary-600 hover:text-primary-700"
                     >
-                      Voeg je eerste chauffeur toe
+                      {t('drivers.addDriver')}
                     </button>
                   </td>
                 </tr>
@@ -635,14 +643,14 @@ export default function DriversPage() {
                         <button
                           onClick={() => { setSelectedDriver(driver); setShowEditModal(true) }}
                           className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
-                          title="Bewerken"
+                          title={t('common.edit')}
                         >
                           <PencilSquareIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => { setSelectedDriver(driver); setShowDeleteModal(true) }}
                           className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
-                          title="Verwijderen"
+                          title={t('common.delete')}
                         >
                           <TrashIcon className="w-5 h-5" />
                         </button>
@@ -661,18 +669,18 @@ export default function DriversPage() {
             <div className="px-4 py-12 text-center text-gray-500">
               <div className="flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                <span className="ml-3">Laden...</span>
+                <span className="ml-3">{t('common.loading')}</span>
               </div>
             </div>
           ) : drivers.length === 0 ? (
             <div className="px-4 py-12 text-center text-gray-500">
               <UserGroupIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-              <p>Geen chauffeurs gevonden</p>
+              <p>{t('drivers.noDrivers')}</p>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="mt-2 text-primary-600 hover:text-primary-700"
               >
-                Voeg je eerste chauffeur toe
+                {t('drivers.addDriver')}
               </button>
             </div>
           ) : (
@@ -697,14 +705,14 @@ export default function DriversPage() {
                     <button
                       onClick={() => { setSelectedDriver(driver); setShowEditModal(true) }}
                       className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg"
-                      title="Bewerken"
+                      title={t('common.edit')}
                     >
                       <PencilSquareIcon className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => { setSelectedDriver(driver); setShowDeleteModal(true) }}
                       className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-lg"
-                      title="Verwijderen"
+                      title={t('common.delete')}
                     >
                       <TrashIcon className="w-5 h-5" />
                     </button>
@@ -714,12 +722,12 @@ export default function DriversPage() {
                 {/* Card Details */}
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
-                    <span className="text-gray-500">Bedrijf: </span>
+                    <span className="text-gray-500">{t('companies.title')}: </span>
                     <span className="text-gray-700">{getCompanyName(driver)}</span>
                   </div>
                   {driver.gekoppelde_gebruiker_naam && (
                     <div>
-                      <span className="text-gray-500">Gebruiker: </span>
+                      <span className="text-gray-500">{t('drivers.linkedUser')}: </span>
                       <span className="text-gray-700">{driver.gekoppelde_gebruiker_naam}</span>
                     </div>
                   )}
@@ -744,7 +752,7 @@ export default function DriversPage() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="Nieuwe chauffeur"
+        title={t('drivers.newDriver')}
         size="md"
       >
         <DriverForm
@@ -753,6 +761,7 @@ export default function DriversPage() {
           onSave={handleCreate}
           onCancel={() => setShowCreateModal(false)}
           isLoading={isActionLoading}
+          t={t}
         />
       </Modal>
 
@@ -760,7 +769,7 @@ export default function DriversPage() {
       <Modal
         isOpen={showEditModal}
         onClose={() => { setShowEditModal(false); setSelectedDriver(null) }}
-        title="Chauffeur bewerken"
+        title={t('drivers.editDriver')}
         size="md"
       >
         {selectedDriver && (
@@ -771,6 +780,7 @@ export default function DriversPage() {
             onSave={handleUpdate}
             onCancel={() => { setShowEditModal(false); setSelectedDriver(null) }}
             isLoading={isActionLoading}
+            t={t}
           />
         )}
       </Modal>
@@ -780,9 +790,11 @@ export default function DriversPage() {
         isOpen={showDeleteModal}
         onClose={() => { setShowDeleteModal(false); setSelectedDriver(null) }}
         onConfirm={handleDelete}
-        title="Chauffeur verwijderen"
-        message={`Weet je zeker dat je "${selectedDriver?.naam}" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`}
-        confirmText="Verwijderen"
+        title={t('common.delete')}
+        message={t('drivers.deleteConfirm')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        loadingText={t('common.deleting')}
         isLoading={isActionLoading}
       />
     </div>

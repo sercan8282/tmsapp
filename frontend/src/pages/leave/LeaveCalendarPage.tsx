@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -30,6 +31,7 @@ function getLeaveTypeColor(type: string) {
 }
 
 export default function LeaveCalendarPage() {
+  const { t } = useTranslation()
   const [entries, setEntries] = useState<CalendarLeaveEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -99,8 +101,10 @@ export default function LeaveCalendarPage() {
   }, [entries])
 
   const monthNames = [
-    'Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni',
-    'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'
+    t('common.months.january'), t('common.months.february'), t('common.months.march'),
+    t('common.months.april'), t('common.months.may'), t('common.months.june'),
+    t('common.months.july'), t('common.months.august'), t('common.months.september'),
+    t('common.months.october'), t('common.months.november'), t('common.months.december')
   ]
 
   const today = new Date()
@@ -136,10 +140,10 @@ export default function LeaveCalendarPage() {
             className="flex items-center text-gray-600 hover:text-gray-900 mb-2"
           >
             <ArrowLeftIcon className="w-4 h-4 mr-2" />
-            Terug naar overzicht
+            {t('common.back')}
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Verlofkalender</h1>
-          <p className="text-gray-500">Overzicht van goedgekeurd verlof per medewerker</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('leave.leaveCalendar')}</h1>
+          <p className="text-gray-500">{t('leave.calendarDescription')}</p>
         </div>
       </div>
 
@@ -160,7 +164,7 @@ export default function LeaveCalendarPage() {
               onClick={goToCurrentMonth}
               className="text-sm text-primary-600 hover:text-primary-700 mt-1"
             >
-              Huidige maand
+              {t('common.month')}
             </button>
           </div>
           <button
@@ -177,9 +181,9 @@ export default function LeaveCalendarPage() {
             <div key={type} className="flex items-center gap-2">
               <div className={`w-4 h-4 rounded ${colors.bg}`} />
               <span className="text-sm text-gray-600 capitalize">
-                {type === 'vakantie' ? 'Vakantie' : 
-                 type === 'overuren' ? 'Overuren' :
-                 type === 'bijzonder_tandarts' ? 'Tandarts' : 'Huisarts'}
+                {type === 'vakantie' ? t('leave.vacation') : 
+                 type === 'overuren' ? t('leave.overtime') :
+                 type === 'bijzonder_tandarts' ? t('leave.dentist') : t('leave.doctor')}
               </span>
             </div>
           ))}
@@ -192,7 +196,7 @@ export default function LeaveCalendarPage() {
         ) : userEntries.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
             <CalendarDaysIcon className="w-12 h-12 text-gray-300 mb-4" />
-            <p>Geen verlof gepland deze maand</p>
+            <p>{t('leave.noLeaveThisMonth')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -202,7 +206,7 @@ export default function LeaveCalendarPage() {
               <div className="flex border-b border-gray-200">
                 {/* Employee name column */}
                 <div className="w-40 flex-shrink-0 px-3 py-2 bg-gray-50 font-medium text-sm text-gray-700 sticky left-0 z-10">
-                  Medewerker
+                  {t('leave.employee')}
                 </div>
                 {/* Day columns */}
                 <div className="flex-1 flex">
@@ -210,7 +214,7 @@ export default function LeaveCalendarPage() {
                     const dateStr = date.toISOString().split('T')[0]
                     const isToday = dateStr === todayStr
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6
-                    const dayNames = ['Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za']
+                    const dayNames = [t('planning.sun'), t('planning.mon'), t('planning.tue'), t('planning.wed'), t('planning.thu'), t('planning.fri'), t('planning.sat')]
                     
                     return (
                       <div
@@ -290,7 +294,7 @@ export default function LeaveCalendarPage() {
         <div className="card">
           <div className="px-6 py-4 border-b">
             <h2 className="text-lg font-semibold text-gray-900">
-              Verlof deze maand ({entries.length})
+              {t('leave.leaveThisMonth')} ({entries.length})
             </h2>
           </div>
           <div className="divide-y">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { settingsApi, ActivityItem } from '@/api/settings'
 import {
@@ -17,36 +18,39 @@ import {
   ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline'
 
-const ENTITY_TYPES = [
-  { value: '', label: 'Alle types' },
-  { value: 'invoice', label: 'Facturen' },
-  { value: 'planning', label: 'Planning' },
-  { value: 'leave', label: 'Verlof' },
-  { value: 'user', label: 'Gebruikers' },
-  { value: 'company', label: 'Bedrijven' },
-  { value: 'vehicle', label: 'Voertuigen' },
-  { value: 'driver', label: 'Chauffeurs' },
-  { value: 'time_entry', label: 'Urenregistratie' },
-  { value: 'auth', label: 'Login/Logout' },
-]
-
-const ACTIONS = [
-  { value: '', label: 'Alle acties' },
-  { value: 'created', label: 'Aangemaakt' },
-  { value: 'updated', label: 'Bijgewerkt' },
-  { value: 'deleted', label: 'Verwijderd' },
-  { value: 'submitted', label: 'Ingediend' },
-  { value: 'approved', label: 'Goedgekeurd' },
-  { value: 'rejected', label: 'Afgewezen' },
-  { value: 'sent', label: 'Verzonden' },
-  { value: 'login', label: 'Ingelogd' },
-  { value: 'logout', label: 'Uitgelogd' },
-]
+// Entity types and actions - labels will be translated in component
 
 export default function ActivityPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
+
+  const ENTITY_TYPES = [
+    { value: '', label: t('common.allTypes') },
+    { value: 'invoice', label: t('nav.invoices') },
+    { value: 'planning', label: t('nav.planning') },
+    { value: 'leave', label: t('nav.leave') },
+    { value: 'user', label: t('nav.users') },
+    { value: 'company', label: t('nav.companies') },
+    { value: 'vehicle', label: t('fleet.title', 'Voertuigen') },
+    { value: 'driver', label: t('nav.drivers') },
+    { value: 'time_entry', label: t('nav.timeEntries') },
+    { value: 'auth', label: t('activity.loginLogout', 'Login/Logout') },
+  ]
+
+  const ACTIONS = [
+    { value: '', label: t('activity.allActions') },
+    { value: 'created', label: t('activity.created') },
+    { value: 'updated', label: t('activity.updated') },
+    { value: 'deleted', label: t('activity.deleted') },
+    { value: 'submitted', label: t('activity.submitted') },
+    { value: 'approved', label: t('activity.approved') },
+    { value: 'rejected', label: t('activity.rejected') },
+    { value: 'sent', label: t('activity.sent') },
+    { value: 'login', label: t('activity.login') },
+    { value: 'logout', label: t('activity.logout') },
+  ]
   const [pagination, setPagination] = useState({
     page: 1,
     per_page: 25,
@@ -139,9 +143,9 @@ export default function ActivityPage() {
     <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Activiteiten</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('activity.title')}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Overzicht van alle activiteiten in het systeem
+          {t('activity.systemOverview', 'Overzicht van alle activiteiten in het systeem')}
         </p>
       </div>
 
@@ -150,7 +154,7 @@ export default function ActivityPage() {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <FunnelIcon className="h-5 w-5 text-gray-400" />
-            <span className="text-sm font-medium text-gray-700">Filters:</span>
+            <span className="text-sm font-medium text-gray-700">{t('common.filter')}:</span>
           </div>
           
           <select
@@ -188,7 +192,7 @@ export default function ActivityPage() {
               }}
               className="text-sm text-primary-600 hover:text-primary-700"
             >
-              Filters wissen
+              {t('activity.clearFilters', 'Filters wissen')}
             </button>
           )}
         </div>
@@ -199,12 +203,12 @@ export default function ActivityPage() {
         {loading ? (
           <div className="p-12 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto" />
-            <p className="mt-4 text-gray-500">Activiteiten laden...</p>
+            <p className="mt-4 text-gray-500">{t('activity.loading', 'Activiteiten laden...')}</p>
           </div>
         ) : activities.length === 0 ? (
           <div className="p-12 text-center text-gray-500">
             <ClockIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>Geen activiteiten gevonden</p>
+            <p>{t('activity.noActivity')}</p>
           </div>
         ) : (
           <>
@@ -243,7 +247,7 @@ export default function ActivityPage() {
                           {activity.user_name && (
                             <>
                               <span>•</span>
-                              <span>door {activity.user_name}</span>
+                              <span>{t('activity.by')} {activity.user_name}</span>
                             </>
                           )}
                           {activity.ip_address && (
@@ -269,7 +273,7 @@ export default function ActivityPage() {
             {/* Pagination */}
             <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t">
               <div className="text-sm text-gray-500">
-                {pagination.total} activiteiten • Pagina {pagination.page} van {pagination.total_pages}
+                {pagination.total} {t('activity.activities', 'activiteiten')} • {t('timeEntries.page', 'Pagina')} {pagination.page} {t('common.of')} {pagination.total_pages}
               </div>
               <div className="flex items-center gap-2">
                 <button

@@ -3,6 +3,7 @@
  * They can view and delete but not edit submitted entries
  */
 import { useState, useEffect, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Dialog, Transition } from '@headlessui/react'
 import {
   ChevronLeftIcon,
@@ -54,6 +55,8 @@ function getCurrentWeekNumber(): number {
 }
 
 export default function MyHoursPage() {
+  const { t } = useTranslation()
+  
   // State - initialize with current week/year
   const [loading, setLoading] = useState(true)
   const [entries, setEntries] = useState<TimeEntry[]>([])
@@ -94,7 +97,7 @@ export default function MyHoursPage() {
       setTotalPages(Math.ceil(response.count / pageSize))
     } catch (err) {
       console.error('Failed to load entries:', err)
-      toast.error('Kon uren niet laden')
+      toast.error(t('timeEntries.loadError'))
     } finally {
       setLoading(false)
     }
@@ -150,13 +153,13 @@ export default function MyHoursPage() {
     try {
       setDeleting(true)
       await deleteTimeEntry(selectedEntry.id)
-      toast.success('Urenregistratie verwijderd')
+      toast.success(t('timeEntries.entryDeleted'))
       setShowDeleteModal(false)
       setSelectedEntry(null)
       loadEntries()
       loadWeekSummary()
     } catch (err) {
-      toast.error('Verwijderen mislukt')
+      toast.error(t('timeEntries.deleteFailed'))
     } finally {
       setDeleting(false)
     }
@@ -166,8 +169,8 @@ export default function MyHoursPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Mijn Ingediende Uren</h1>
-          <p className="text-gray-500 mt-1">Overzicht van je ingediende urenregistraties</p>
+          <h1 className="page-title">{t('timeEntries.mySubmittedHours')}</h1>
+          <p className="text-gray-500 mt-1">{t('timeEntries.mySubmittedHoursDescription')}</p>
         </div>
       </div>
 
@@ -177,7 +180,7 @@ export default function MyHoursPage() {
           {/* Search fields */}
           <div className="flex items-center justify-center gap-4 mb-4">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Week:</label>
+              <label className="text-sm font-medium text-gray-700">{t('common.week')}:</label>
               <input
                 type="number"
                 min="1"
@@ -192,7 +195,7 @@ export default function MyHoursPage() {
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Jaar:</label>
+              <label className="text-sm font-medium text-gray-700">{t('common.year')}:</label>
               <input
                 type="number"
                 min="2020"
@@ -225,15 +228,15 @@ export default function MyHoursPage() {
               {weekSummary && weekSummary.ingediend_count > 0 && (
                 <div className="mt-2 flex justify-center gap-6 text-sm">
                   <div>
-                    <span className="text-gray-500">Uren:</span>{' '}
+                    <span className="text-gray-500">{t('timeEntries.hours')}:</span>{' '}
                     <span className="font-medium">{formatDuration(weekSummary.totaal_uren)}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">KM:</span>{' '}
+                    <span className="text-gray-500">{t('timeEntries.km')}:</span>{' '}
                     <span className="font-medium">{weekSummary.totaal_km}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Ritten:</span>{' '}
+                    <span className="text-gray-500">{t('timeEntries.trips')}:</span>{' '}
                     <span className="font-medium">{weekSummary.ingediend_count}</span>
                   </div>
                 </div>
@@ -259,7 +262,7 @@ export default function MyHoursPage() {
         ) : entries.length === 0 ? (
           <div className="p-8 text-center">
             <ClockIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Geen ingediende uren voor deze week</p>
+            <p className="text-gray-500">{t('timeEntries.noSubmittedHoursForWeek')}</p>
           </div>
         ) : (
           <>
@@ -269,22 +272,22 @@ export default function MyHoursPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Datum
+                      {t('common.date')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Ritnummer
+                      {t('timeEntries.routeNumber')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Kenteken
+                      {t('fleet.licensePlate')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Uren
+                      {t('timeEntries.hours')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      KM
+                      {t('timeEntries.km')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acties
+                      {t('common.actions')}
                     </th>
                   </tr>
                 </thead>
@@ -311,14 +314,14 @@ export default function MyHoursPage() {
                           <button
                             onClick={() => handleViewEntry(entry)}
                             className="text-primary-600 hover:text-primary-900 p-1"
-                            title="Bekijken"
+                            title={t('common.view')}
                           >
                             <EyeIcon className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(entry)}
                             className="text-red-600 hover:text-red-900 p-1"
-                            title="Verwijderen"
+                            title={t('common.delete')}
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
@@ -346,11 +349,11 @@ export default function MyHoursPage() {
                   
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-3">
                     <div>
-                      <span className="text-gray-500">Uren:</span>{' '}
+                      <span className="text-gray-500">{t('timeEntries.hours')}:</span>{' '}
                       <span className="font-medium">{formatDuration(entry.totaal_uren)}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">KM:</span>{' '}
+                      <span className="text-gray-500">{t('timeEntries.km')}:</span>{' '}
                       <span className="font-medium">{entry.totaal_km}</span>
                     </div>
                   </div>
@@ -361,7 +364,7 @@ export default function MyHoursPage() {
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100 min-h-[44px]"
                     >
                       <EyeIcon className="h-5 w-5" />
-                      Bekijken
+                      {t('common.view')}
                     </button>
                     <button
                       onClick={() => handleDeleteClick(entry)}
@@ -416,7 +419,7 @@ export default function MyHoursPage() {
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <Dialog.Title className="text-lg font-semibold">
-                      Urenregistratie details
+                      {t('timeEntries.entryDetails')}
                     </Dialog.Title>
                     <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-500">
                       <XMarkIcon className="h-6 w-6" />
@@ -427,41 +430,41 @@ export default function MyHoursPage() {
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <div className="text-sm text-gray-500">Datum</div>
+                          <div className="text-sm text-gray-500">{t('common.date')}</div>
                           <div className="font-medium">{formatDate(selectedEntry.datum)}</div>
                         </div>
                         <div>
-                          <div className="text-sm text-gray-500">Weeknummer</div>
+                          <div className="text-sm text-gray-500">{t('timeEntries.weekNumber')}</div>
                           <div className="font-medium">{selectedEntry.weeknummer}</div>
                         </div>
                         <div>
-                          <div className="text-sm text-gray-500">Ritnummer</div>
+                          <div className="text-sm text-gray-500">{t('timeEntries.routeNumber')}</div>
                           <div className="font-medium">{selectedEntry.ritnummer}</div>
                         </div>
                         <div>
-                          <div className="text-sm text-gray-500">Kenteken</div>
+                          <div className="text-sm text-gray-500">{t('fleet.licensePlate')}</div>
                           <div className="font-mono font-medium">{selectedEntry.kenteken}</div>
                         </div>
                       </div>
 
                       <div className="border-t pt-4">
-                        <h4 className="text-sm font-medium text-gray-900 mb-2">Tijden</h4>
+                        <h4 className="text-sm font-medium text-gray-900 mb-2">{t('timeEntries.times')}</h4>
                         <div className="grid grid-cols-3 gap-4">
                           <div>
-                            <div className="text-sm text-gray-500">Aanvang</div>
+                            <div className="text-sm text-gray-500">{t('timeEntries.startTime')}</div>
                             <div className="font-medium">{selectedEntry.aanvang}</div>
                           </div>
                           <div>
-                            <div className="text-sm text-gray-500">Eind</div>
+                            <div className="text-sm text-gray-500">{t('timeEntries.endTime')}</div>
                             <div className="font-medium">{selectedEntry.eind}</div>
                           </div>
                           <div>
-                            <div className="text-sm text-gray-500">Pauze</div>
+                            <div className="text-sm text-gray-500">{t('timeEntries.breakTime')}</div>
                             <div className="font-medium">{formatDuration(selectedEntry.pauze)}</div>
                           </div>
                         </div>
                         <div className="mt-2">
-                          <div className="text-sm text-gray-500">Totaal uren</div>
+                          <div className="text-sm text-gray-500">{t('timeEntries.totalHours')}</div>
                           <div className="text-lg font-bold text-primary-600">
                             {formatDuration(selectedEntry.totaal_uren)}
                           </div>
@@ -469,18 +472,18 @@ export default function MyHoursPage() {
                       </div>
 
                       <div className="border-t pt-4">
-                        <h4 className="text-sm font-medium text-gray-900 mb-2">Kilometers</h4>
+                        <h4 className="text-sm font-medium text-gray-900 mb-2">{t('timeEntries.kilometers')}</h4>
                         <div className="grid grid-cols-3 gap-4">
                           <div>
-                            <div className="text-sm text-gray-500">Start</div>
+                            <div className="text-sm text-gray-500">{t('timeEntries.start')}</div>
                             <div className="font-medium">{selectedEntry.km_start}</div>
                           </div>
                           <div>
-                            <div className="text-sm text-gray-500">Eind</div>
+                            <div className="text-sm text-gray-500">{t('timeEntries.end')}</div>
                             <div className="font-medium">{selectedEntry.km_eind}</div>
                           </div>
                           <div>
-                            <div className="text-sm text-gray-500">Totaal</div>
+                            <div className="text-sm text-gray-500">{t('common.total')}</div>
                             <div className="text-lg font-bold text-primary-600">
                               {selectedEntry.totaal_km} km
                             </div>
@@ -492,7 +495,7 @@ export default function MyHoursPage() {
 
                   <div className="mt-6 flex justify-end">
                     <button onClick={() => setShowDetailModal(false)} className="btn-secondary">
-                      Sluiten
+                      {t('common.close')}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -535,11 +538,10 @@ export default function MyHoursPage() {
                     </div>
                     <div>
                       <Dialog.Title className="text-lg font-semibold text-gray-900">
-                        Urenregistratie verwijderen
+                        {t('timeEntries.deleteEntry')}
                       </Dialog.Title>
                       <p className="mt-2 text-sm text-gray-500">
-                        Weet je zeker dat je deze urenregistratie wilt verwijderen? 
-                        Dit kan niet ongedaan worden gemaakt.
+                        {t('timeEntries.deleteConfirm')}
                       </p>
                       {selectedEntry && (
                         <p className="mt-2 text-sm font-medium">
@@ -555,14 +557,14 @@ export default function MyHoursPage() {
                       className="btn-secondary"
                       disabled={deleting}
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button
                       onClick={handleDeleteConfirm}
                       className="btn-primary bg-red-600 hover:bg-red-700"
                       disabled={deleting}
                     >
-                      {deleting ? 'Verwijderen...' : 'Verwijderen'}
+                      {deleting ? t('common.deleting') : t('common.delete')}
                     </button>
                   </div>
                 </Dialog.Panel>

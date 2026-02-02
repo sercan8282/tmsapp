@@ -3,6 +3,7 @@
  * Admin interface for uploading and managing custom fonts
  */
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   PlusIcon,
   TrashIcon,
@@ -55,6 +56,8 @@ const ALLOWED_EXTENSIONS = ['.woff', '.woff2', '.ttf', '.otf']
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
 export default function FontManagementPage() {
+  const { t } = useTranslation()
+  
   // State
   const [families, setFamilies] = useState<FontFamily[]>([])
   const [loading, setLoading] = useState(true)
@@ -84,7 +87,7 @@ export default function FontManagementPage() {
       setFamilies(data)
     } catch (error) {
       console.error('Failed to load fonts:', error)
-      toast.error('Kon fonts niet laden')
+      toast.error(t('errors.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -97,13 +100,13 @@ export default function FontManagementPage() {
     // Validate extension
     const ext = '.' + file.name.split('.').pop()?.toLowerCase()
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      toast.error(`Ongeldig bestandstype. Alleen ${ALLOWED_EXTENSIONS.join(', ')} zijn toegestaan.`)
+      toast.error(t('errors.invalidFormat'))
       return
     }
 
     // Validate size
     if (file.size > MAX_FILE_SIZE) {
-      toast.error(`Bestand is te groot. Maximum is ${MAX_FILE_SIZE / 1024 / 1024}MB.`)
+      toast.error(t('errors.saveFailed'))
       return
     }
 
@@ -127,7 +130,7 @@ export default function FontManagementPage() {
     e.preventDefault()
     
     if (!uploadForm.file || !uploadForm.family || !uploadForm.name) {
-      toast.error('Vul alle velden in')
+      toast.error(t('errors.required'))
       return
     }
 
@@ -141,13 +144,13 @@ export default function FontManagementPage() {
         style: uploadForm.style,
       })
       
-      toast.success('Font geüpload!')
+      toast.success(t('common.success'))
       setShowUploadModal(false)
       setUploadForm({ family: '', name: '', weight: 400, style: 'normal', file: null })
       loadFonts()
     } catch (error: any) {
       console.error('Upload failed:', error)
-      toast.error(error.response?.data?.font_file?.[0] || 'Upload mislukt')
+      toast.error(error.response?.data?.font_file?.[0] || t('errors.saveFailed'))
     } finally {
       setUploading(false)
     }
@@ -155,32 +158,32 @@ export default function FontManagementPage() {
 
   const handleDelete = async (font: CustomFont) => {
     if (font.is_system) {
-      toast.error('Systeemfonts kunnen niet worden verwijderd')
+      toast.error(t('errors.forbidden'))
       return
     }
 
-    if (!confirm(`Weet je zeker dat je "${font.name}" wilt verwijderen?`)) {
+    if (!confirm(t('confirm.delete'))) {
       return
     }
 
     try {
       await fontsApi.delete(font.id)
-      toast.success('Font verwijderd')
+      toast.success(t('common.deleted'))
       loadFonts()
     } catch (error) {
       console.error('Delete failed:', error)
-      toast.error('Verwijderen mislukt')
+      toast.error(t('errors.deleteFailed'))
     }
   }
 
   const handleToggleActive = async (font: CustomFont) => {
     try {
       await fontsApi.update(font.id, { is_active: !font.is_active })
-      toast.success(font.is_active ? 'Font gedeactiveerd' : 'Font geactiveerd')
+      toast.success(t('common.success'))
       loadFonts()
     } catch (error) {
       console.error('Toggle failed:', error)
-      toast.error('Wijzigen mislukt')
+      toast.error(t('errors.saveFailed'))
     }
   }
 
@@ -190,7 +193,7 @@ export default function FontManagementPage() {
       <div className="page-header">
         <div className="flex items-center gap-3">
           <Cog6ToothIcon className="h-8 w-8 text-gray-400" />
-          <h1 className="page-title">Instellingen</h1>
+          <h1 className="page-title">{t('settings.title')}</h1>
         </div>
         
         <button
@@ -198,7 +201,7 @@ export default function FontManagementPage() {
           className="btn-primary"
         >
           <PlusIcon className="h-5 w-5 mr-2" />
-          Font Uploaden
+          {t('common.upload')}
         </button>
       </div>
 
@@ -233,9 +236,9 @@ export default function FontManagementPage() {
         <div className="p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Fonts Beheren</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('settings.fontManagement')}</h2>
               <p className="text-sm text-gray-500 mt-1">
-                Upload en beheer custom fonts voor templates en de site
+                {t('settings.fonts')}
               </p>
             </div>
           </div>
@@ -251,16 +254,16 @@ export default function FontManagementPage() {
           {!loading && families.length === 0 && (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Geen fonts</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">{t('common.noData')}</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Upload je eerste font om te beginnen.
+                {t('common.noResults')}
               </p>
               <button
                 onClick={() => setShowUploadModal(true)}
                 className="mt-4 btn-primary"
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
-                Font Uploaden
+                {t('common.upload')}
               </button>
             </div>
           )}
@@ -352,7 +355,7 @@ export default function FontManagementPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-lg font-semibold">Font Uploaden</h2>
+              <h2 className="text-lg font-semibold">{t('common.upload')}</h2>
               <button
                 onClick={() => setShowUploadModal(false)}
                 className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
@@ -472,7 +475,7 @@ export default function FontManagementPage() {
                   className="flex-1 btn-secondary"
                   disabled={uploading}
                 >
-                  Annuleren
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -482,10 +485,10 @@ export default function FontManagementPage() {
                   {uploading ? (
                     <>
                       <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-                      Uploaden...
+                      {t('common.saving')}
                     </>
                   ) : (
-                    'Uploaden'
+                    t('common.upload')
                   )}
                 </button>
               </div>
@@ -499,7 +502,7 @@ export default function FontManagementPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4">
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-lg font-semibold">Font Preview</h2>
+              <h2 className="text-lg font-semibold">{t('common.preview')}</h2>
               <button
                 onClick={() => setPreviewFont(null)}
                 className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"

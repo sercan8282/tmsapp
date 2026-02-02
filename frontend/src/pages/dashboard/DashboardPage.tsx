@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/authStore'
 import { settingsApi, DashboardStats, ActivityItem } from '@/api/settings'
 import {
@@ -15,15 +16,17 @@ import {
 
 // Chauffeur-specific dashboard
 function ChauffeurDashboard({ user }: { user: any }) {
+  const { t } = useTranslation()
+  
   return (
     <div>
       {/* Welcome message */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
-          Welkom terug, {user?.voornaam}!
+          {t('dashboard.welcomeDriver', { name: user?.voornaam })}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Beheer hier je urenregistraties en bekijk je planning.
+          {t('dashboard.manageHours')}
         </p>
       </div>
       
@@ -37,8 +40,8 @@ function ChauffeurDashboard({ user }: { user: any }) {
             <div className="p-4 rounded-full bg-primary-100 mb-4">
               <ClockIcon className="h-8 w-8 text-primary-600" />
             </div>
-            <h3 className="font-semibold text-gray-900">Urenregistratie</h3>
-            <p className="text-sm text-gray-500 mt-1">Registreer je gewerkte uren</p>
+            <h3 className="font-semibold text-gray-900">{t('nav.timeEntries')}</h3>
+            <p className="text-sm text-gray-500 mt-1">{t('dashboard.registerHours')}</p>
           </div>
         </Link>
         
@@ -50,8 +53,8 @@ function ChauffeurDashboard({ user }: { user: any }) {
             <div className="p-4 rounded-full bg-green-100 mb-4">
               <ClipboardDocumentListIcon className="h-8 w-8 text-green-600" />
             </div>
-            <h3 className="font-semibold text-gray-900">Mijn Uren</h3>
-            <p className="text-sm text-gray-500 mt-1">Bekijk je ingediende uren</p>
+            <h3 className="font-semibold text-gray-900">{t('nav.myHours')}</h3>
+            <p className="text-sm text-gray-500 mt-1">{t('dashboard.viewSubmittedHours')}</p>
           </div>
         </Link>
         
@@ -63,8 +66,8 @@ function ChauffeurDashboard({ user }: { user: any }) {
             <div className="p-4 rounded-full bg-purple-100 mb-4">
               <CalendarDaysIcon className="h-8 w-8 text-purple-600" />
             </div>
-            <h3 className="font-semibold text-gray-900">Planning</h3>
-            <p className="text-sm text-gray-500 mt-1">Bekijk je ingeplande ritten</p>
+            <h3 className="font-semibold text-gray-900">{t('nav.planning')}</h3>
+            <p className="text-sm text-gray-500 mt-1">{t('dashboard.viewPlanning')}</p>
           </div>
         </Link>
 
@@ -76,17 +79,17 @@ function ChauffeurDashboard({ user }: { user: any }) {
             <div className="p-4 rounded-full bg-orange-100 mb-4">
               <CalendarDaysIcon className="h-8 w-8 text-orange-600" />
             </div>
-            <h3 className="font-semibold text-gray-900">Verlof</h3>
-            <p className="text-sm text-gray-500 mt-1">Vraag verlof aan</p>
+            <h3 className="font-semibold text-gray-900">{t('nav.leave')}</h3>
+            <p className="text-sm text-gray-500 mt-1">{t('dashboard.requestLeave')}</p>
           </div>
         </Link>
       </div>
       
       {/* Info card */}
       <div className="card p-6 bg-blue-50 border-blue-200">
-        <h3 className="font-medium text-blue-900">💡 Tip</h3>
+        <h3 className="font-medium text-blue-900">💡 {t('dashboard.tip')}</h3>
         <p className="text-sm text-blue-700 mt-1">
-          Vergeet niet je uren aan het einde van de week in te dienen via de Urenregistratie pagina.
+          {t('dashboard.tipText')}
         </p>
       </div>
     </div>
@@ -95,6 +98,7 @@ function ChauffeurDashboard({ user }: { user: any }) {
 
 // Admin/Gebruiker dashboard
 function AdminDashboard({ user }: { user: any }) {
+  const { t } = useTranslation()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -157,16 +161,16 @@ function AdminDashboard({ user }: { user: any }) {
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
 
-    if (diffMins < 1) return 'Zojuist'
-    if (diffMins < 60) return `${diffMins} min geleden`
-    if (diffHours < 24) return `${diffHours} uur geleden`
-    if (diffDays < 7) return `${diffDays} dagen geleden`
+    if (diffMins < 1) return t('dashboard.justNow')
+    if (diffMins < 60) return t('dashboard.minutesAgo', { count: diffMins })
+    if (diffHours < 24) return t('dashboard.hoursAgo', { count: diffHours })
+    if (diffDays < 7) return t('dashboard.daysAgo', { count: diffDays })
     return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
   }
 
   const statCards = [
     { 
-      name: 'Gebruikers', 
+      name: t('nav.users'), 
       value: stats?.users ?? '-', 
       icon: UsersIcon, 
       href: '/admin/users',
@@ -174,7 +178,7 @@ function AdminDashboard({ user }: { user: any }) {
       bgColor: 'bg-blue-50',
     },
     { 
-      name: 'Bedrijven', 
+      name: t('nav.companies'), 
       value: stats?.companies ?? '-', 
       icon: BuildingOfficeIcon, 
       href: '/companies',
@@ -182,7 +186,7 @@ function AdminDashboard({ user }: { user: any }) {
       bgColor: 'bg-purple-50',
     },
     { 
-      name: 'Voertuigen', 
+      name: t('fleet.title'), 
       value: stats?.vehicles ?? '-', 
       icon: TruckIcon, 
       href: '/fleet',
@@ -190,7 +194,7 @@ function AdminDashboard({ user }: { user: any }) {
       bgColor: 'bg-green-50',
     },
     { 
-      name: `Uren week ${stats?.week_number ?? ''}`, 
+      name: `${t('dashboard.hoursWeek')} ${stats?.week_number ?? ''}`, 
       value: stats?.hours_this_week ?? '-', 
       icon: ClockIcon, 
       href: '/time-entries',
@@ -198,7 +202,7 @@ function AdminDashboard({ user }: { user: any }) {
       bgColor: 'bg-orange-50',
     },
     { 
-      name: 'Openstaande facturen', 
+      name: t('dashboard.pendingInvoices'), 
       value: stats?.open_invoices ?? '-', 
       icon: DocumentTextIcon, 
       href: '/invoices',
@@ -212,10 +216,10 @@ function AdminDashboard({ user }: { user: any }) {
       {/* Welcome message */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
-          Welkom terug, {user?.voornaam}!
+          {t('dashboard.welcomeDriver', { name: user?.voornaam })}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Hier is een overzicht van je transportmanagement systeem.
+          {t('dashboard.overview')}
         </p>
       </div>
       
@@ -248,22 +252,22 @@ function AdminDashboard({ user }: { user: any }) {
       
       {/* Quick actions */}
       <div className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Snelle acties</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.quickActions')}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Link to="/time-entries" className="btn-primary text-center">
-            + Uren registreren
+            + {t('dashboard.registerHoursAction')}
           </Link>
           <Link to="/leave" className="btn-secondary text-center">
-            Verlof aanvragen
+            {t('dashboard.requestLeaveAction')}
           </Link>
           <Link to="/planning" className="btn-secondary text-center">
-            + Nieuwe planning
+            + {t('dashboard.newPlanningAction')}
           </Link>
           <Link to="/invoices/new" className="btn-secondary text-center">
-            + Factuur aanmaken
+            + {t('dashboard.createInvoiceAction')}
           </Link>
           <Link to="/companies" className="btn-secondary text-center">
-            + Bedrijf toevoegen
+            + {t('companies.addCompany')}
           </Link>
         </div>
       </div>
@@ -271,9 +275,9 @@ function AdminDashboard({ user }: { user: any }) {
       {/* Recent activity placeholder */}
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recente activiteit</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('dashboard.recentActivity')}</h2>
           <Link to="/activities" className="text-sm text-primary-600 hover:text-primary-700">
-            Bekijk alles →
+            {t('common.viewAll')} →
           </Link>
         </div>
         <div className="card overflow-hidden">
@@ -284,7 +288,7 @@ function AdminDashboard({ user }: { user: any }) {
           ) : activities.length === 0 ? (
             <div className="p-6">
               <p className="text-gray-500 text-center py-8">
-                Nog geen recente activiteit.
+                {t('dashboard.noActivity')}
               </p>
             </div>
           ) : (
@@ -311,7 +315,7 @@ function AdminDashboard({ user }: { user: any }) {
                             </p>
                             <p className="text-sm text-gray-500 truncate">
                               {activity.description}
-                              {activity.user_name && <span className="ml-2 text-gray-400">• door {activity.user_name}</span>}
+                              {activity.user_name && <span className="ml-2 text-gray-400">• {t('dashboard.by')} {activity.user_name}</span>}
                             </p>
                           </div>
                           <div className="flex-shrink-0 flex items-center gap-3">
@@ -332,7 +336,7 @@ function AdminDashboard({ user }: { user: any }) {
                             </p>
                             <p className="text-sm text-gray-500 truncate">
                               {activity.description}
-                              {activity.user_name && <span className="ml-2 text-gray-400">• door {activity.user_name}</span>}
+                              {activity.user_name && <span className="ml-2 text-gray-400">• {t('dashboard.by')} {activity.user_name}</span>}
                             </p>
                           </div>
                           <div className="flex-shrink-0">

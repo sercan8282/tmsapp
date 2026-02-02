@@ -6,6 +6,7 @@
  */
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeftIcon,
   Cog6ToothIcon,
@@ -24,6 +25,8 @@ import {
 } from '@/api/leave'
 
 export default function LeaveSettingsPage() {
+  const { t } = useTranslation()
+  
   // Global settings state
   const [globalSettings, setGlobalSettings] = useState<GlobalLeaveSettings | null>(null)
   const [editingGlobal, setEditingGlobal] = useState(false)
@@ -68,7 +71,7 @@ export default function LeaveSettingsPage() {
       })
       setBalances(balanceList)
     } catch (err: any) {
-      setError(err.message || 'Er is iets misgegaan')
+      setError(err.message || t('common.error'))
     } finally {
       setIsLoading(false)
     }
@@ -87,9 +90,9 @@ export default function LeaveSettingsPage() {
       const updated = await updateGlobalSettings(globalSettings.id, globalForm)
       setGlobalSettings(updated)
       setEditingGlobal(false)
-      showSuccess('Instellingen opgeslagen')
+      showSuccess(t('settings.saved'))
     } catch (err: any) {
-      setError(err.message || 'Kon instellingen niet opslaan')
+      setError(err.message || t('errors.saveFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -115,9 +118,9 @@ export default function LeaveSettingsPage() {
       const updated = await updateLeaveBalance(balanceId, balanceForm)
       setBalances(balances.map(b => b.id === balanceId ? updated : b))
       setEditingBalance(null)
-      showSuccess('Saldo opgeslagen')
+      showSuccess(t('common.success'))
     } catch (err: any) {
-      setError(err.message || 'Kon saldo niet opslaan')
+      setError(err.message || t('errors.saveFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -140,10 +143,10 @@ export default function LeaveSettingsPage() {
           className="flex items-center text-gray-600 hover:text-gray-900 mb-2"
         >
           <ArrowLeftIcon className="w-4 h-4 mr-2" />
-          Terug naar instellingen
+          {t('common.back')}
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Verlof Instellingen</h1>
-        <p className="text-gray-500">Beheer verlofuren en overwerk instellingen</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('settings.leaveSettings')}</h1>
+        <p className="text-gray-500">{t('leave.title')}</p>
       </div>
 
       {/* Alerts */}
@@ -163,14 +166,14 @@ export default function LeaveSettingsPage() {
         <div className="px-6 py-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Cog6ToothIcon className="w-5 h-5 text-gray-400" />
-            <h2 className="text-lg font-semibold text-gray-900">Algemene Instellingen</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t('settings.general')}</h2>
           </div>
           {!editingGlobal && (
             <button
               onClick={() => setEditingGlobal(true)}
               className="text-primary-600 hover:text-primary-700 text-sm font-medium"
             >
-              Bewerken
+              {t('common.edit')}
             </button>
           )}
         </div>
@@ -250,14 +253,14 @@ export default function LeaveSettingsPage() {
                   className="btn btn-secondary"
                   disabled={isSaving}
                 >
-                  Annuleren
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleSaveGlobalSettings}
                   className="btn btn-primary"
                   disabled={isSaving}
                 >
-                  {isSaving ? 'Opslaan...' : 'Opslaan'}
+                  {isSaving ? t('common.saving') : t('common.save')}
                 </button>
               </div>
             </div>
@@ -296,26 +299,26 @@ export default function LeaveSettingsPage() {
       <div className="card">
         <div className="px-6 py-4 border-b flex items-center gap-3">
           <UserGroupIcon className="w-5 h-5 text-gray-400" />
-          <h2 className="text-lg font-semibold text-gray-900">Verlofuren per Medewerker</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('leave.balance')}</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Medewerker
+                  {t('leave.employee')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  Vakantie-uren
+                  {t('leave.vacationHours')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  Overuren saldo
+                  {t('leave.overtimeHours')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  Opneembaar overuren
+                  {t('leave.overtimeAvailable')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  Acties
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -399,7 +402,7 @@ export default function LeaveSettingsPage() {
               {balances.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                    Geen medewerkers gevonden
+                    {t('common.noResults')}
                   </td>
                 </tr>
               )}

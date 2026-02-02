@@ -7,6 +7,7 @@
  * - Email settings (SMTP/OAuth)
  */
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Cog6ToothIcon,
   PhotoIcon,
@@ -47,6 +48,7 @@ const tabs = [
 ]
 
 export default function SettingsPage() {
+  const { t } = useTranslation()
   const { fetchSettings } = useAppStore()
   const serverConfig = useServerConfigStore()
   
@@ -114,7 +116,7 @@ export default function SettingsPage() {
         ai_model: data.ai_model || 'gpt-4o-mini',
       })
     } catch (err: any) {
-      setError('Kon instellingen niet laden')
+      setError(t('errors.loadFailed'))
       console.error(err)
     } finally {
       setLoading(false)
@@ -134,14 +136,14 @@ export default function SettingsPage() {
       const updated = await settingsApi.update(formData)
       setSettings(updated)
       setHasChanges(false)
-      setSuccess('Instellingen opgeslagen')
+      setSuccess(t('settings.saved'))
       
       // Refresh global settings
       fetchSettings()
       
       setTimeout(() => setSuccess(null), 3000)
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Kon instellingen niet opslaan')
+      setError(err.response?.data?.detail || t('errors.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -155,11 +157,11 @@ export default function SettingsPage() {
       setSaving(true)
       const updated = await settingsApi.uploadLogo(file)
       setSettings(updated)
-      setSuccess('Logo geüpload')
+      setSuccess(t('common.success'))
       fetchSettings()
       setTimeout(() => setSuccess(null), 3000)
     } catch (err: any) {
-      setError('Kon logo niet uploaden')
+      setError(t('errors.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -173,45 +175,45 @@ export default function SettingsPage() {
       setSaving(true)
       const updated = await settingsApi.uploadFavicon(file)
       setSettings(updated)
-      setSuccess('Favicon geüpload')
+      setSuccess(t('common.success'))
       fetchSettings()
       setTimeout(() => setSuccess(null), 3000)
     } catch (err: any) {
-      setError('Kon favicon niet uploaden')
+      setError(t('errors.saveFailed'))
     } finally {
       setSaving(false)
     }
   }
 
   const handleDeleteLogo = async () => {
-    if (!confirm('Weet je zeker dat je het logo wilt verwijderen?')) return
+    if (!confirm(t('confirm.delete'))) return
     
     try {
       setSaving(true)
       const updated = await settingsApi.deleteLogo()
       setSettings(updated)
-      setSuccess('Logo verwijderd')
+      setSuccess(t('common.deleted'))
       fetchSettings()
       setTimeout(() => setSuccess(null), 3000)
     } catch (err: any) {
-      setError('Kon logo niet verwijderen')
+      setError(t('errors.deleteFailed'))
     } finally {
       setSaving(false)
     }
   }
 
   const handleDeleteFavicon = async () => {
-    if (!confirm('Weet je zeker dat je de favicon wilt verwijderen?')) return
+    if (!confirm(t('confirm.delete'))) return
     
     try {
       setSaving(true)
       const updated = await settingsApi.deleteFavicon()
       setSettings(updated)
-      setSuccess('Favicon verwijderd')
+      setSuccess(t('common.deleted'))
       fetchSettings()
       setTimeout(() => setSuccess(null), 3000)
     } catch (err: any) {
-      setError('Kon favicon niet verwijderen')
+      setError(t('errors.deleteFailed'))
     } finally {
       setSaving(false)
     }
@@ -219,7 +221,7 @@ export default function SettingsPage() {
 
   const handleTestEmail = async () => {
     if (!testEmail) {
-      setError('Vul een e-mailadres in')
+      setError(t('validation.email'))
       return
     }
     
@@ -233,10 +235,10 @@ export default function SettingsPage() {
       }
       
       const result = await settingsApi.testEmail(testEmail)
-      setSuccess(result.message || 'Test e-mail verzonden!')
+      setSuccess(result.message || t('common.sent'))
       setTimeout(() => setSuccess(null), 5000)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Kon test e-mail niet versturen')
+      setError(err.response?.data?.error || t('errors.saveFailed'))
     } finally {
       setTestingEmail(false)
     }
@@ -256,7 +258,7 @@ export default function SettingsPage() {
       <div className="page-header">
         <div className="flex items-center gap-3">
           <Cog6ToothIcon className="h-8 w-8 text-gray-400" />
-          <h1 className="page-title">Instellingen</h1>
+          <h1 className="page-title">{t('settings.title')}</h1>
         </div>
         
         {hasChanges && (
@@ -270,7 +272,7 @@ export default function SettingsPage() {
             ) : (
               <CheckCircleIcon className="h-5 w-5 mr-2" />
             )}
-            Opslaan
+            {t('common.save')}
           </button>
         )}
       </div>
@@ -333,16 +335,16 @@ export default function SettingsPage() {
           {activeTab === 'branding' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Branding</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('settings.appearance')}</h2>
                 <p className="text-sm text-gray-500 mb-6">
-                  Pas het uiterlijk van de applicatie aan met uw eigen branding.
+                  {t('settings.appearance')}
                 </p>
               </div>
 
               {/* App Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Applicatie Naam
+                  {t('settings.appName')}
                 </label>
                 <input
                   type="text"
@@ -356,7 +358,7 @@ export default function SettingsPage() {
               {/* Primary Color */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Primaire Kleur
+                  {t('settings.primaryColor')}
                 </label>
                 <div className="flex items-center gap-3">
                   <input
@@ -378,7 +380,7 @@ export default function SettingsPage() {
               {/* Logo */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Logo
+                  {t('settings.logo')}
                 </label>
                 <div className="flex items-start gap-4">
                   {settings?.logo_url ? (
@@ -406,7 +408,7 @@ export default function SettingsPage() {
                         disabled={saving}
                         className="btn-secondary text-sm"
                       >
-                        Logo uploaden
+                        {t('settings.uploadLogo')}
                       </button>
                       {settings?.logo_url && (
                         <button
@@ -428,7 +430,7 @@ export default function SettingsPage() {
               {/* Favicon */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Favicon
+                  {t('settings.favicon')}
                 </label>
                 <div className="flex items-start gap-4">
                   {settings?.favicon_url ? (
@@ -456,7 +458,7 @@ export default function SettingsPage() {
                         disabled={saving}
                         className="btn-secondary text-sm"
                       >
-                        Favicon uploaden
+                        {t('settings.uploadFavicon')}
                       </button>
                       {settings?.favicon_url && (
                         <button
@@ -486,9 +488,9 @@ export default function SettingsPage() {
           {activeTab === 'company' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Bedrijfsgegevens</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('settings.companyInfo')}</h2>
                 <p className="text-sm text-gray-500 mb-6">
-                  Deze gegevens worden gebruikt op facturen en andere documenten.
+                  {t('settings.companyInfo')}
                 </p>
               </div>
 
@@ -496,7 +498,7 @@ export default function SettingsPage() {
                 {/* Company Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Bedrijfsnaam
+                    {t('companies.companyName')}
                   </label>
                   <input
                     type="text"
@@ -510,7 +512,7 @@ export default function SettingsPage() {
                 {/* Phone */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Telefoon
+                    {t('common.phone')}
                   </label>
                   <input
                     type="tel"
@@ -524,7 +526,7 @@ export default function SettingsPage() {
                 {/* Email */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    E-mail
+                    {t('common.email')}
                   </label>
                   <input
                     type="email"
@@ -538,7 +540,7 @@ export default function SettingsPage() {
                 {/* KvK */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    KvK Nummer
+                    {t('companies.kvkNumber')}
                   </label>
                   <input
                     type="text"
@@ -552,7 +554,7 @@ export default function SettingsPage() {
                 {/* BTW */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    BTW Nummer
+                    {t('companies.vatNumber')}
                   </label>
                   <input
                     type="text"
@@ -581,7 +583,7 @@ export default function SettingsPage() {
               {/* Address (full width) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Adres
+                  {t('common.address')}
                 </label>
                 <textarea
                   value={formData.company_address || ''}
@@ -598,9 +600,9 @@ export default function SettingsPage() {
           {activeTab === 'invoice' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Factuur Instellingen</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('settings.invoiceSettings')}</h2>
                 <p className="text-sm text-gray-500 mb-6">
-                  Pas de tekst op facturen aan.
+                  {t('settings.invoiceSettings')}
                 </p>
               </div>
 
@@ -703,9 +705,9 @@ export default function SettingsPage() {
             <div className="space-y-8">
               {/* SMTP Settings */}
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">SMTP Instellingen</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('settings.emailSettings')}</h2>
                 <p className="text-sm text-gray-500 mb-6">
-                  Configureer de e-mailserver voor het versturen van facturen en notificaties.
+                  {t('settings.emailSettings')}
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -740,7 +742,7 @@ export default function SettingsPage() {
                   {/* SMTP Username */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Gebruikersnaam
+                      {t('auth.email')}
                     </label>
                     <input
                       type="text"
@@ -754,7 +756,7 @@ export default function SettingsPage() {
                   {/* SMTP Password */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Wachtwoord
+                      {t('auth.password')}
                     </label>
                     <div className="relative">
                       <input
@@ -1115,9 +1117,9 @@ export default function SettingsPage() {
           {/* Server Tab */}
           {activeTab === 'server' && (
             <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">Server Configuratie</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('settings.server')}</h2>
               <p className="text-sm text-gray-500">
-                Bekijk of wijzig de huidige server verbinding.
+                {t('settings.serverSetup')}
               </p>
 
               <div className="bg-gray-50 rounded-lg p-4 space-y-4">
@@ -1151,7 +1153,7 @@ export default function SettingsPage() {
                 </p>
                 <button
                   onClick={() => {
-                    if (confirm('Weet je zeker dat je de server configuratie wilt wissen? Je wordt uitgelogd.')) {
+                    if (confirm(t('confirm.logout'))) {
                       serverConfig.clearServerUrl()
                       window.location.href = '/setup'
                     }
@@ -1159,7 +1161,7 @@ export default function SettingsPage() {
                   className="btn-danger"
                 >
                   <ServerIcon className="h-5 w-5 mr-2" />
-                  Server configuratie wissen
+                  {t('settings.serverSetup')}
                 </button>
               </div>
             </div>

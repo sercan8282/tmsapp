@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -17,25 +18,28 @@ import {
   bulkDeleteEmailImports,
 } from '../../api/emailImport';
 
-const statusConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-  pending: { color: 'bg-yellow-100 text-yellow-800', icon: <Clock className="w-4 h-4" />, label: 'In wachtrij' },
-  processing: { color: 'bg-blue-100 text-blue-800', icon: <Loader2 className="w-4 h-4 animate-spin" />, label: 'Verwerken' },
-  awaiting_review: { color: 'bg-orange-100 text-orange-800', icon: <AlertCircle className="w-4 h-4" />, label: 'Wacht op Review' },
-  approved: { color: 'bg-green-100 text-green-800', icon: <CheckCircle className="w-4 h-4" />, label: 'Goedgekeurd' },
-  rejected: { color: 'bg-red-100 text-red-800', icon: <XCircle className="w-4 h-4" />, label: 'Afgewezen' },
-  completed: { color: 'bg-green-100 text-green-800', icon: <CheckCircle className="w-4 h-4" />, label: 'Voltooid' },
-  failed: { color: 'bg-red-100 text-red-800', icon: <AlertCircle className="w-4 h-4" />, label: 'Mislukt' },
-};
-
-const mailboxStatusConfig: Record<string, { color: string; label: string }> = {
-  active: { color: 'bg-green-100 text-green-800', label: 'Actief' },
-  inactive: { color: 'bg-gray-100 text-gray-800', label: 'Inactief' },
-  error: { color: 'bg-red-100 text-red-800', label: 'Fout' },
-};
+// Status config will be initialized in component with translations
 
 const EmailImportPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const statusConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
+    pending: { color: 'bg-yellow-100 text-yellow-800', icon: <Clock className="w-4 h-4" />, label: t('imports.statusPending', 'In wachtrij') },
+    processing: { color: 'bg-blue-100 text-blue-800', icon: <Loader2 className="w-4 h-4 animate-spin" />, label: t('imports.statusProcessing', 'Verwerken') },
+    awaiting_review: { color: 'bg-orange-100 text-orange-800', icon: <AlertCircle className="w-4 h-4" />, label: t('imports.statusAwaitingReview', 'Wacht op Review') },
+    approved: { color: 'bg-green-100 text-green-800', icon: <CheckCircle className="w-4 h-4" />, label: t('leave.approved') },
+    rejected: { color: 'bg-red-100 text-red-800', icon: <XCircle className="w-4 h-4" />, label: t('leave.rejected') },
+    completed: { color: 'bg-green-100 text-green-800', icon: <CheckCircle className="w-4 h-4" />, label: t('imports.statusCompleted', 'Voltooid') },
+    failed: { color: 'bg-red-100 text-red-800', icon: <AlertCircle className="w-4 h-4" />, label: t('imports.statusFailed', 'Mislukt') },
+  };
+
+  const mailboxStatusConfig: Record<string, { color: string; label: string }> = {
+    active: { color: 'bg-green-100 text-green-800', label: t('common.active') },
+    inactive: { color: 'bg-gray-100 text-gray-800', label: t('common.inactive') },
+    error: { color: 'bg-red-100 text-red-800', label: t('common.error') },
+  };
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
@@ -140,7 +144,7 @@ const EmailImportPage: React.FC = () => {
 
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (window.confirm(`Weet je zeker dat je ${selectedIds.size} e-mail import(s) wilt verwijderen?`)) {
+    if (window.confirm(t('imports.bulkDeleteConfirm', `Weet je zeker dat je ${selectedIds.size} e-mail import(s) wilt verwijderen?`))) {
       bulkDeleteMutation.mutate(Array.from(selectedIds));
     }
   };
@@ -167,11 +171,11 @@ const EmailImportPage: React.FC = () => {
           className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          Terug naar Imports
+          {t('imports.backToImports', 'Terug naar Imports')}
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">E-mail Factuur Import</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('imports.emailInvoiceImport', 'E-mail Factuur Import')}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Importeer facturen automatisch uit shared mailboxen
+          {t('imports.emailImportDescription', 'Importeer facturen automatisch uit shared mailboxen')}
         </p>
       </div>
 
@@ -179,19 +183,19 @@ const EmailImportPage: React.FC = () => {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm font-medium text-gray-500">Totaal</div>
+            <div className="text-sm font-medium text-gray-500">{t('common.total', 'Totaal')}</div>
             <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm font-medium text-gray-500">Vandaag</div>
+            <div className="text-sm font-medium text-gray-500">{t('common.today', 'Vandaag')}</div>
             <div className="text-2xl font-bold text-gray-900">{stats.today}</div>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm font-medium text-gray-500">Te Reviewen</div>
+            <div className="text-sm font-medium text-gray-500">{t('imports.toReview', 'Te Reviewen')}</div>
             <div className="text-2xl font-bold text-orange-600">{stats.by_status.awaiting_review}</div>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm font-medium text-gray-500">Goedgekeurd</div>
+            <div className="text-sm font-medium text-gray-500">{t('leave.approved', 'Goedgekeurd')}</div>
             <div className="text-2xl font-bold text-green-600">{stats.by_status.approved}</div>
           </div>
         </div>
@@ -200,13 +204,13 @@ const EmailImportPage: React.FC = () => {
       {/* Mailbox Configurations */}
       <div className="bg-white shadow rounded-lg mb-8">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Mailbox Configuraties</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('imports.mailboxConfigurations', 'Mailbox Configuraties')}</h2>
           <button
             onClick={() => navigate('/imports/email/mailbox/new')}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
-            Nieuwe Mailbox
+            {t('imports.newMailbox', 'Nieuwe Mailbox')}
           </button>
         </div>
 
@@ -217,13 +221,13 @@ const EmailImportPage: React.FC = () => {
         ) : mailboxes.length === 0 ? (
           <div className="text-center py-12">
             <Inbox className="w-12 h-12 text-gray-300 mx-auto" />
-            <p className="mt-4 text-gray-500">Nog geen mailboxen geconfigureerd</p>
+            <p className="mt-4 text-gray-500">{t('imports.noMailboxesConfigured', 'Nog geen mailboxen geconfigureerd')}</p>
             <button
               onClick={() => navigate('/imports/email/mailbox/new')}
               className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               <Plus className="w-4 h-4" />
-              Eerste Mailbox Toevoegen
+              {t('imports.addFirstMailbox', 'Eerste Mailbox Toevoegen')}
             </button>
           </div>
         ) : (
@@ -288,19 +292,19 @@ const EmailImportPage: React.FC = () => {
                     <button
                       onClick={() => navigate(`/imports/email/mailbox/${mailbox.id}`)}
                       className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                      title="Bewerken"
+                      title={t('common.edit')}
                     >
                       <Eye className="w-5 h-5" />
                     </button>
 
                     <button
                       onClick={() => {
-                        if (window.confirm('Weet je zeker dat je deze mailbox configuratie wilt verwijderen?')) {
+                        if (window.confirm(t('imports.deleteMailboxConfirm', 'Weet je zeker dat je deze mailbox configuratie wilt verwijderen?'))) {
                           deleteMailboxMutation.mutate(mailbox.id);
                         }
                       }}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                      title="Verwijderen"
+                      title={t('common.delete')}
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
@@ -370,7 +374,7 @@ const EmailImportPage: React.FC = () => {
         ) : imports.length === 0 ? (
           <div className="text-center py-12">
             <Mail className="w-12 h-12 text-gray-300 mx-auto" />
-            <p className="mt-4 text-gray-500">Nog geen e-mails geïmporteerd</p>
+            <p className="mt-4 text-gray-500">{t('imports.noEmailsImported', 'Nog geen e-mails geïmporteerd')}</p>
           </div>
         ) : (
           <>
@@ -429,7 +433,7 @@ const EmailImportPage: React.FC = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3">
                               <h3 className="font-medium text-gray-900 truncate">
-                                {emailImport.email_subject || '(Geen onderwerp)'}
+                                {emailImport.email_subject || t('imports.noSubject', '(Geen onderwerp)')}
                               </h3>
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
                                 {statusInfo.icon}
@@ -521,7 +525,7 @@ const EmailImportPage: React.FC = () => {
                                 navigate(`/imports/${emailImport.first_invoice_import_id}`);
                               } else {
                                 // Show toast or stay on page - no detail page available
-                                alert('Geen factuur details beschikbaar');
+                                alert(t('imports.noInvoiceDetails', 'Geen factuur details beschikbaar'));
                               }
                             }}
                             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
@@ -624,7 +628,7 @@ const EmailImportPage: React.FC = () => {
                                   </div>
                                 ) : (
                                   <p className="text-sm text-gray-400 italic">
-                                    Geen geëxtraheerde gegevens beschikbaar
+                                    {t('imports.noExtractedData', 'Geen geëxtraheerde gegevens beschikbaar')}
                                   </p>
                                 )}
 
@@ -669,7 +673,7 @@ const EmailImportPage: React.FC = () => {
                           </div>
                         ) : (
                           <div className="pt-4 text-sm text-gray-400 italic">
-                            Geen bijlagen beschikbaar
+                            {t('imports.noAttachments', 'Geen bijlagen beschikbaar')}
                           </div>
                         )}
                       </div>

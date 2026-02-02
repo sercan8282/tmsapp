@@ -3,6 +3,7 @@
  * Shows income, expenses and profit charts with period filters
  */
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   CurrencyEuroIcon,
   ArrowTrendingUpIcon,
@@ -26,14 +27,6 @@ import {
 } from 'recharts'
 import { revenueApi, RevenueResponse } from '@/api/revenue'
 import toast from 'react-hot-toast'
-
-// Period options
-const PERIOD_OPTIONS = [
-  { value: 'week', label: 'Per Week' },
-  { value: 'month', label: 'Per Maand' },
-  { value: 'quarter', label: 'Per Kwartaal' },
-  { value: 'year', label: 'Per Jaar' },
-] as const
 
 type PeriodType = 'week' | 'month' | 'quarter' | 'year'
 
@@ -107,6 +100,16 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export default function RevenuePage() {
+  const { t } = useTranslation()
+  
+  // Translated period options
+  const PERIOD_OPTIONS = [
+    { value: 'week' as const, label: t('revenue.perWeek', 'Per Week') },
+    { value: 'month' as const, label: t('revenue.perMonth', 'Per Maand') },
+    { value: 'quarter' as const, label: t('revenue.perQuarter', 'Per Kwartaal') },
+    { value: 'year' as const, label: t('revenue.perYear', 'Per Jaar') },
+  ]
+
   // State
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<PeriodType>('month')
@@ -137,7 +140,7 @@ export default function RevenuePage() {
         setData(response)
       } catch (error) {
         console.error('Failed to load revenue data:', error)
-        toast.error('Kon omzetgegevens niet laden')
+        toast.error(t('revenue.loadError', 'Kon omzetgegevens niet laden'))
       } finally {
         setLoading(false)
       }
@@ -159,9 +162,9 @@ export default function RevenuePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Omzet</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('revenue.title')}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Inkomsten, uitgaven en winst overzicht
+            {t('revenue.revenueOverview', 'Inkomsten, uitgaven en winst overzicht')}
           </p>
         </div>
 
@@ -213,25 +216,25 @@ export default function RevenuePage() {
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard
-              title="Totale Inkomsten"
+              title={t('revenue.totalIncome', 'Totale Inkomsten')}
               value={data.totals.income}
               icon={ArrowTrendingUpIcon}
               color="green"
-              subtitle={`Gem. ${formatCurrency(data.summary.avg_income)} per ${period === 'week' ? 'week' : period === 'month' ? 'maand' : period === 'quarter' ? 'kwartaal' : 'jaar'}`}
+              subtitle={`${t('revenue.avg', 'Gem.')} ${formatCurrency(data.summary.avg_income)} ${t('common.per')} ${period === 'week' ? t('common.week').toLowerCase() : period === 'month' ? t('common.month').toLowerCase() : period === 'quarter' ? t('revenue.quarter', 'kwartaal') : t('common.year').toLowerCase()}`}
             />
             <StatCard
-              title="Totale Uitgaven"
+              title={t('revenue.totalExpenses', 'Totale Uitgaven')}
               value={data.totals.expenses}
               icon={ArrowTrendingDownIcon}
               color="red"
-              subtitle={`Gem. ${formatCurrency(data.summary.avg_expenses)} per ${period === 'week' ? 'week' : period === 'month' ? 'maand' : period === 'quarter' ? 'kwartaal' : 'jaar'}`}
+              subtitle={`${t('revenue.avg', 'Gem.')} ${formatCurrency(data.summary.avg_expenses)} ${t('common.per')} ${period === 'week' ? t('common.week').toLowerCase() : period === 'month' ? t('common.month').toLowerCase() : period === 'quarter' ? t('revenue.quarter', 'kwartaal') : t('common.year').toLowerCase()}`}
             />
             <StatCard
-              title="Winst"
+              title={t('revenue.profit', 'Winst')}
               value={data.totals.profit}
               icon={BanknotesIcon}
               color={data.totals.profit >= 0 ? 'blue' : 'red'}
-              subtitle={`Winstmarge: ${data.summary.profit_margin}%`}
+              subtitle={`${t('revenue.profitMargin', 'Winstmarge')}: ${data.summary.profit_margin}%`}
             />
           </div>
 
@@ -241,7 +244,7 @@ export default function RevenuePage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 <ArrowTrendingUpIcon className="inline h-5 w-5 mr-2 text-green-500" />
-                Inkomsten
+                {t('revenue.income', 'Inkomsten')}
               </h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -261,7 +264,7 @@ export default function RevenuePage() {
                     <Tooltip content={<CustomTooltip />} />
                     <Bar 
                       dataKey="income" 
-                      name="Inkomsten"
+                      name={t('revenue.income', 'Inkomsten')}
                       fill="#22c55e" 
                       radius={[4, 4, 0, 0]}
                     />
@@ -274,7 +277,7 @@ export default function RevenuePage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 <ArrowTrendingDownIcon className="inline h-5 w-5 mr-2 text-red-500" />
-                Uitgaven
+                {t('revenue.expenses', 'Uitgaven')}
               </h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -294,7 +297,7 @@ export default function RevenuePage() {
                     <Tooltip content={<CustomTooltip />} />
                     <Bar 
                       dataKey="expenses" 
-                      name="Uitgaven"
+                      name={t('revenue.expenses', 'Uitgaven')}
                       fill="#ef4444" 
                       radius={[4, 4, 0, 0]}
                     />
@@ -307,7 +310,7 @@ export default function RevenuePage() {
             <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 <BanknotesIcon className="inline h-5 w-5 mr-2 text-blue-500" />
-                Winst Overzicht
+                {t('revenue.profitOverview', 'Winst Overzicht')}
               </h3>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
@@ -329,7 +332,7 @@ export default function RevenuePage() {
                     <Area
                       type="monotone"
                       dataKey="profit"
-                      name="Winst"
+                      name={t('revenue.profit', 'Winst')}
                       fill="#3b82f6"
                       fillOpacity={0.2}
                       stroke="#3b82f6"
@@ -338,7 +341,7 @@ export default function RevenuePage() {
                     <Line
                       type="monotone"
                       dataKey="income"
-                      name="Inkomsten"
+                      name={t('revenue.income', 'Inkomsten')}
                       stroke="#22c55e"
                       strokeWidth={2}
                       dot={{ fill: '#22c55e', strokeWidth: 2 }}
@@ -346,7 +349,7 @@ export default function RevenuePage() {
                     <Line
                       type="monotone"
                       dataKey="expenses"
-                      name="Uitgaven"
+                      name={t('revenue.expenses', 'Uitgaven')}
                       stroke="#ef4444"
                       strokeWidth={2}
                       dot={{ fill: '#ef4444', strokeWidth: 2 }}
@@ -360,26 +363,26 @@ export default function RevenuePage() {
           {/* Data Table */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Detail Overzicht</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('revenue.detailOverview', 'Detail Overzicht')}</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Periode
+                      {t('revenue.period', 'Periode')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Inkomsten
+                      {t('revenue.income', 'Inkomsten')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Uitgaven
+                      {t('revenue.expenses', 'Uitgaven')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Winst
+                      {t('revenue.profit', 'Winst')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Marge
+                      {t('revenue.margin', 'Marge')}
                     </th>
                   </tr>
                 </thead>
@@ -413,7 +416,7 @@ export default function RevenuePage() {
                   {/* Totals row */}
                   <tr className="bg-gray-100 font-bold">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      Totaal
+                      {t('common.total')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-700">
                       {formatCurrency(data.totals.income)}
@@ -439,9 +442,9 @@ export default function RevenuePage() {
           {data.data.length === 0 && (
             <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
               <CurrencyEuroIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Geen gegevens</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">{t('common.noData')}</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Er zijn nog geen facturen of uitgaven voor {year}.
+                {t('revenue.noDataForYear', 'Er zijn nog geen facturen of uitgaven voor {{year}}.', { year })}
               </p>
             </div>
           )}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { 
   MagnifyingGlassIcon, 
   PlusIcon, 
@@ -28,10 +29,10 @@ import {
 import Pagination, { PageSize } from '@/components/common/Pagination'
 
 // Role labels and colors
-const roleLabels: Record<string, { label: string; color: string }> = {
-  admin: { label: 'Admin', color: 'bg-purple-100 text-purple-800' },
-  gebruiker: { label: 'Gebruiker', color: 'bg-blue-100 text-blue-800' },
-  chauffeur: { label: 'Chauffeur', color: 'bg-green-100 text-green-800' },
+const roleConfig: Record<string, { key: string; color: string }> = {
+  admin: { key: 'users.admin', color: 'bg-purple-100 text-purple-800' },
+  gebruiker: { key: 'users.user', color: 'bg-blue-100 text-blue-800' },
+  chauffeur: { key: 'users.driver', color: 'bg-green-100 text-green-800' },
 }
 
 // Modal component
@@ -87,6 +88,7 @@ function ConfirmDialog({
   title,
   message,
   confirmText = 'Bevestigen',
+  cancelText = 'Annuleren',
   confirmColor = 'red',
   isLoading = false,
 }: {
@@ -96,6 +98,7 @@ function ConfirmDialog({
   title: string
   message: string
   confirmText?: string
+  cancelText?: string
   confirmColor?: 'red' | 'blue' | 'green'
   isLoading?: boolean
 }) {
@@ -114,7 +117,7 @@ function ConfirmDialog({
           className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           disabled={isLoading}
         >
-          Annuleren
+          {cancelText}
         </button>
         <button
           onClick={onConfirm}
@@ -140,6 +143,7 @@ function UserForm({
   onCancel: () => void
   isLoading: boolean
 }) {
+  const { t } = useTranslation()
   const [formData, setFormData] = useState({
     email: user?.email || '',
     username: user?.username || '',
@@ -165,20 +169,20 @@ function UserForm({
   const validate = () => {
     const newErrors: Record<string, string> = {}
     
-    if (!formData.email) newErrors.email = 'E-mail is verplicht'
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Ongeldig e-mailadres'
+    if (!formData.email) newErrors.email = t('errors.required')
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = t('validation.email')
     
-    if (!formData.username) newErrors.username = 'Gebruikersnaam is verplicht'
-    if (!formData.voornaam) newErrors.voornaam = 'Voornaam is verplicht'
-    if (!formData.achternaam) newErrors.achternaam = 'Achternaam is verplicht'
+    if (!formData.username) newErrors.username = t('errors.required')
+    if (!formData.voornaam) newErrors.voornaam = t('errors.required')
+    if (!formData.achternaam) newErrors.achternaam = t('errors.required')
     
     if (!user) {
       // Password required for new users
-      if (!formData.password) newErrors.password = 'Wachtwoord is verplicht'
-      else if (formData.password.length < 8) newErrors.password = 'Minimaal 8 karakters'
+      if (!formData.password) newErrors.password = t('errors.required')
+      else if (formData.password.length < 8) newErrors.password = t('validation.minLength', { min: 8 })
       
       if (formData.password !== formData.password_confirm) {
-        newErrors.password_confirm = 'Wachtwoorden komen niet overeen'
+        newErrors.password_confirm = t('auth.passwordMismatch')
       }
     }
     
@@ -205,7 +209,7 @@ function UserForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Voornaam *
+            {t('users.firstName')} *
           </label>
           <input
             type="text"
@@ -218,7 +222,7 @@ function UserForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Achternaam *
+            {t('users.lastName')} *
           </label>
           <input
             type="text"
@@ -233,7 +237,7 @@ function UserForm({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          E-mail *
+          {t('common.email')} *
         </label>
         <input
           type="email"
@@ -247,7 +251,7 @@ function UserForm({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Gebruikersnaam *
+          {t('auth.email')} *
         </label>
         <input
           type="text"
@@ -263,7 +267,7 @@ function UserForm({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Wachtwoord *
+              {t('auth.password')} *
             </label>
             <input
               type="password"
@@ -276,7 +280,7 @@ function UserForm({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Bevestig wachtwoord *
+              {t('auth.confirmPassword')} *
             </label>
             <input
               type="password"
@@ -293,7 +297,7 @@ function UserForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Telefoon
+            {t('common.phone')}
           </label>
           <input
             type="tel"
@@ -305,7 +309,7 @@ function UserForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Bedrijf
+            {t('companies.title')}
           </label>
           <input
             type="text"
@@ -320,7 +324,7 @@ function UserForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Rol
+            {t('users.role')}
           </label>
           <select
             name="rol"
@@ -328,9 +332,9 @@ function UserForm({
             onChange={handleChange}
             className="input min-h-[44px]"
           >
-            <option value="gebruiker">Gebruiker</option>
-            <option value="chauffeur">Chauffeur</option>
-            <option value="admin">Admin</option>
+            <option value="gebruiker">{t('users.user')}</option>
+            <option value="chauffeur">{t('users.driver')}</option>
+            <option value="admin">{t('users.admin')}</option>
           </select>
         </div>
         <div className="flex items-center pt-0 sm:pt-6">
@@ -342,7 +346,7 @@ function UserForm({
               onChange={handleChange}
               className="w-5 h-5 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
             />
-            <span className="ml-2 text-sm text-gray-700">Actief</span>
+            <span className="ml-2 text-sm text-gray-700">{t('common.active')}</span>
           </label>
         </div>
         <div className="flex items-center sm:pt-0">
@@ -354,7 +358,7 @@ function UserForm({
               onChange={handleChange}
               className="w-5 h-5 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
             />
-            <span className="ml-2 text-sm text-gray-700">2FA Verplicht</span>
+            <span className="ml-2 text-sm text-gray-700">2FA</span>
           </label>
         </div>
       </div>
@@ -366,14 +370,14 @@ function UserForm({
           className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           disabled={isLoading}
         >
-          Annuleren
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
           className="btn-primary"
           disabled={isLoading}
         >
-          {isLoading ? 'Bezig...' : user ? 'Opslaan' : 'Aanmaken'}
+          {isLoading ? t('common.saving') : user ? t('common.save') : t('common.create')}
         </button>
       </div>
     </form>
@@ -392,6 +396,7 @@ function PasswordResetForm({
   onCancel: () => void
   isLoading: boolean
 }) {
+  const { t } = useTranslation()
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [error, setError] = useState('')
@@ -400,11 +405,11 @@ function PasswordResetForm({
     e.preventDefault()
     
     if (password.length < 8) {
-      setError('Wachtwoord moet minimaal 8 karakters zijn')
+      setError(t('validation.minLength', { min: 8 }))
       return
     }
     if (password !== passwordConfirm) {
-      setError('Wachtwoorden komen niet overeen')
+      setError(t('auth.passwordMismatch'))
       return
     }
     
@@ -414,25 +419,25 @@ function PasswordResetForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <p className="text-gray-600">
-        Reset het wachtwoord voor <strong>{user.full_name}</strong>
+        {t('users.resetPassword')} <strong>{user.full_name}</strong>
       </p>
       
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Nieuw wachtwoord
+          {t('auth.newPassword')}
         </label>
         <input
           type="password"
           value={password}
           onChange={(e) => { setPassword(e.target.value); setError('') }}
           className="input"
-          placeholder="Minimaal 8 karakters"
+          placeholder={t('users.form.passwordPlaceholder')}
         />
       </div>
       
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Bevestig wachtwoord
+          {t('auth.confirmPassword')}
         </label>
         <input
           type="password"
@@ -451,14 +456,14 @@ function PasswordResetForm({
           className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           disabled={isLoading}
         >
-          Annuleren
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
           className="btn-primary"
           disabled={isLoading}
         >
-          {isLoading ? 'Bezig...' : 'Reset wachtwoord'}
+          {isLoading ? t('common.loading') : t('users.resetPassword')}
         </button>
       </div>
     </form>
@@ -467,6 +472,7 @@ function PasswordResetForm({
 
 // Main UsersPage component
 export default function UsersPage() {
+  const { t } = useTranslation()
   const [users, setUsers] = useState<User[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -511,7 +517,7 @@ export default function UsersPage() {
       setUsers(response.results || [])
       setTotalCount(response.count || 0)
     } catch (err) {
-      setError('Fout bij ophalen gebruikers')
+      setError(t('errors.loadFailed'))
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -564,10 +570,10 @@ export default function UsersPage() {
     try {
       await createUser(data as UserCreate)
       setShowCreateModal(false)
-      showSuccess('Gebruiker succesvol aangemaakt')
+      showSuccess(t('users.userCreated'))
       fetchUsers()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij aanmaken gebruiker'))
+      setError(getErrorMessage(err, t('errors.saveFailed')))
     } finally {
       setIsActionLoading(false)
     }
@@ -581,10 +587,10 @@ export default function UsersPage() {
       await updateUser(selectedUser.id, data as UserUpdate)
       setShowEditModal(false)
       setSelectedUser(null)
-      showSuccess('Gebruiker succesvol bijgewerkt')
+      showSuccess(t('users.userUpdated'))
       fetchUsers()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij bijwerken gebruiker'))
+      setError(getErrorMessage(err, t('errors.saveFailed')))
     } finally {
       setIsActionLoading(false)
     }
@@ -598,10 +604,10 @@ export default function UsersPage() {
       await deleteUser(selectedUser.id)
       setShowDeleteModal(false)
       setSelectedUser(null)
-      showSuccess('Gebruiker succesvol verwijderd')
+      showSuccess(t('users.userDeleted'))
       fetchUsers()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij verwijderen gebruiker'))
+      setError(getErrorMessage(err, t('errors.deleteFailed')))
       setShowDeleteModal(false)
       setSelectedUser(null)
     } finally {
@@ -617,9 +623,9 @@ export default function UsersPage() {
       await resetUserPassword(selectedUser.id, password)
       setShowPasswordModal(false)
       setSelectedUser(null)
-      showSuccess('Wachtwoord succesvol gereset')
+      showSuccess(t('users.passwordReset'))
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij resetten wachtwoord'))
+      setError(getErrorMessage(err, t('errors.saveFailed')))
     } finally {
       setIsActionLoading(false)
     }
@@ -633,10 +639,10 @@ export default function UsersPage() {
       await toggleUserActive(selectedUser.id)
       setShowBlockModal(false)
       setSelectedUser(null)
-      showSuccess(`Gebruiker succesvol ${selectedUser.is_active ? 'geblokkeerd' : 'geactiveerd'}`)
+      showSuccess(t('common.success'))
       fetchUsers()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij wijzigen status'))
+      setError(getErrorMessage(err, t('errors.saveFailed')))
       setShowBlockModal(false)
       setSelectedUser(null)
     } finally {
@@ -652,10 +658,10 @@ export default function UsersPage() {
       await disableUserMFA(selectedUser.id)
       setShowMfaModal(false)
       setSelectedUser(null)
-      showSuccess('2FA succesvol uitgeschakeld')
+      showSuccess(t('users.twoFactorDisabled'))
       fetchUsers()
     } catch (err: any) {
-      setError(getErrorMessage(err, 'Fout bij uitschakelen 2FA'))
+      setError(getErrorMessage(err, t('errors.saveFailed')))
       setShowMfaModal(false)
       setSelectedUser(null)
     } finally {
@@ -690,13 +696,13 @@ export default function UsersPage() {
     <div>
       {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Gebruikersbeheer</h1>
+        <h1 className="page-title">{t('users.title')}</h1>
         <button
           onClick={() => setShowCreateModal(true)}
           className="btn-primary"
         >
           <PlusIcon className="w-5 h-5 mr-2" />
-          Nieuwe gebruiker
+          {t('users.newUser')}
         </button>
       </div>
 
@@ -725,7 +731,7 @@ export default function UsersPage() {
             {/* Search */}
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Zoeken
+                {t('common.search')}
               </label>
               <div className="relative">
                 <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -733,7 +739,7 @@ export default function UsersPage() {
                   type="text"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                  placeholder="Zoek op naam, e-mail..."
+                  placeholder={t('users.searchUsers')}
                   className="input pl-10 min-h-[44px]"
                 />
               </div>
@@ -744,33 +750,33 @@ export default function UsersPage() {
               {/* Role filter */}
               <div className="flex-1 xs:w-36">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rol
+                  {t('users.role')}
                 </label>
                 <select
                   value={roleFilter}
                   onChange={(e) => { setRoleFilter(e.target.value); setPage(1) }}
                   className="input min-h-[44px]"
                 >
-                  <option value="">Alle rollen</option>
-                  <option value="admin">Admin</option>
-                  <option value="gebruiker">Gebruiker</option>
-                  <option value="chauffeur">Chauffeur</option>
+                  <option value="">{t('common.all')}</option>
+                  <option value="admin">{t('users.admin')}</option>
+                  <option value="gebruiker">{t('users.user')}</option>
+                  <option value="chauffeur">{t('users.driver')}</option>
                 </select>
               </div>
 
               {/* Status filter */}
               <div className="flex-1 xs:w-36">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
+                  {t('common.status')}
                 </label>
                 <select
                   value={statusFilter}
                   onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
                   className="input min-h-[44px]"
                 >
-                  <option value="">Alle statussen</option>
-                  <option value="true">Actief</option>
-                  <option value="false">Geblokkeerd</option>
+                  <option value="">{t('common.all')}</option>
+                  <option value="true">{t('common.active')}</option>
+                  <option value="false">{t('common.inactive')}</option>
                 </select>
               </div>
             </div>
@@ -798,19 +804,19 @@ export default function UsersPage() {
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('achternaam')}
                 >
-                  Naam <SortIcon field="achternaam" />
+                  {t('common.name')} <SortIcon field="achternaam" />
                 </th>
                 <th 
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('email')}
                 >
-                  E-mail <SortIcon field="email" />
+                  {t('common.email')} <SortIcon field="email" />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Rol
+                  {t('users.role')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Status
+                  {t('common.status')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   2FA
@@ -819,10 +825,10 @@ export default function UsersPage() {
                   className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('last_login')}
                 >
-                  Laatste login <SortIcon field="last_login" />
+                  {t('users.lastLogin')} <SortIcon field="last_login" />
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
-                  Acties
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -832,14 +838,14 @@ export default function UsersPage() {
                   <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                     <div className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                      <span className="ml-3">Laden...</span>
+                      <span className="ml-3">{t('common.loading')}</span>
                     </div>
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
-                    Geen gebruikers gevonden
+                    {t('users.noUsers')}
                   </td>
                 </tr>
               ) : (
@@ -853,20 +859,20 @@ export default function UsersPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">{user.email}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${roleLabels[user.rol]?.color}`}>
-                        {roleLabels[user.rol]?.label}
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${roleConfig[user.rol]?.color}`}>
+                        {t(roleConfig[user.rol]?.key)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       {user.is_active ? (
                         <span className="flex items-center text-green-600">
                           <CheckCircleIcon className="w-4 h-4 mr-1" />
-                          Actief
+                          {t('common.active')}
                         </span>
                       ) : (
                         <span className="flex items-center text-red-600">
                           <NoSymbolIcon className="w-4 h-4 mr-1" />
-                          Geblokkeerd
+                          {t('common.inactive')}
                         </span>
                       )}
                     </td>
@@ -942,12 +948,12 @@ export default function UsersPage() {
             <div className="px-4 py-12 text-center text-gray-500">
               <div className="flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                <span className="ml-3">Laden...</span>
+                <span className="ml-3">{t('common.loading')}</span>
               </div>
             </div>
           ) : users.length === 0 ? (
             <div className="px-4 py-12 text-center text-gray-500">
-              Geen gebruikers gevonden
+              {t('users.noUsers')}
             </div>
           ) : (
             users.map(user => (
@@ -957,8 +963,8 @@ export default function UsersPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h3 className="font-semibold text-gray-900 truncate">{user.full_name}</h3>
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${roleLabels[user.rol]?.color}`}>
-                        {roleLabels[user.rol]?.label}
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${roleConfig[user.rol]?.color}`}>
+                        {t(roleConfig[user.rol]?.key)}
                       </span>
                     </div>
                     <p className="text-sm text-gray-500">@{user.username}</p>
@@ -971,23 +977,23 @@ export default function UsersPage() {
                   {user.is_active ? (
                     <span className="flex items-center text-green-600">
                       <CheckCircleIcon className="w-4 h-4 mr-1" />
-                      Actief
+                      {t('common.active')}
                     </span>
                   ) : (
                     <span className="flex items-center text-red-600">
                       <NoSymbolIcon className="w-4 h-4 mr-1" />
-                      Geblokkeerd
+                      {t('common.inactive')}
                     </span>
                   )}
                   {user.mfa_enabled ? (
                     <span className="flex items-center text-green-600">
                       <ShieldCheckIcon className="w-4 h-4 mr-1" />
-                      2FA aan
+                      {t('users.twoFactorEnabled')}
                     </span>
                   ) : user.mfa_required ? (
                     <span className="flex items-center text-orange-600">
                       <ShieldCheckIcon className="w-4 h-4 mr-1" />
-                      2FA verplicht
+                      2FA
                     </span>
                   ) : null}
                   {user.last_login && (
@@ -1004,21 +1010,21 @@ export default function UsersPage() {
                     className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg min-h-[44px]"
                   >
                     <PencilSquareIcon className="w-4 h-4" />
-                    <span>Bewerken</span>
+                    <span>{t('common.edit')}</span>
                   </button>
                   <button
                     onClick={() => { setSelectedUser(user); setShowPasswordModal(true) }}
                     className="flex items-center gap-1.5 px-3 py-2 text-sm text-yellow-600 bg-yellow-50 hover:bg-yellow-100 rounded-lg min-h-[44px]"
                   >
                     <KeyIcon className="w-4 h-4" />
-                    <span>Wachtwoord</span>
+                    <span>{t('auth.password')}</span>
                   </button>
                   <button
                     onClick={() => { setSelectedUser(user); setShowBlockModal(true) }}
                     className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg min-h-[44px] ${user.is_active ? 'text-orange-600 bg-orange-50 hover:bg-orange-100' : 'text-green-600 bg-green-50 hover:bg-green-100'}`}
                   >
                     {user.is_active ? <NoSymbolIcon className="w-4 h-4" /> : <CheckCircleIcon className="w-4 h-4" />}
-                    <span>{user.is_active ? 'Blokkeren' : 'Activeren'}</span>
+                    <span>{user.is_active ? t('common.inactive') : t('common.active')}</span>
                   </button>
                   {user.mfa_enabled && (
                     <button
@@ -1034,7 +1040,7 @@ export default function UsersPage() {
                     className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg min-h-[44px]"
                   >
                     <TrashIcon className="w-4 h-4" />
-                    <span>Verwijder</span>
+                    <span>{t('common.delete')}</span>
                   </button>
                 </div>
               </div>
@@ -1057,7 +1063,7 @@ export default function UsersPage() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="Nieuwe gebruiker"
+        title={t('users.newUser')}
         size="lg"
       >
         <UserForm
@@ -1071,7 +1077,7 @@ export default function UsersPage() {
       <Modal
         isOpen={showEditModal}
         onClose={() => { setShowEditModal(false); setSelectedUser(null) }}
-        title="Gebruiker bewerken"
+        title={t('users.editUser')}
         size="lg"
       >
         {selectedUser && (
@@ -1088,7 +1094,7 @@ export default function UsersPage() {
       <Modal
         isOpen={showPasswordModal}
         onClose={() => { setShowPasswordModal(false); setSelectedUser(null) }}
-        title="Wachtwoord resetten"
+        title={t('users.resetPassword')}
         size="sm"
       >
         {selectedUser && (
@@ -1106,9 +1112,10 @@ export default function UsersPage() {
         isOpen={showDeleteModal}
         onClose={() => { setShowDeleteModal(false); setSelectedUser(null) }}
         onConfirm={handleDeleteUser}
-        title="Gebruiker verwijderen"
-        message={`Weet je zeker dat je ${selectedUser?.full_name} wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`}
-        confirmText="Verwijderen"
+        title={t('common.delete')}
+        message={t('users.deleteConfirm')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         confirmColor="red"
         isLoading={isActionLoading}
       />
@@ -1118,12 +1125,10 @@ export default function UsersPage() {
         isOpen={showBlockModal}
         onClose={() => { setShowBlockModal(false); setSelectedUser(null) }}
         onConfirm={handleToggleActive}
-        title={selectedUser?.is_active ? 'Gebruiker blokkeren' : 'Gebruiker activeren'}
-        message={selectedUser?.is_active 
-          ? `Weet je zeker dat je ${selectedUser?.full_name} wilt blokkeren? De gebruiker kan dan niet meer inloggen.`
-          : `Weet je zeker dat je ${selectedUser?.full_name} wilt activeren?`
-        }
-        confirmText={selectedUser?.is_active ? 'Blokkeren' : 'Activeren'}
+        title={selectedUser?.is_active ? t('common.inactive') : t('common.active')}
+        message={t('confirm.submit')}
+        confirmText={selectedUser?.is_active ? t('common.inactive') : t('common.active')}
+        cancelText={t('common.cancel')}
         confirmColor={selectedUser?.is_active ? 'red' : 'green'}
         isLoading={isActionLoading}
       />
@@ -1133,9 +1138,10 @@ export default function UsersPage() {
         isOpen={showMfaModal}
         onClose={() => { setShowMfaModal(false); setSelectedUser(null) }}
         onConfirm={handleDisableMfa}
-        title="2FA uitschakelen"
-        message={`Weet je zeker dat je 2FA voor ${selectedUser?.full_name} wilt uitschakelen? De gebruiker moet 2FA opnieuw instellen om het weer te activeren.`}
-        confirmText="Uitschakelen"
+        title={t('users.twoFactorDisabled')}
+        message={t('confirm.submit')}
+        confirmText={t('common.confirm')}
+        cancelText={t('common.cancel')}
         confirmColor="red"
         isLoading={isActionLoading}
       />

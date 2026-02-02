@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/authStore'
 import toast from 'react-hot-toast'
 
@@ -14,6 +15,7 @@ interface TwoFactorForm {
 }
 
 export default function LoginPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [requires2FA, setRequires2FA] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -32,18 +34,18 @@ export default function LoginPage() {
       if (result.requires2FA) {
         setRequires2FA(true)
         setUserId(result.userId || null)
-        toast.success('Voer je 2FA code in')
+        toast.success(t('auth.enterCode'))
       } else if (result.requires2FASetup) {
         // Redirect to MFA setup page
-        toast.success('Je moet eerst 2FA instellen om door te gaan')
+        toast.success(t('auth.setupMfaDescription'))
         navigate('/setup-mfa')
       } else {
-        toast.success('Succesvol ingelogd!')
+        toast.success(t('auth.successfullyLoggedIn'))
         navigate('/')
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Inloggen mislukt')
+      toast.error(err.response?.data?.detail || t('auth.invalidCredentials'))
     } finally {
       setIsLoading(false)
     }
@@ -55,11 +57,11 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       await verify2FA(userId, data.code)
-      toast.success('Succesvol ingelogd!')
+      toast.success(t('auth.successfullyLoggedIn'))
       navigate('/')
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } }
-      toast.error(err.response?.data?.error || '2FA verificatie mislukt')
+      toast.error(err.response?.data?.error || t('auth.verificationFailed'))
     } finally {
       setIsLoading(false)
     }
@@ -69,16 +71,16 @@ export default function LoginPage() {
     return (
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-6">
-          Twee-factor authenticatie
+          {t('auth.twoFactor')}
         </h2>
         <p className="text-sm text-gray-600 mb-6">
-          Voer de 6-cijferige code van je authenticator app in.
+          {t('auth.twoFactorDescription')}
         </p>
         
         <form onSubmit={twoFactorForm.handleSubmit(on2FASubmit)} className="space-y-6">
           <div>
             <label htmlFor="code" className="label">
-              Verificatiecode
+              {t('auth.twoFactorCode')}
             </label>
             <input
               id="code"
@@ -89,10 +91,10 @@ export default function LoginPage() {
               className="input text-center text-2xl tracking-widest"
               placeholder="000000"
               {...twoFactorForm.register('code', { 
-                required: 'Code is verplicht',
+                required: t('auth.codeRequired'),
                 pattern: {
                   value: /^\d{6}$/,
-                  message: 'Code moet 6 cijfers zijn'
+                  message: t('auth.codeMustBe6Digits')
                 }
               })}
             />
@@ -108,7 +110,7 @@ export default function LoginPage() {
             disabled={isLoading}
             className="btn-primary w-full"
           >
-            {isLoading ? 'Verifiëren...' : 'Verifiëren'}
+            {isLoading ? t('common.loading') : t('common.confirm')}
           </button>
           
           <button
@@ -119,7 +121,7 @@ export default function LoginPage() {
             }}
             className="btn-secondary w-full"
           >
-            Terug naar login
+            {t('common.back')}
           </button>
         </form>
       </div>
@@ -129,13 +131,13 @@ export default function LoginPage() {
   return (
     <div>
       <h2 className="text-xl font-semibold text-gray-900 mb-6">
-        Inloggen
+        {t('auth.login')}
       </h2>
       
       <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-6">
         <div>
           <label htmlFor="email" className="label">
-            E-mailadres
+            {t('auth.email')}
           </label>
           <input
             id="email"
@@ -143,10 +145,10 @@ export default function LoginPage() {
             autoComplete="email"
             className="input"
             {...loginForm.register('email', { 
-              required: 'E-mailadres is verplicht',
+              required: t('errors.required'),
               pattern: {
                 value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                message: 'Ongeldig e-mailadres'
+                message: t('errors.invalidEmail')
               }
             })}
           />
@@ -159,7 +161,7 @@ export default function LoginPage() {
         
         <div>
           <label htmlFor="password" className="label">
-            Wachtwoord
+            {t('auth.password')}
           </label>
           <input
             id="password"
@@ -167,7 +169,7 @@ export default function LoginPage() {
             autoComplete="current-password"
             className="input"
             {...loginForm.register('password', { 
-              required: 'Wachtwoord is verplicht' 
+              required: t('errors.required')
             })}
           />
           {loginForm.formState.errors.password && (
@@ -182,7 +184,7 @@ export default function LoginPage() {
           disabled={isLoading}
           className="btn-primary w-full"
         >
-          {isLoading ? 'Inloggen...' : 'Inloggen'}
+          {isLoading ? t('auth.loggingIn') : t('auth.loginButton')}
         </button>
       </form>
     </div>

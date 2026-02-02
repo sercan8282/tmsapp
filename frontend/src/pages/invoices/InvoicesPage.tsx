@@ -1,5 +1,6 @@
 import { useState, useEffect, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Dialog, Transition } from '@headlessui/react'
 import {
   PlusIcon,
@@ -38,21 +39,6 @@ import {
 import { getCompanies } from '@/api/companies'
 import clsx from '@/utils/clsx'
 
-const TYPE_OPTIONS = [
-  { value: '', label: 'Alle types' },
-  { value: 'verkoop', label: 'Verkoop' },
-  { value: 'inkoop', label: 'Inkoop' },
-  { value: 'credit', label: 'Credit' },
-]
-
-const STATUS_OPTIONS = [
-  { value: '', label: 'Alle statussen' },
-  { value: 'concept', label: 'Concept' },
-  { value: 'definitief', label: 'Definitief' },
-  { value: 'verzonden', label: 'Verzonden' },
-  { value: 'betaald', label: 'Betaald' },
-]
-
 const STATUS_COLORS: Record<string, string> = {
   concept: 'bg-gray-100 text-gray-800',
   definitief: 'bg-blue-100 text-blue-800',
@@ -61,6 +47,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function InvoicesPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const isReadOnly = user?.rol === 'chauffeur'
@@ -118,7 +105,7 @@ export default function InvoicesPage() {
       setTotalCount(response.count)
     } catch (err) {
       console.error('Failed to load invoices:', err)
-      setError('Kon facturen niet laden')
+      setError(t('errors.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -161,7 +148,7 @@ export default function InvoicesPage() {
       setSelectedInvoice(null)
       loadInvoices()
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Kon factuur niet verwijderen')
+      setError(err.response?.data?.detail || t('errors.deleteFailed'))
     } finally {
       setSaving(false)
     }
@@ -175,7 +162,7 @@ export default function InvoicesPage() {
       const result = await bulkDeleteInvoices(Array.from(selectedIds))
       
       if (result.deleted > 0) {
-        setSuccessMessage(`${result.deleted} factuur/facturen verwijderd`)
+        setSuccessMessage(t('invoices.invoiceDeleted'))
         setTimeout(() => setSuccessMessage(null), 5000)
       }
       
@@ -187,7 +174,7 @@ export default function InvoicesPage() {
       setSelectedIds(new Set())
       loadInvoices()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Kon facturen niet verwijderen')
+      setError(err.response?.data?.error || t('errors.deleteFailed'))
     } finally {
       setSaving(false)
     }
@@ -197,13 +184,13 @@ export default function InvoicesPage() {
     if (selectedIds.size === 0) return
     
     const statusLabels = {
-      concept: 'concept',
-      definitief: 'definitief',
-      verzonden: 'verzonden',
-      betaald: 'betaald',
+      concept: t('invoices.draft'),
+      definitief: t('invoices.definitive'),
+      verzonden: t('invoices.sent'),
+      betaald: t('invoices.paid'),
     }
     
-    if (!confirm(`Weet je zeker dat je ${selectedIds.size} factuur/facturen wilt markeren als ${statusLabels[newStatus]}?`)) {
+    if (!confirm(`${t('confirm.submit')} ${selectedIds.size} ${statusLabels[newStatus]}?`)) {
       return
     }
     
@@ -224,7 +211,7 @@ export default function InvoicesPage() {
       setSelectedIds(new Set())
       loadInvoices()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Kon status niet wijzigen')
+      setError(err.response?.data?.error || t('errors.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -263,7 +250,7 @@ export default function InvoicesPage() {
       
       loadInvoices()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Kon status niet wijzigen')
+      setError(err.response?.data?.error || t('errors.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -280,13 +267,13 @@ export default function InvoicesPage() {
       
       setShowEmailModal(false)
       setEmailAddress('')
-      setSuccessMessage(result.message || 'Factuur succesvol verzonden!')
+      setSuccessMessage(result.message || t('invoices.invoiceSent'))
       loadInvoices()
       
       // Clear success message after 5 seconds
       setTimeout(() => setSuccessMessage(null), 5000)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Kon e-mail niet versturen')
+      setError(err.response?.data?.error || t('errors.saveFailed'))
     } finally {
       setEmailSending(false)
     }
@@ -304,7 +291,7 @@ export default function InvoicesPage() {
       setError(null)
       await generatePdf(invoice.id)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Kon PDF niet genereren')
+      setError(err.response?.data?.error || t('errors.loadFailed'))
     } finally {
       setSaving(false)
     }
@@ -328,18 +315,18 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Facturen</h1>
+        <h1 className="page-title">{t('invoices.title')}</h1>
         <div className="flex items-center gap-3 flex-wrap">
           {!isReadOnly && selectedIds.size > 0 && (
             <>
-              <span className="text-sm text-gray-600">{selectedIds.size} geselecteerd</span>
+              <span className="text-sm text-gray-600">{selectedIds.size} {t('common.selected')}</span>
               <button 
                 onClick={() => handleBulkStatusChange('definitief')} 
                 className="btn-secondary flex items-center gap-1.5 text-sm"
                 disabled={saving}
               >
                 <CheckCircleIcon className="h-4 w-4" />
-                Definitief
+                {t('invoices.definitive')}
               </button>
               <button 
                 onClick={() => handleBulkStatusChange('verzonden')} 
@@ -347,7 +334,7 @@ export default function InvoicesPage() {
                 disabled={saving}
               >
                 <PaperAirplaneIcon className="h-4 w-4" />
-                Verzonden
+                {t('invoices.sent')}
               </button>
               <button 
                 onClick={() => handleBulkStatusChange('betaald')} 
@@ -355,7 +342,7 @@ export default function InvoicesPage() {
                 disabled={saving}
               >
                 <CurrencyEuroIcon className="h-4 w-4" />
-                Betaald
+                {t('invoices.paid')}
               </button>
               <button 
                 onClick={() => setShowBulkDeleteModal(true)} 
@@ -363,14 +350,14 @@ export default function InvoicesPage() {
                 disabled={saving}
               >
                 <TrashIcon className="h-4 w-4" />
-                Verwijder
+                {t('common.delete')}
               </button>
             </>
           )}
           {!isReadOnly && (
             <button onClick={() => navigate('/invoices/new')} className="btn-primary">
               <PlusIcon className="h-5 w-5 mr-2" />
-              Nieuwe factuur
+              {t('invoices.newInvoice')}
             </button>
           )}
         </div>
@@ -405,7 +392,7 @@ export default function InvoicesPage() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Zoek op factuurnummer of bedrijf..."
+                  placeholder={t('invoices.searchInvoices')}
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -415,7 +402,7 @@ export default function InvoicesPage() {
               </div>
             </div>
             <button onClick={handleSearch} className="btn-primary min-h-[44px] w-full sm:w-auto">
-              Zoeken
+              {t('common.search')}
             </button>
           </div>
           
@@ -427,9 +414,10 @@ export default function InvoicesPage() {
               onChange={(e) => handleFilterChange('type', e.target.value)}
               className="input-field min-h-[44px]"
             >
-              {TYPE_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
+              <option value="">{t('common.allTypes')}</option>
+              <option value="verkoop">{t('invoices.sales')}</option>
+              <option value="inkoop">{t('invoices.purchase')}</option>
+              <option value="credit">{t('invoices.credit')}</option>
             </select>
             
             {/* Status filter */}
@@ -438,9 +426,11 @@ export default function InvoicesPage() {
               onChange={(e) => handleFilterChange('status', e.target.value)}
               className="input-field min-h-[44px]"
             >
-              {STATUS_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
+              <option value="">{t('invoices.allStatuses')}</option>
+              <option value="concept">{t('invoices.draft')}</option>
+              <option value="definitief">{t('invoices.definitive')}</option>
+              <option value="verzonden">{t('invoices.sent')}</option>
+              <option value="betaald">{t('invoices.paid')}</option>
             </select>
             
             {/* Company filter */}
@@ -449,7 +439,7 @@ export default function InvoicesPage() {
               onChange={(e) => handleFilterChange('bedrijf', e.target.value)}
               className="input-field min-h-[44px] xs:col-span-2 lg:col-span-1"
             >
-              <option value="">Alle bedrijven</option>
+              <option value="">{t('invoices.allCompanies')}</option>
               {companies.map(company => (
                 <option key={company.id} value={company.id}>{company.naam}</option>
               ))}
@@ -480,7 +470,7 @@ export default function InvoicesPage() {
                   onClick={() => handleSort('factuurnummer')}
                 >
                   <div className="flex items-center gap-1">
-                    Factuurnummer
+                    {t('invoices.invoiceNumber')}
                     {filters.ordering?.includes('factuurnummer') && (
                       filters.ordering.startsWith('-') 
                         ? <ChevronDownIcon className="h-4 w-4" />
@@ -493,7 +483,7 @@ export default function InvoicesPage() {
                   onClick={() => handleSort('bedrijf__naam')}
                 >
                   <div className="flex items-center gap-1">
-                    Bedrijf
+                    {t('invoices.company')}
                     {filters.ordering?.includes('bedrijf__naam') && (
                       filters.ordering.startsWith('-') 
                         ? <ChevronDownIcon className="h-4 w-4" />
@@ -506,7 +496,7 @@ export default function InvoicesPage() {
                   onClick={() => handleSort('week_number')}
                 >
                   <div className="flex items-center gap-1">
-                    Week
+                    {t('common.week')}
                     {filters.ordering?.includes('week_number') && (
                       filters.ordering.startsWith('-') 
                         ? <ChevronDownIcon className="h-4 w-4" />
@@ -519,7 +509,7 @@ export default function InvoicesPage() {
                   onClick={() => handleSort('chauffeur__first_name')}
                 >
                   <div className="flex items-center gap-1">
-                    Chauffeur
+                    {t('timeEntries.driver')}
                     {filters.ordering?.includes('chauffeur') && (
                       filters.ordering.startsWith('-') 
                         ? <ChevronDownIcon className="h-4 w-4" />
@@ -528,14 +518,14 @@ export default function InvoicesPage() {
                   </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
+                  {t('invoices.type')}
                 </th>
                 <th 
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('factuurdatum')}
                 >
                   <div className="flex items-center gap-1">
-                    Datum
+                    {t('common.date')}
                     {filters.ordering?.includes('factuurdatum') && (
                       filters.ordering.startsWith('-') 
                         ? <ChevronDownIcon className="h-4 w-4" />
@@ -544,13 +534,13 @@ export default function InvoicesPage() {
                   </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Totaal
+                  {t('common.total')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('common.status')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acties
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -564,7 +554,7 @@ export default function InvoicesPage() {
               ) : invoices.length === 0 ? (
                 <tr>
                   <td colSpan={!isReadOnly ? 10 : 9} className="px-6 py-8 text-center text-gray-500">
-                    Geen facturen gevonden
+                    {t('invoices.noInvoices')}
                   </td>
                 </tr>
               ) : (
@@ -627,7 +617,7 @@ export default function InvoicesPage() {
                         <button
                           onClick={() => { setSelectedInvoice(invoice); setShowDetailModal(true) }}
                           className="p-2 min-w-[40px] min-h-[40px] text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
-                          title="Bekijken"
+                          title={t('common.view')}
                         >
                           <EyeIcon className="h-5 w-5" />
                         </button>
@@ -637,7 +627,7 @@ export default function InvoicesPage() {
                           onClick={() => handleDownloadPdf(invoice)}
                           disabled={saving}
                           className="p-2 min-w-[40px] min-h-[40px] text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded disabled:opacity-50"
-                          title="Download PDF"
+                          title={t('invoices.downloadPdf')}
                         >
                           <ArrowDownTrayIcon className="h-5 w-5" />
                         </button>
@@ -647,18 +637,19 @@ export default function InvoicesPage() {
                           <button
                             onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
                             className="p-2 min-w-[40px] min-h-[40px] text-orange-600 hover:text-orange-900 hover:bg-orange-50 rounded"
-                            title="Bewerken"
+                            title={t('common.edit')}
                           >
                             <PencilSquareIcon className="h-5 w-5" />
                           </button>
-                        )}
+                        )
+                        }
                         
                         {/* Email button - available for definitief and verzonden */}
                         {!isReadOnly && (invoice.status === 'definitief' || invoice.status === 'verzonden') && (
                           <button
                             onClick={() => openEmailModal(invoice)}
                             className="p-2 min-w-[40px] min-h-[40px] text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded"
-                            title="Verstuur via e-mail"
+                            title={t('invoices.sendInvoice')}
                           >
                             <EnvelopeIcon className="h-5 w-5" />
                           </button>
@@ -669,7 +660,7 @@ export default function InvoicesPage() {
                           <button
                             onClick={() => handleStatusAction(invoice, 'definitief')}
                             className="p-2 min-w-[40px] min-h-[40px] text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded"
-                            title="Definitief maken"
+                            title={t('invoices.makeDefinitive')}
                           >
                             <CheckCircleIcon className="h-5 w-5" />
                           </button>
@@ -679,7 +670,7 @@ export default function InvoicesPage() {
                           <button
                             onClick={() => handleStatusAction(invoice, 'verzonden')}
                             className="p-2 min-w-[40px] min-h-[40px] text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50 rounded"
-                            title="Markeer als verzonden"
+                            title={t('invoices.markAsSent')}
                           >
                             <PaperAirplaneIcon className="h-5 w-5" />
                           </button>
@@ -689,7 +680,7 @@ export default function InvoicesPage() {
                           <button
                             onClick={() => handleStatusAction(invoice, 'betaald')}
                             className="p-2 min-w-[40px] min-h-[40px] text-green-600 hover:text-green-900 hover:bg-green-50 rounded"
-                            title="Markeer als betaald"
+                            title={t('invoices.markAsPaid')}
                           >
                             <CurrencyEuroIcon className="h-5 w-5" />
                           </button>
@@ -700,7 +691,7 @@ export default function InvoicesPage() {
                           <button
                             onClick={() => { setSelectedInvoice(invoice); setShowDeleteModal(true) }}
                             className="p-2 min-w-[40px] min-h-[40px] text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
-                            title="Verwijderen"
+                            title={t('common.delete')}
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
@@ -726,7 +717,7 @@ export default function InvoicesPage() {
                 className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
               />
               <span className="text-sm text-gray-600">
-                {selectedIds.size > 0 ? `${selectedIds.size} geselecteerd` : 'Alles selecteren'}
+                {selectedIds.size > 0 ? `${selectedIds.size} ${t('common.selected')}` : t('common.selectAll')}
               </span>
             </div>
           )}
@@ -736,7 +727,7 @@ export default function InvoicesPage() {
             </div>
           ) : invoices.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500">
-              Geen facturen gevonden
+              {t('invoices.noInvoices')}
             </div>
           ) : (
             invoices.map((invoice) => (
@@ -794,7 +785,7 @@ export default function InvoicesPage() {
                     className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg min-h-[44px]"
                   >
                     <EyeIcon className="h-4 w-4" />
-                    <span>Bekijken</span>
+                    <span>{t('common.view')}</span>
                   </button>
                   
                   <button
@@ -812,7 +803,7 @@ export default function InvoicesPage() {
                       className="flex items-center gap-1.5 px-3 py-2 text-sm text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg min-h-[44px]"
                     >
                       <PencilSquareIcon className="h-4 w-4" />
-                      <span>Bewerken</span>
+                      <span>{t('common.edit')}</span>
                     </button>
                   )}
                   
@@ -822,7 +813,7 @@ export default function InvoicesPage() {
                       className="flex items-center gap-1.5 px-3 py-2 text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg min-h-[44px]"
                     >
                       <EnvelopeIcon className="h-4 w-4" />
-                      <span>E-mail</span>
+                      <span>{t('common.email')}</span>
                     </button>
                   )}
                   
@@ -832,7 +823,7 @@ export default function InvoicesPage() {
                       className="flex items-center gap-1.5 px-3 py-2 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg min-h-[44px]"
                     >
                       <CheckCircleIcon className="h-4 w-4" />
-                      <span>Definitief</span>
+                      <span>{t('invoices.definitive')}</span>
                     </button>
                   )}
                   
@@ -842,7 +833,7 @@ export default function InvoicesPage() {
                       className="flex items-center gap-1.5 px-3 py-2 text-sm text-yellow-600 bg-yellow-50 hover:bg-yellow-100 rounded-lg min-h-[44px]"
                     >
                       <PaperAirplaneIcon className="h-4 w-4" />
-                      <span>Verzonden</span>
+                      <span>{t('invoices.sent')}</span>
                     </button>
                   )}
                   
@@ -852,7 +843,7 @@ export default function InvoicesPage() {
                       className="flex items-center gap-1.5 px-3 py-2 text-sm text-green-600 bg-green-50 hover:bg-green-100 rounded-lg min-h-[44px]"
                     >
                       <CurrencyEuroIcon className="h-4 w-4" />
-                      <span>Betaald</span>
+                      <span>{t('invoices.paid')}</span>
                     </button>
                   )}
                   
@@ -862,7 +853,7 @@ export default function InvoicesPage() {
                       className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg min-h-[44px]"
                     >
                       <TrashIcon className="h-4 w-4" />
-                      <span>Verwijder</span>
+                      <span>{t('common.delete')}</span>
                     </button>
                   )}
                 </div>
@@ -923,11 +914,11 @@ export default function InvoicesPage() {
                       {/* Header info */}
                       <div className="grid grid-cols-2 gap-3 sm:gap-4">
                         <div>
-                          <div className="text-xs sm:text-sm text-gray-500">Bedrijf</div>
+                          <div className="text-xs sm:text-sm text-gray-500">{t('invoices.company')}</div>
                           <div className="font-medium text-sm sm:text-base">{selectedInvoice.bedrijf_naam}</div>
                         </div>
                         <div>
-                          <div className="text-xs sm:text-sm text-gray-500">Status</div>
+                          <div className="text-xs sm:text-sm text-gray-500">{t('common.status')}</div>
                           <select
                             value={selectedInvoice.status}
                             onChange={async (e) => {
@@ -946,20 +937,20 @@ export default function InvoicesPage() {
                               STATUS_COLORS[selectedInvoice.status]
                             )}
                           >
-                            <option value="concept">Concept</option>
-                            <option value="definitief">Definitief</option>
-                            <option value="verzonden">Verzonden</option>
-                            <option value="betaald">Betaald</option>
+                            <option value="concept">{t('invoices.draft')}</option>
+                            <option value="definitief">{t('invoices.definitive')}</option>
+                            <option value="verzonden">{t('invoices.sent')}</option>
+                            <option value="betaald">{t('invoices.paid')}</option>
                           </select>
                         </div>
                         <div>
-                          <div className="text-xs sm:text-sm text-gray-500">Factuurdatum</div>
+                          <div className="text-xs sm:text-sm text-gray-500">{t('invoices.invoiceDate')}</div>
                           <div className="font-medium text-sm sm:text-base">
                             {new Date(selectedInvoice.factuurdatum).toLocaleDateString('nl-NL')}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs sm:text-sm text-gray-500">Vervaldatum</div>
+                          <div className="text-xs sm:text-sm text-gray-500">{t('invoices.dueDate')}</div>
                           <div className="font-medium text-sm sm:text-base">
                             {new Date(selectedInvoice.vervaldatum).toLocaleDateString('nl-NL')}
                           </div>
@@ -968,7 +959,7 @@ export default function InvoicesPage() {
 
                       {/* Lines */}
                       <div>
-                        <h3 className="font-medium mb-2 text-sm sm:text-base">Factuurregels</h3>
+                        <h3 className="font-medium mb-2 text-sm sm:text-base">{t('invoices.lines')}</h3>
                         {selectedInvoice.lines && selectedInvoice.lines.length > 0 ? (
                           <>
                             {/* Desktop Table */}
@@ -976,10 +967,10 @@ export default function InvoicesPage() {
                               <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                   <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Omschrijving</th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Aantal</th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Prijs</th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Totaal</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">{t('invoices.lineDescription')}</th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">{t('common.quantity')}</th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">{t('common.price')}</th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">{t('common.total')}</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -1001,11 +992,11 @@ export default function InvoicesPage() {
                                   <div className="font-medium text-sm mb-1">{line.omschrijving}</div>
                                   <div className="grid grid-cols-3 gap-2 text-xs">
                                     <div>
-                                      <span className="text-gray-500">Aantal: </span>
+                                      <span className="text-gray-500">{t('common.quantity')}: </span>
                                       <span>{line.aantal} {line.eenheid}</span>
                                     </div>
                                     <div>
-                                      <span className="text-gray-500">Prijs: </span>
+                                      <span className="text-gray-500">{t('common.price')}: </span>
                                       <span>{formatCurrency(line.prijs_per_eenheid)}</span>
                                     </div>
                                     <div className="text-right">
@@ -1017,7 +1008,7 @@ export default function InvoicesPage() {
                             </div>
                           </>
                         ) : (
-                          <p className="text-gray-500 text-sm">Geen factuurregels</p>
+                          <p className="text-gray-500 text-sm">{t('invoices.noLines')}</p>
                         )}
                       </div>
 
@@ -1026,15 +1017,15 @@ export default function InvoicesPage() {
                         <div className="flex justify-end">
                           <div className="w-full sm:w-64 space-y-2">
                             <div className="flex justify-between text-sm">
-                              <span className="text-gray-500">Subtotaal:</span>
+                              <span className="text-gray-500">{t('invoices.subtotal')}:</span>
                               <span>{formatCurrency(selectedInvoice.subtotaal)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                              <span className="text-gray-500">BTW ({selectedInvoice.btw_percentage}%):</span>
+                              <span className="text-gray-500">{t('invoices.vat')} ({selectedInvoice.btw_percentage}%):</span>
                               <span>{formatCurrency(selectedInvoice.btw_bedrag)}</span>
                             </div>
                             <div className="flex justify-between font-medium text-lg border-t pt-2">
-                              <span>Totaal:</span>
+                              <span>{t('common.total')}:</span>
                               <span>{formatCurrency(selectedInvoice.totaal)}</span>
                             </div>
                           </div>
@@ -1043,7 +1034,7 @@ export default function InvoicesPage() {
 
                       {selectedInvoice.opmerkingen && (
                         <div>
-                          <div className="text-xs sm:text-sm text-gray-500">Opmerkingen</div>
+                          <div className="text-xs sm:text-sm text-gray-500">{t('common.notes')}</div>
                           <div className="text-sm">{selectedInvoice.opmerkingen}</div>
                         </div>
                       )}
@@ -1052,7 +1043,7 @@ export default function InvoicesPage() {
 
                   <div className="mt-6 flex justify-end">
                     <button onClick={() => setShowDetailModal(false)} className="btn-secondary min-h-[44px]">
-                      Sluiten
+                      {t('common.close')}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -1095,21 +1086,20 @@ export default function InvoicesPage() {
                     </div>
                     <div>
                       <Dialog.Title className="text-lg font-semibold text-gray-900">
-                        Factuur verwijderen
+                        {t('invoices.deleteInvoice')}
                       </Dialog.Title>
                       <p className="mt-2 text-sm text-gray-500">
-                        Weet je zeker dat je factuur {selectedInvoice?.factuurnummer} wilt verwijderen?
-                        Dit kan niet ongedaan worden gemaakt.
+                        {t('invoices.deleteConfirm')} {selectedInvoice?.factuurnummer}?
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-6 flex justify-end gap-3">
                     <button type="button" onClick={() => setShowDeleteModal(false)} className="btn-secondary">
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button onClick={handleDeleteInvoice} disabled={saving} className="btn-danger">
-                      {saving ? 'Bezig...' : 'Verwijderen'}
+                      {saving ? t('common.deleting') : t('common.delete')}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -1152,21 +1142,20 @@ export default function InvoicesPage() {
                     </div>
                     <div>
                       <Dialog.Title className="text-lg font-semibold text-gray-900">
-                        {selectedIds.size} facturen verwijderen
+                        {selectedIds.size} {t('invoices.deleteMultiple')}
                       </Dialog.Title>
                       <p className="mt-2 text-sm text-gray-500">
-                        Weet je zeker dat je {selectedIds.size} facturen wilt verwijderen?
-                        Dit kan niet ongedaan worden gemaakt.
+                        {t('invoices.deleteMultipleConfirm', { count: selectedIds.size })}
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-6 flex justify-end gap-3">
                     <button type="button" onClick={() => setShowBulkDeleteModal(false)} className="btn-secondary">
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button onClick={handleBulkDelete} disabled={saving} className="btn-danger">
-                      {saving ? 'Bezig...' : `${selectedIds.size} verwijderen`}
+                      {saving ? t('common.deleting') : `${selectedIds.size} ${t('common.delete').toLowerCase()}`}
                     </button>
                   </div>
                 </Dialog.Panel>
@@ -1209,27 +1198,27 @@ export default function InvoicesPage() {
                     </div>
                     <div className="flex-1">
                       <Dialog.Title className="text-lg font-semibold text-gray-900">
-                        Factuur versturen
+                        {t('invoices.sendInvoice')}
                       </Dialog.Title>
                       <p className="mt-2 text-sm text-gray-500">
-                        Verstuur factuur {selectedInvoice?.factuurnummer} naar onderstaand e-mailadres.
+                        {t('invoices.sendInvoiceDescription')} {selectedInvoice?.factuurnummer}
                       </p>
                       
                       <div className="mt-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          E-mailadres
+                          {t('common.email')}
                         </label>
                         <input
                           type="email"
                           value={emailAddress}
                           onChange={(e) => setEmailAddress(e.target.value)}
-                          placeholder="voorbeeld@bedrijf.nl"
+                          placeholder="example@company.com"
                           className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                         />
                       </div>
                       
                       <p className="mt-3 text-xs text-gray-500">
-                        Zorg ervoor dat de SMTP instellingen geconfigureerd zijn in Instellingen → E-mail.
+                        {t('invoices.smtpNote')}
                       </p>
                     </div>
                   </div>
@@ -1241,7 +1230,7 @@ export default function InvoicesPage() {
                       className="btn-secondary"
                       disabled={emailSending}
                     >
-                      Annuleren
+                      {t('common.cancel')}
                     </button>
                     <button 
                       onClick={handleSendEmail} 
@@ -1251,12 +1240,12 @@ export default function InvoicesPage() {
                       {emailSending ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                          Versturen...
+                          {t('common.sending')}
                         </>
                       ) : (
                         <>
                           <EnvelopeIcon className="h-4 w-4" />
-                          Versturen
+                          {t('common.send')}
                         </>
                       )}
                     </button>

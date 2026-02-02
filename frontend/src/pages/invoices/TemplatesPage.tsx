@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { 
   PlusIcon, 
   PencilIcon, 
@@ -18,6 +19,7 @@ import { getTemplates, deleteTemplate, copyTemplate, exportTemplate, importTempl
 import { InvoiceTemplate } from '@/types'
 
 export default function TemplatesPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [templates, setTemplates] = useState<InvoiceTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -35,7 +37,7 @@ export default function TemplatesPage() {
       const response = await getTemplates(false)
       setTemplates(response.results)
     } catch (err) {
-      setError('Kon templates niet laden')
+      setError(t('errors.loadTemplates'))
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -60,11 +62,11 @@ export default function TemplatesPage() {
       setIsDeleting(true)
       setError(null)
       await deleteTemplate(id)
-      setSuccessMessage('Template verwijderd')
+      setSuccessMessage(t('templates.deleted'))
       setDeleteConfirmId(null)
       fetchTemplates()
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Kon template niet verwijderen')
+      setError(err.response?.data?.detail || t('errors.deleteTemplate'))
     } finally {
       setIsDeleting(false)
     }
@@ -76,10 +78,10 @@ export default function TemplatesPage() {
       setIsCopying(true)
       setError(null)
       const newTemplate = await copyTemplate(template.id)
-      setSuccessMessage(`Template gekopieerd naar "${newTemplate.naam}"`)
+      setSuccessMessage(t('templates.copied', { name: newTemplate.naam }))
       fetchTemplates()
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Kon template niet kopiëren')
+      setError(err.response?.data?.detail || t('errors.copyTemplate'))
     } finally {
       setIsCopying(false)
     }
@@ -90,9 +92,9 @@ export default function TemplatesPage() {
     try {
       setError(null)
       await exportTemplate(template.id)
-      setSuccessMessage(`Template "${template.naam}" geëxporteerd`)
+      setSuccessMessage(t('templates.exported', { name: template.naam }))
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Kon template niet exporteren')
+      setError(err.response?.data?.detail || t('errors.exportTemplate'))
     }
   }
 
@@ -104,10 +106,10 @@ export default function TemplatesPage() {
     try {
       setError(null)
       const newTemplate = await importTemplate(file)
-      setSuccessMessage(`Template "${newTemplate.naam}" geïmporteerd`)
+      setSuccessMessage(t('templates.imported', { name: newTemplate.naam }))
       fetchTemplates()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Kon template niet importeren')
+      setError(err.response?.data?.error || t('errors.importTemplate'))
     }
     
     // Reset file input
@@ -119,15 +121,15 @@ export default function TemplatesPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Factuur Templates</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('templates.title')}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Beheer templates voor facturen met visuele editor
+            {t('templates.description')}
           </p>
         </div>
         <div className="flex gap-2">
           <label className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
             <ArrowUpTrayIcon className="-ml-1 mr-2 h-5 w-5" />
-            Importeren
+            {t('common.import')}
             <input
               type="file"
               accept=".json,application/json"
@@ -140,7 +142,7 @@ export default function TemplatesPage() {
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
           >
             <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-            Nieuwe Template
+            {t('templates.newTemplate')}
           </button>
         </div>
       </div>
@@ -176,9 +178,9 @@ export default function TemplatesPage() {
       ) : templates.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <DocumentDuplicateIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Geen templates</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">{t('templates.noTemplates')}</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Maak je eerste factuur template met de visuele editor.
+            {t('templates.createFirst')}
           </p>
           <div className="mt-6">
             <button
@@ -186,7 +188,7 @@ export default function TemplatesPage() {
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
             >
               <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-              Nieuwe Template
+              {t('templates.newTemplate')}
             </button>
           </div>
         </div>
@@ -196,16 +198,16 @@ export default function TemplatesPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Template
+                  {t('common.template')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('common.status')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Bijgewerkt
+                  {t('common.updated')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acties
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -231,11 +233,11 @@ export default function TemplatesPage() {
                     {template.is_active ? (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         <CheckCircleIcon className="h-3 w-3 mr-1" />
-                        Actief
+                        {t('common.active')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        Inactief
+                        {t('common.inactive')}
                       </span>
                     )}
                   </td>
@@ -251,7 +253,7 @@ export default function TemplatesPage() {
                       <button
                         onClick={() => handleExport(template)}
                         className="p-2 text-gray-400 hover:text-green-600 transition-colors"
-                        title="Template exporteren"
+                        title={t('templates.export')}
                       >
                         <ArrowDownTrayIcon className="h-5 w-5" />
                       </button>
@@ -259,21 +261,21 @@ export default function TemplatesPage() {
                         onClick={() => handleCopy(template)}
                         disabled={isCopying}
                         className="p-2 text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-50"
-                        title="Template kopiëren"
+                        title={t('templates.copy')}
                       >
                         <DocumentDuplicateIcon className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => navigate(`/invoices/templates/${template.id}/edit`)}
                         className="p-2 text-gray-400 hover:text-primary-600 transition-colors"
-                        title="Bewerken in visuele editor"
+                        title={t('templates.editVisual')}
                       >
                         <PencilIcon className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => setDeleteConfirmId(template.id)}
                         className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                        title="Verwijderen"
+                        title={t('common.delete')}
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -297,27 +299,27 @@ export default function TemplatesPage() {
             <div className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
               <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                 <h3 className="text-lg font-semibold leading-6 text-gray-900 mb-4">
-                  Template Verwijderen
+                  {t('templates.deleteTitle')}
                 </h3>
                 <p className="text-sm text-gray-500 mb-4">
-                  Weet je zeker dat je deze template wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+                  {t('templates.deleteConfirm')}
                 </p>
                 <p className="text-sm text-amber-600 mb-4">
-                  Let op: Als deze template wordt gebruikt door bestaande facturen, kan deze niet worden verwijderd.
+                  {t('templates.deleteWarning')}
                 </p>
                 <div className="flex justify-end space-x-3 pt-4 border-t">
                   <button
                     onClick={() => setDeleteConfirmId(null)}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                   >
-                    Annuleren
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={() => handleDelete(deleteConfirmId)}
                     disabled={isDeleting}
                     className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50"
                   >
-                    {isDeleting ? 'Verwijderen...' : 'Verwijderen'}
+                    {isDeleting ? t('common.deleting') : t('common.delete')}
                   </button>
                 </div>
               </div>

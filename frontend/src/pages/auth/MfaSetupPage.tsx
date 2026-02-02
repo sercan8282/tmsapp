@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { authApi } from '@/api/auth'
@@ -14,6 +15,7 @@ interface MfaForm {
 }
 
 export default function MfaSetupPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { isAuthenticated, pendingMfaSetup, completeMfaSetup, logout } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
@@ -44,7 +46,7 @@ export default function MfaSetupPage() {
       const data = await authApi.setup2FA()
       setSetupData(data)
     } catch (err) {
-      toast.error('Kon 2FA setup niet laden')
+      toast.error(t('errors.loadFailed'))
     } finally {
       setLoadingSetup(false)
     }
@@ -55,11 +57,11 @@ export default function MfaSetupPage() {
     try {
       await authApi.enable2FA(data.code)
       completeMfaSetup()
-      toast.success('2FA succesvol ingesteld!')
+      toast.success(t('common.success'))
       navigate('/', { replace: true })
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } }
-      toast.error(err.response?.data?.error || 'Ongeldige code')
+      toast.error(err.response?.data?.error || t('auth.verificationFailed'))
     } finally {
       setIsLoading(false)
     }
@@ -87,10 +89,10 @@ export default function MfaSetupPage() {
               <ShieldCheckIcon className="h-8 w-8 text-primary-600" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900">
-              2FA Instellen Verplicht
+              {t('auth.setupMfa')}
             </h1>
             <p className="mt-2 text-sm text-gray-600">
-              Je beheerder heeft bepaald dat je tweefactorauthenticatie moet instellen om door te gaan.
+              {t('auth.setupMfaDescription')}
             </p>
           </div>
 
@@ -98,7 +100,7 @@ export default function MfaSetupPage() {
             <div className="space-y-6">
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-4">
-                  Scan de QR-code met je authenticator app (bijv. Google Authenticator, Microsoft Authenticator)
+                  {t('auth.scanQrCode')}
                 </p>
                 <div className="flex justify-center">
                   <img 
@@ -110,7 +112,7 @@ export default function MfaSetupPage() {
               </div>
 
               <div className="text-center">
-                <p className="text-xs text-gray-500 mb-1">Of voer deze code handmatig in:</p>
+                <p className="text-xs text-gray-500 mb-1">{t('common.or')}:</p>
                 <code className="text-sm bg-gray-100 px-3 py-1 rounded font-mono">
                   {setupData.secret}
                 </code>
@@ -119,7 +121,7 @@ export default function MfaSetupPage() {
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div>
                   <label htmlFor="code" className="form-label">
-                    Verificatiecode
+                    {t('auth.twoFactorCode')}
                   </label>
                   <input
                     id="code"
@@ -130,10 +132,10 @@ export default function MfaSetupPage() {
                     className="form-input text-center text-2xl tracking-widest"
                     maxLength={6}
                     {...register('code', {
-                      required: 'Code is verplicht',
+                      required: t('auth.codeRequired'),
                       pattern: {
                         value: /^\d{6}$/,
-                        message: 'Voer een 6-cijferige code in',
+                        message: t('auth.codeMustBe6Digits'),
                       },
                     })}
                   />
@@ -147,7 +149,7 @@ export default function MfaSetupPage() {
                   disabled={isLoading}
                   className="btn-primary w-full"
                 >
-                  {isLoading ? 'Verifiëren...' : '2FA Activeren'}
+                  {isLoading ? t('common.loading') : t('common.confirm')}
                 </button>
               </form>
             </div>
@@ -158,7 +160,7 @@ export default function MfaSetupPage() {
               onClick={handleLogout}
               className="text-sm text-gray-500 hover:text-gray-700"
             >
-              Uitloggen
+              {t('auth.logout')}
             </button>
           </div>
         </div>
