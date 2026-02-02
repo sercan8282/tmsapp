@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, Fragment } from 'react'
-import { Dialog, Transition, Listbox } from '@headlessui/react'
+import { Dialog, Transition } from '@headlessui/react'
 import {
   PlusIcon,
   ChevronLeftIcon,
@@ -7,8 +7,6 @@ import {
   DocumentDuplicateIcon,
   TrashIcon,
   XMarkIcon,
-  CheckIcon,
-  ChevronUpDownIcon,
   ExclamationTriangleIcon,
   TruckIcon,
   UserIcon,
