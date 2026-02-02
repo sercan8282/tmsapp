@@ -6,7 +6,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     PublicSettingsView, 
     AdminSettingsViewSet, 
-    DashboardStatsView, 
+    DashboardStatsView,
+    RecentActivityView,
     ImageUploadView,
     HealthCheckView,
     CustomFontViewSet,
@@ -25,6 +26,9 @@ urlpatterns = [
     
     # Dashboard stats
     path('dashboard/stats/', DashboardStatsView.as_view(), name='dashboard-stats'),
+    
+    # Recent activity
+    path('dashboard/activity/', RecentActivityView.as_view(), name='recent-activity'),
     
     # Image upload
     path('upload/image/', ImageUploadView.as_view(), name='upload-image'),
