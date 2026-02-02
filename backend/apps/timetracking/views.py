@@ -199,6 +199,83 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         })
     
     @action(detail=False, methods=['get'])
+    def driver_report(self, request):
+        """
+        Get a driver's history report showing weeks and days with routes.
+        Only accessible by admins.
+        Returns a matrix of weeks x days with route information.
+        """
+        user = request.user
+        
+        # Security: Only admins can access this endpoint
+        if not (user.is_superuser or user.rol == 'admin'):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Alleen admins hebben toegang tot deze functie.')
+        
+        driver_id = request.query_params.get('driver_id')
+        if not driver_id:
+            return Response({'error': 'driver_id is verplicht'}, status=400)
+        
+        # Get driver info
+        from apps.accounts.models import User
+        try:
+            driver = User.objects.get(id=driver_id)
+        except User.DoesNotExist:
+            return Response({'error': 'Chauffeur niet gevonden'}, status=404)
+        
+        # Get all submitted entries for this driver
+        entries = TimeEntry.objects.filter(
+            user_id=driver_id,
+            status=TimeEntryStatus.INGEDIEND
+        ).order_by('-datum')
+        
+        # Group by week
+        weeks_data = {}
+        for entry in entries:
+            jaar = entry.datum.year
+            week = entry.weeknummer
+            weekday = entry.datum.weekday()  # 0=Monday, 4=Friday
+            
+            week_key = f"{jaar}-W{week:02d}"
+            
+            if week_key not in weeks_data:
+                weeks_data[week_key] = {
+                    'jaar': jaar,
+                    'weeknummer': week,
+                    'dagen': {
+                        'ma': [],
+                        'di': [],
+                        'wo': [],
+                        'do': [],
+                        'vr': [],
+                        'za': [],
+                        'zo': [],
+                    }
+                }
+            
+            day_map = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
+            dag = day_map[weekday]
+            
+            weeks_data[week_key]['dagen'][dag].append({
+                'ritnummer': entry.ritnummer,
+                'kenteken': entry.kenteken,
+                'km': entry.totaal_km,
+                'uren': str(entry.totaal_uren) if entry.totaal_uren else '0:00',
+            })
+        
+        # Sort weeks descending
+        sorted_weeks = sorted(weeks_data.values(), key=lambda x: (x['jaar'], x['weeknummer']), reverse=True)
+        
+        return Response({
+            'driver': {
+                'id': str(driver.id),
+                'naam': driver.full_name,
+                'email': driver.email,
+            },
+            'weeks': sorted_weeks,
+        })
+    
+    @action(detail=False, methods=['get'])
     def history(self, request):
         """Get history grouped by week."""
         user = request.user

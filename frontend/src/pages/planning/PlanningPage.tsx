@@ -14,6 +14,9 @@ import {
   UserIcon,
   DocumentArrowDownIcon,
   EnvelopeIcon,
+  MagnifyingGlassIcon,
+  ClockIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -32,6 +35,7 @@ import {
 } from '@/api/planning'
 import { getCompanies } from '@/api/companies'
 import { getDrivers } from '@/api/drivers'
+import { getDriverReport, DriverReport } from '@/api/timetracking'
 import clsx from '@/utils/clsx'
 
 const DAYS = [
@@ -40,6 +44,16 @@ const DAYS = [
   { key: 'wo', label: 'Wo', full: 'Woensdag' },
   { key: 'do', label: 'Do', full: 'Donderdag' },
   { key: 'vr', label: 'Vr', full: 'Vrijdag' },
+] as const
+
+const ALL_DAYS = [
+  { key: 'ma', label: 'Ma', full: 'Maandag' },
+  { key: 'di', label: 'Di', full: 'Dinsdag' },
+  { key: 'wo', label: 'Wo', full: 'Woensdag' },
+  { key: 'do', label: 'Do', full: 'Donderdag' },
+  { key: 'vr', label: 'Vr', full: 'Vrijdag' },
+  { key: 'za', label: 'Za', full: 'Zaterdag' },
+  { key: 'zo', label: 'Zo', full: 'Zondag' },
 ] as const
 
 // Get current week number helper
@@ -1198,15 +1212,275 @@ function DriverSelector({ drivers, value, onChange, onCancel }: DriverSelectorPr
   )
 }
 
+// Historie View Component (Admin only)
+function HistorieView() {
+  const [drivers, setDrivers] = useState<Driver[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
+  const [report, setReport] = useState<DriverReport | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [searchFocused, setSearchFocused] = useState(false)
+
+  // Load drivers on mount
+  useEffect(() => {
+    loadDrivers()
+  }, [])
+
+  const loadDrivers = async () => {
+    try {
+      const response = await getDrivers()
+      setDrivers(response.results || response)
+    } catch (err) {
+      console.error('Failed to load drivers:', err)
+    }
+  }
+
+  // Filter drivers based on search
+  const filteredDrivers = drivers.filter(driver => 
+    driver.naam.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    driver.gekoppelde_gebruiker_naam?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  // Load report when driver is selected
+  const handleSelectDriver = async (driver: Driver) => {
+    setSelectedDriver(driver)
+    setSearchQuery(driver.naam)
+    setSearchFocused(false)
+    setLoading(true)
+    
+    try {
+      const reportData = await getDriverReport(driver.id)
+      setReport(reportData)
+    } catch (err) {
+      console.error('Failed to load driver report:', err)
+      setReport(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const clearSelection = () => {
+    setSelectedDriver(null)
+    setReport(null)
+    setSearchQuery('')
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Search Bar */}
+      <div className="bg-white rounded-lg shadow-sm border p-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Zoek chauffeur
+        </label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              if (selectedDriver) {
+                setSelectedDriver(null)
+                setReport(null)
+              }
+            }}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+            placeholder="Typ om te zoeken..."
+            className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+          />
+          {searchQuery && (
+            <button
+              onClick={clearSelection}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+            >
+              <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+            </button>
+          )}
+          
+          {/* Search Results Dropdown */}
+          {searchFocused && searchQuery && !selectedDriver && filteredDrivers.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+              {filteredDrivers.map((driver) => (
+                <button
+                  key={driver.id}
+                  onClick={() => handleSelectDriver(driver)}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3"
+                >
+                  <UserIcon className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <div className="font-medium text-gray-900">{driver.naam}</div>
+                    {driver.gekoppelde_gebruiker_naam && (
+                      <div className="text-sm text-gray-500">{driver.gekoppelde_gebruiker_naam}</div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          
+          {searchFocused && searchQuery && !selectedDriver && filteredDrivers.length === 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-4 text-center text-gray-500">
+              Geen chauffeurs gevonden
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Report Display */}
+      {loading && (
+        <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto" />
+          <p className="mt-4 text-gray-500">Rapport laden...</p>
+        </div>
+      )}
+
+      {!loading && selectedDriver && report && (
+        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+          {/* Report Header */}
+          <div className="px-6 py-4 border-b bg-gray-50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+                  <UserIcon className="h-5 w-5 text-primary-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">{report.driver.naam}</h3>
+                  <p className="text-sm text-gray-500">{report.driver.email}</p>
+                </div>
+              </div>
+              <div className="text-sm text-gray-500">
+                {report.weeks.length} weken met ritten
+              </div>
+            </div>
+          </div>
+
+          {/* Report Table */}
+          {report.weeks.length === 0 ? (
+            <div className="p-12 text-center text-gray-500">
+              <ClockIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>Geen ingediende uren gevonden voor deze chauffeur</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-100">
+                      Week
+                    </th>
+                    {ALL_DAYS.map(day => (
+                      <th key={day.key} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                        {day.full}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {report.weeks.map((week) => (
+                    <tr key={`${week.jaar}-${week.weeknummer}`} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900 sticky left-0 bg-white">
+                        <div className="flex items-center gap-2">
+                          <CalendarDaysIcon className="h-4 w-4 text-gray-400" />
+                          <span>W{week.weeknummer} '{String(week.jaar).slice(-2)}</span>
+                        </div>
+                      </td>
+                      {ALL_DAYS.map(day => {
+                        const dayData = week.dagen[day.key as keyof typeof week.dagen]
+                        return (
+                          <td key={day.key} className="px-4 py-3 text-center">
+                            {dayData && dayData.length > 0 ? (
+                              <div className="space-y-1">
+                                {dayData.map((entry, idx) => (
+                                  <div 
+                                    key={idx} 
+                                    className="bg-primary-50 text-primary-700 rounded px-2 py-1 text-xs"
+                                    title={`${entry.kenteken} - ${entry.km} km`}
+                                  >
+                                    <div className="font-medium">{entry.ritnummer}</div>
+                                    <div className="text-primary-500 text-[10px]">{entry.km} km</div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-gray-300">-</span>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && !selectedDriver && (
+        <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+          <MagnifyingGlassIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Selecteer een chauffeur</h3>
+          <p className="text-gray-500">Zoek en selecteer een chauffeur om het rittenrapport te bekijken</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Main export - shows different view based on user role
 export default function PlanningPage() {
   const { user } = useAuthStore()
+  const [activeTab, setActiveTab] = useState<'planning' | 'historie'>('planning')
   
   // Chauffeurs see their own planning
   if (user?.rol === 'chauffeur') {
     return <ChauffeurPlanningView />
   }
   
+  // Only admins see the historie tab
+  const isAdmin = user?.rol === 'admin'
+  
   // Admins and managers see the full planning management
-  return <AdminPlanningView />
+  return (
+    <div className="space-y-6">
+      {/* Tabs (only for admins) */}
+      {isAdmin && (
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('planning')}
+              className={clsx(
+                'py-4 px-1 border-b-2 font-medium text-sm',
+                activeTab === 'planning'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              )}
+            >
+              <CalendarDaysIcon className="h-5 w-5 inline-block mr-2" />
+              Planning
+            </button>
+            <button
+              onClick={() => setActiveTab('historie')}
+              className={clsx(
+                'py-4 px-1 border-b-2 font-medium text-sm',
+                activeTab === 'historie'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              )}
+            >
+              <ClockIcon className="h-5 w-5 inline-block mr-2" />
+              Historie
+            </button>
+          </nav>
+        </div>
+      )}
+      
+      {/* Tab Content */}
+      {activeTab === 'planning' ? <AdminPlanningView /> : <HistorieView />}
+    </div>
+  )
 }

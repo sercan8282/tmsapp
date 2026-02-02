@@ -166,6 +166,45 @@ export function getCurrentYear(): number {
   return new Date().getFullYear()
 }
 
+// Driver Report Types
+export interface DriverReportDay {
+  ritnummer: string
+  kenteken: string
+  km: number
+  uren: string
+}
+
+export interface DriverReportWeek {
+  jaar: number
+  weeknummer: number
+  dagen: {
+    ma: DriverReportDay[]
+    di: DriverReportDay[]
+    wo: DriverReportDay[]
+    do: DriverReportDay[]
+    vr: DriverReportDay[]
+    za: DriverReportDay[]
+    zo: DriverReportDay[]
+  }
+}
+
+export interface DriverReport {
+  driver: {
+    id: string
+    naam: string
+    email: string
+  }
+  weeks: DriverReportWeek[]
+}
+
+/**
+ * Get driver history report (admin only)
+ */
+export async function getDriverReport(driverId: string): Promise<DriverReport> {
+  const response = await api.get(`/time-entries/driver_report/?driver_id=${driverId}`)
+  return response.data
+}
+
 /**
  * Format duration string (e.g., "PT30M" or "00:30:00") to minutes
  */
