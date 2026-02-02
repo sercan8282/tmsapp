@@ -307,3 +307,218 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         ).order_by('-jaar', '-weeknummer')
         
         return Response(list(weeks))
+
+    @action(detail=False, methods=['get'], url_path='driver_report')
+    def driver_report(self, request):
+        """Get driver report: weeks with days showing ritnummer, kenteken, km, uren from planning entries."""
+        user = request.user
+        
+        # Only admins can access this
+        if not (user.is_superuser or user.rol == 'admin'):
+            return Response(
+                {'error': 'Geen toegang'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        driver_id = request.query_params.get('driver_id')
+        if not driver_id:
+            return Response(
+                {'error': 'driver_id is verplicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get the driver
+        from apps.drivers.models import Driver
+        from apps.planning.models import PlanningEntry
+        try:
+            driver = Driver.objects.get(id=driver_id)
+        except Driver.DoesNotExist:
+            return Response(
+                {'error': 'Chauffeur niet gevonden'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get all planning entries for this driver
+        entries = PlanningEntry.objects.filter(
+            chauffeur=driver
+        ).select_related('planning', 'vehicle').order_by('-planning__jaar', '-planning__weeknummer', 'dag')
+        
+        # Group by week
+        from collections import defaultdict
+        weeks_data = defaultdict(lambda: defaultdict(list))
+        
+        for entry in entries:
+            week_key = f"{entry.planning.jaar}-{entry.planning.weeknummer:02d}"
+            day_name = entry.dag  # Already 'ma', 'di', etc.
+            
+            weeks_data[week_key][day_name].append({
+                'ritnummer': entry.ritnummer or entry.vehicle.ritnummer or '',
+                'kenteken': entry.vehicle.kenteken or '',
+                'km': 0,  # Not tracked in planning
+                'uren': 0,  # Not tracked in planning
+            })
+        
+        # Convert to list format
+        weeks = []
+        for week_key in sorted(weeks_data.keys(), reverse=True):
+            year, week_num = week_key.split('-')
+            week_entry = {
+                'jaar': int(year),
+                'weeknummer': int(week_num),
+                'dagen': {
+                    'ma': [],
+                    'di': [],
+                    'wo': [],
+                    'do': [],
+                    'vr': [],
+                    'za': [],
+                    'zo': [],
+                }
+            }
+            for day in ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']:
+                if day in weeks_data[week_key]:
+                    week_entry['dagen'][day] = weeks_data[week_key][day]
+            weeks.append(week_entry)
+        
+        return Response({
+            'driver_id': str(driver_id),
+            'driver_name': driver.naam,
+            'weeks': weeks
+        })
+
+    @action(detail=False, methods=['get'], url_path='driver_report_pdf')
+    def driver_report_pdf(self, request):
+        """Generate PDF for driver history report."""
+        import io
+        from django.http import HttpResponse
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.units import cm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        
+        user = request.user
+        
+        # Only admins can access this
+        if not (user.is_superuser or user.rol == 'admin'):
+            return Response(
+                {'error': 'Geen toegang'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        driver_id = request.query_params.get('driver_id')
+        if not driver_id:
+            return Response(
+                {'error': 'driver_id is verplicht'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get the driver
+        from apps.drivers.models import Driver
+        from apps.planning.models import PlanningEntry
+        try:
+            driver = Driver.objects.get(id=driver_id)
+        except Driver.DoesNotExist:
+            return Response(
+                {'error': 'Chauffeur niet gevonden'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get all planning entries for this driver
+        entries = PlanningEntry.objects.filter(
+            chauffeur=driver
+        ).select_related('planning', 'vehicle').order_by('-planning__jaar', '-planning__weeknummer', 'dag')
+        
+        # Group by week
+        from collections import defaultdict
+        weeks_data = defaultdict(lambda: defaultdict(list))
+        
+        for entry in entries:
+            week_key = f"{entry.planning.jaar}-{entry.planning.weeknummer:02d}"
+            day_name = entry.dag
+            
+            weeks_data[week_key][day_name].append({
+                'ritnummer': entry.ritnummer or entry.vehicle.ritnummer or '',
+                'kenteken': entry.vehicle.kenteken or '',
+            })
+        
+        # Generate PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(A4),
+            leftMargin=1*cm,
+            rightMargin=1*cm,
+            topMargin=1*cm,
+            bottomMargin=1*cm
+        )
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Title
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=12
+        )
+        title = Paragraph(f"Chauffeur Historie: {driver.naam}", title_style)
+        elements.append(title)
+        elements.append(Spacer(1, 0.5*cm))
+        
+        # Table header
+        day_headers = ['Week', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo']
+        table_data = [day_headers]
+        
+        # Sort weeks
+        for week_key in sorted(weeks_data.keys(), reverse=True):
+            year, week_num = week_key.split('-')
+            row = [f"W{int(week_num)} '{year[-2:]}"]
+            
+            for day in ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']:
+                day_entries = weeks_data[week_key].get(day, [])
+                if day_entries:
+                    cell_text = '\n'.join([f"{e['ritnummer']} ({e['kenteken']})" for e in day_entries])
+                else:
+                    cell_text = '-'
+                row.append(cell_text)
+            
+            table_data.append(row)
+        
+        if len(table_data) == 1:
+            # No data
+            elements.append(Paragraph("Geen ritten gevonden voor deze chauffeur.", styles['Normal']))
+        else:
+            # Create table
+            col_widths = [2*cm] + [3.5*cm] * 7
+            table = Table(table_data, colWidths=col_widths, repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 0), (-1, 0), 8),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+                ('TOPPADDING', (0, 1), (-1, -1), 4),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f7fa')]),
+            ]))
+            elements.append(table)
+        
+        doc.build(elements)
+        buffer.seek(0)
+        
+        # Return PDF response
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        safe_name = driver.naam.replace(' ', '_').replace('/', '-')
+        filename = f"chauffeur_historie_{safe_name}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+

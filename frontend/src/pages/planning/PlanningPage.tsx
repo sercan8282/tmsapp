@@ -35,7 +35,7 @@ import {
 } from '@/api/planning'
 import { getCompanies } from '@/api/companies'
 import { getDrivers } from '@/api/drivers'
-import { getDriverReport, DriverReport } from '@/api/timetracking'
+import { getDriverReport, DriverReport, downloadDriverReportPdf } from '@/api/timetracking'
 import clsx from '@/utils/clsx'
 
 const DAYS = [
@@ -1315,12 +1315,21 @@ function HistorieView() {
                   <UserIcon className="h-5 w-5 text-primary-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{report.driver.naam}</h3>
-                  <p className="text-sm text-gray-500">{report.driver.email}</p>
+                  <h3 className="font-semibold text-gray-900">{report.driver_name || selectedDriver.naam}</h3>
+                  <p className="text-sm text-gray-500">{selectedDriver.gekoppelde_gebruiker_naam || ''}</p>
                 </div>
               </div>
-              <div className="text-sm text-gray-500">
-                {report.weeks.length} weken met ritten
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-500">
+                  {report.weeks.length} weken met ritten
+                </span>
+                <button
+                  onClick={() => downloadDriverReportPdf(selectedDriver.id.toString(), selectedDriver.naam)}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700"
+                >
+                  <DocumentArrowDownIcon className="h-4 w-4" />
+                  Exporteer PDF
+                </button>
               </div>
             </div>
           </div>
@@ -1365,10 +1374,10 @@ function HistorieView() {
                                   <div 
                                     key={idx} 
                                     className="bg-primary-50 text-primary-700 rounded px-2 py-1 text-xs"
-                                    title={`${entry.kenteken} - ${entry.km} km`}
+                                    title={`Rit ${entry.ritnummer} - ${entry.kenteken}`}
                                   >
-                                    <div className="font-medium">{entry.ritnummer}</div>
-                                    <div className="text-primary-500 text-[10px]">{entry.km} km</div>
+                                    <div className="font-medium">{entry.ritnummer || '-'}</div>
+                                    <div className="text-primary-500 text-[10px]">{entry.kenteken}</div>
                                   </div>
                                 ))}
                               </div>

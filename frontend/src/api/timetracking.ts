@@ -189,11 +189,8 @@ export interface DriverReportWeek {
 }
 
 export interface DriverReport {
-  driver: {
-    id: string
-    naam: string
-    email: string
-  }
+  driver_id: number
+  driver_name: string
   weeks: DriverReportWeek[]
 }
 
@@ -203,6 +200,25 @@ export interface DriverReport {
 export async function getDriverReport(driverId: string): Promise<DriverReport> {
   const response = await api.get(`/time-entries/driver_report/?driver_id=${driverId}`)
   return response.data
+}
+
+/**
+ * Download driver history report as PDF (admin only)
+ */
+export async function downloadDriverReportPdf(driverId: string, driverName: string): Promise<void> {
+  const response = await api.get(`/time-entries/driver_report_pdf/?driver_id=${driverId}`, {
+    responseType: 'blob'
+  })
+  
+  // Create download link
+  const url = window.URL.createObjectURL(new Blob([response.data]))
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', `chauffeur_historie_${driverName.replace(/ /g, '_')}.pdf`)
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
 }
 
 /**

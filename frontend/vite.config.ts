@@ -170,8 +170,6 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         // Navigation preload for faster page loads
         navigationPreload: true,
-        // Import push notification handlers
-        importScripts: ['/sw-push.js'],
       },
       devOptions: {
         enabled: false, // Disabled - causes issues with API proxy
@@ -188,11 +186,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8001',
+        target: 'http://localhost:8000',
         changeOrigin: true,
       },
       '/media': {
-        target: 'http://localhost:8001',
+        target: 'http://localhost:8000',
         changeOrigin: true,
       },
     },
