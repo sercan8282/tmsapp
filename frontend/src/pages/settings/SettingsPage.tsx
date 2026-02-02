@@ -609,7 +609,7 @@ export default function SettingsPage() {
               {/* Payment Text */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Betalingstekst
+                  {t('settings.paymentText')}
                 </label>
                 <textarea
                   value={formData.invoice_payment_text || ''}
@@ -619,26 +619,25 @@ export default function SettingsPage() {
                   placeholder="Wij verzoeken u vriendelijk het totaalbedrag vóór de vervaldatum over te maken op bovenstaand IBAN onder vermelding van het factuurnummer."
                 />
                 <p className="text-xs text-gray-500 mt-2">
-                  Beschikbare variabelen: <code className="bg-gray-100 px-1 rounded">{'{bedrag}'}</code>, <code className="bg-gray-100 px-1 rounded">{'{vervaldatum}'}</code>, <code className="bg-gray-100 px-1 rounded">{'{factuurnummer}'}</code>
+                  {t('settings.availableVariables')}: <code className="bg-gray-100 px-1 rounded">{'{bedrag}'}</code>, <code className="bg-gray-100 px-1 rounded">{'{vervaldatum}'}</code>, <code className="bg-gray-100 px-1 rounded">{'{factuurnummer}'}</code>
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Voorbeeld: "Wij verzoeken u vriendelijk het totaalbedrag van {'{bedrag}'} vóór {'{vervaldatum}'} over te maken onder vermelding van {'{factuurnummer}'}."
+                  {t('settings.example')}: "Wij verzoeken u vriendelijk het totaalbedrag van {'{bedrag}'} vóór {'{vervaldatum}'} over te maken onder vermelding van {'{factuurnummer}'}."
                 </p>
               </div>
 
               {/* Invoice Number Start Settings */}
               <div className="border-t pt-6">
-                <h3 className="text-md font-semibold text-gray-900 mb-4">Factuurnummer Instellingen</h3>
+                <h3 className="text-md font-semibold text-gray-900 mb-4">{t('settings.invoiceNumberSettings')}</h3>
                 <p className="text-sm text-gray-500 mb-6">
-                  Stel het startnummer in voor nieuwe facturen. Het systeem kiest automatisch het hoogste nummer 
-                  (bestaand of startnummer). Formaat: TYPE-JAAR-NUMMER (bijv. F-2026-0001).
+                  {t('settings.invoiceNumberDescription')}
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Verkoop Start Number */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Startnummer Verkoopfacturen (F-)
+                      {t('settings.startNumberSales')}
                     </label>
                     <input
                       type="number"
@@ -649,14 +648,14 @@ export default function SettingsPage() {
                       placeholder="1"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Bijv: F-2026-{String(formData.invoice_start_number_verkoop || 1).padStart(4, '0')}
+                      {t('settings.exampleFormat')}: F-2026-{String(formData.invoice_start_number_verkoop || 1).padStart(4, '0')}
                     </p>
                   </div>
 
                   {/* Inkoop Start Number */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Startnummer Inkoopfacturen (I-)
+                      {t('settings.startNumberPurchase')}
                     </label>
                     <input
                       type="number"
@@ -667,14 +666,14 @@ export default function SettingsPage() {
                       placeholder="1"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Bijv: I-2026-{String(formData.invoice_start_number_inkoop || 1).padStart(4, '0')}
+                      {t('settings.exampleFormat')}: I-2026-{String(formData.invoice_start_number_inkoop || 1).padStart(4, '0')}
                     </p>
                   </div>
 
                   {/* Credit Start Number */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Startnummer Creditfacturen (C-)
+                      {t('settings.startNumberCredit')}
                     </label>
                     <input
                       type="number"
@@ -685,15 +684,14 @@ export default function SettingsPage() {
                       placeholder="1"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Bijv: C-2026-{String(formData.invoice_start_number_credit || 1).padStart(4, '0')}
+                      {t('settings.exampleFormat')}: C-2026-{String(formData.invoice_start_number_credit || 1).padStart(4, '0')}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-700">
-                    <strong>Let op:</strong> Het startnummer wordt alleen gebruikt als er nog geen facturen 
-                    van dit type bestaan, of als het startnummer hoger is dan het huidige hoogste nummer.
+                    <strong>{t('common.warning')}:</strong> {t('settings.invoiceNumberWarning')}
                   </p>
                 </div>
               </div>
@@ -728,7 +726,7 @@ export default function SettingsPage() {
                   {/* SMTP Port */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      SMTP Poort
+                      {t('settings.smtpPort')}
                     </label>
                     <input
                       type="number"
@@ -783,7 +781,7 @@ export default function SettingsPage() {
                   {/* From Email */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Afzender E-mail
+                      {t('settings.senderEmail')}
                     </label>
                     <input
                       type="email"
@@ -803,7 +801,7 @@ export default function SettingsPage() {
                         onChange={(e) => handleInputChange('smtp_use_tls', e.target.checked)}
                         className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                       />
-                      <span className="ml-2 text-sm text-gray-700">Gebruik TLS</span>
+                      <span className="ml-2 text-sm text-gray-700">{t('settings.useTls')}</span>
                     </label>
                   </div>
                 </div>
@@ -811,9 +809,9 @@ export default function SettingsPage() {
 
               {/* OAuth Settings (Exchange Online) */}
               <div className="border-t pt-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">OAuth / Microsoft 365</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('settings.oauthMicrosoft')}</h2>
                 <p className="text-sm text-gray-500 mb-6">
-                  Optioneel: Gebruik OAuth voor Microsoft Exchange Online.
+                  {t('settings.oauthDescription')}
                 </p>
 
                 <div className="space-y-6">
@@ -826,7 +824,7 @@ export default function SettingsPage() {
                         onChange={(e) => handleInputChange('oauth_enabled', e.target.checked)}
                         className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                       />
-                      <span className="ml-2 text-sm text-gray-700">OAuth inschakelen</span>
+                      <span className="ml-2 text-sm text-gray-700">{t('settings.enableOauth')}</span>
                     </label>
                   </div>
 
@@ -893,9 +891,9 @@ export default function SettingsPage() {
 
               {/* Email Signature */}
               <div className="border-t pt-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">E-mail Handtekening</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('settings.emailSignature')}</h2>
                 <p className="text-sm text-gray-500 mb-4">
-                  Deze handtekening wordt onderaan alle uitgaande e-mails (bijv. facturen) toegevoegd.
+                  {t('settings.emailSignatureDescription')}
                 </p>
                 
                 <div>
@@ -911,9 +909,9 @@ export default function SettingsPage() {
 
               {/* Test Email */}
               <div className="border-t pt-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">E-mail Testen</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('settings.testEmail')}</h2>
                 <p className="text-sm text-gray-500 mb-4">
-                  Verstuur een test e-mail om de configuratie te controleren.
+                  {t('settings.testEmailDescription')}
                 </p>
                 
                 <div className="flex gap-3">
@@ -934,7 +932,7 @@ export default function SettingsPage() {
                     ) : (
                       <PaperAirplaneIcon className="h-5 w-5 mr-2" />
                     )}
-                    Test versturen
+                    {t('settings.sendTest')}
                   </button>
                 </div>
               </div>
@@ -945,9 +943,9 @@ export default function SettingsPage() {
           {activeTab === 'ai' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">AI Factuur Extractie</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t('settings.aiInvoiceExtraction')}</h2>
                 <p className="text-sm text-gray-500">
-                  Configureer AI-powered extractie voor het automatisch herkennen van factuurgegevens.
+                  {t('settings.aiDescription')}
                 </p>
               </div>
 
@@ -966,27 +964,27 @@ export default function SettingsPage() {
               {/* Provider selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  AI Provider
+                  {t('settings.aiProvider')}
                 </label>
                 <select
                   value={formData.ai_provider || 'none'}
                   onChange={(e) => handleInputChange('ai_provider', e.target.value)}
                   className="input w-full"
                 >
-                  <option value="none">Uitgeschakeld</option>
-                  <option value="github">GitHub Models (Gratis)</option>
-                  <option value="openai">OpenAI (Betaald)</option>
-                  <option value="azure">Azure OpenAI</option>
+                  <option value="none">{t('settings.disabled')}</option>
+                  <option value="github">{t('settings.githubModelsFree')}</option>
+                  <option value="openai">{t('settings.openaiPaid')}</option>
+                  <option value="azure">{t('settings.azureOpenai')}</option>
                 </select>
                 <p className="mt-1 text-xs text-gray-500">
-                  GitHub Models is gratis en aanbevolen voor de meeste gebruikers.
+                  {t('settings.githubRecommended')}
                 </p>
               </div>
 
               {/* GitHub Models settings */}
               {formData.ai_provider === 'github' && (
                 <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-medium text-gray-900">GitHub Models (Gratis)</h3>
+                  <h3 className="font-medium text-gray-900">{t('settings.githubModelsFree')}</h3>
                   
                   {/* Rate limit warning */}
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -995,13 +993,12 @@ export default function SettingsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                       </svg>
                       <div className="text-sm">
-                        <p className="font-medium text-amber-800">Rate Limiet</p>
+                        <p className="font-medium text-amber-800">{t('settings.rateLimit')}</p>
                         <p className="text-amber-700 mt-1">
-                          GitHub Models heeft een limiet van <strong>150 requests per dag</strong> en <strong>15 requests per minuut</strong>. 
-                          Bij veel factuur imports kan deze limiet snel bereikt worden.
+                          {t('settings.rateLimitDescription')}
                         </p>
                         <p className="text-amber-600 mt-1 text-xs">
-                          Voor onbeperkt gebruik, overweeg OpenAI of Azure OpenAI.
+                          {t('settings.unlimitedUsage')}
                         </p>
                       </div>
                     </div>
@@ -1009,20 +1006,20 @@ export default function SettingsPage() {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      GitHub Personal Access Token
+                      {t('settings.githubToken')}
                     </label>
                     <input
                       type="password"
-                      placeholder="ghp_... of github_pat_..."
+                      placeholder="ghp_... or github_pat_..."
                       onChange={(e) => handleInputChange('ai_github_token', e.target.value)}
                       className="input w-full font-mono"
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      Maak een token op{' '}
+                      {t('settings.createTokenAt')}{' '}
                       <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                         github.com/settings/tokens
                       </a>
-                      {' '}met "models" permissie.
+                      {' '}{t('settings.withModelsPermission')}
                     </p>
                   </div>
                 </div>
@@ -1043,7 +1040,7 @@ export default function SettingsPage() {
                       className="input w-full font-mono"
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      Verkrijgbaar op{' '}
+                      {t('settings.availableAt')}{' '}
                       <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                         platform.openai.com
                       </a>
@@ -1055,10 +1052,10 @@ export default function SettingsPage() {
               {/* Azure OpenAI settings */}
               {formData.ai_provider === 'azure' && (
                 <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-medium text-gray-900">Azure OpenAI</h3>
+                  <h3 className="font-medium text-gray-900">{t('settings.azureOpenai')}</h3>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Endpoint URL
+                      {t('settings.endpointUrl')}
                     </label>
                     <input
                       type="text"
@@ -1081,7 +1078,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Deployment Name
+                      {t('settings.deploymentName')}
                     </label>
                     <input
                       type="text"
@@ -1098,15 +1095,15 @@ export default function SettingsPage() {
               {formData.ai_provider && formData.ai_provider !== 'none' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Model
+                    {t('settings.model')}
                   </label>
                   <select
                     value={formData.ai_model || 'gpt-4o-mini'}
                     onChange={(e) => handleInputChange('ai_model', e.target.value)}
                     className="input w-full"
                   >
-                    <option value="gpt-4o-mini">GPT-4o Mini (Snel, goedkoop)</option>
-                    <option value="gpt-4o">GPT-4o (Beste kwaliteit)</option>
+                    <option value="gpt-4o-mini">{t('settings.modelFast')}</option>
+                    <option value="gpt-4o">{t('settings.modelBest')}</option>
                     <option value="gpt-4-turbo">GPT-4 Turbo</option>
                   </select>
                 </div>

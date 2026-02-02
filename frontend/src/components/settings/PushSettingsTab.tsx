@@ -4,6 +4,7 @@
  * Only contains provider configuration - Groups, Schedules, Send, Sent are in the Notifications page
  */
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -21,6 +22,7 @@ interface PushSettingsTabProps {
 }
 
 export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabProps) {
+  const { t } = useTranslation()
   const [settings, setSettings] = useState<PushSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -64,7 +66,7 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
       setHasChanges(false)
     } catch (err: any) {
       console.error('Failed to load push settings:', err)
-      onError?.('Kon push instellingen niet laden')
+      onError?.(t('settings.couldNotLoadPushSettings'))
     } finally {
       setLoading(false)
     }
@@ -79,10 +81,10 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
       setVapidPrivateKey(keys.private_key)
       setHasChanges(true)
       
-      onSuccess?.('VAPID keys gegenereerd! Vergeet niet op te slaan.')
+      onSuccess?.(t('settings.keysGenerated'))
     } catch (err: any) {
       console.error('Failed to generate VAPID keys:', err)
-      onError?.('Kon VAPID keys niet genereren')
+      onError?.(t('settings.couldNotGenerateKeys'))
     } finally {
       setGeneratingKeys(false)
     }
@@ -116,10 +118,10 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
       setVapidPrivateKey('')
       setFirebaseApiKey('')
       
-      onSuccess?.('Push instellingen opgeslagen')
+      onSuccess?.(t('settings.saved'))
     } catch (err: any) {
       console.error('Failed to save push settings:', err)
-      onError?.(err.response?.data?.detail || 'Kon push instellingen niet opslaan')
+      onError?.(err.response?.data?.detail || t('errors.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -137,9 +139,9 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Push Notificaties</h2>
+        <h2 className="text-lg font-semibold text-gray-900">{t('settings.pushSettings')}</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Configureer de push notificatie provider (Web Push of Firebase).
+          {t('settings.oauthDescription').replace('OAuth for Microsoft Exchange Online', 'Web Push or Firebase')}
         </p>
       </div>
 
@@ -151,14 +153,14 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
               <>
                 <CheckCircleIcon className="h-5 w-5 text-green-600" />
                 <span className="text-sm font-medium text-green-800">
-                  Push notificaties zijn geconfigureerd ({settings?.provider_display})
+                  {t('notifications.pushConfigured')} ({settings?.provider_display})
                 </span>
               </>
             ) : (
               <>
                 <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600" />
                 <span className="text-sm font-medium text-yellow-800">
-                  Push notificaties zijn nog niet geconfigureerd
+                  {t('notifications.pushNotConfigured')}
                 </span>
               </>
             )}
@@ -168,7 +170,7 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
         {/* Notification Poll Interval */}
         <div className="p-4 bg-gray-50 rounded-lg">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Notificatie Poll Interval
+            {t('settings.pollInterval')}
           </label>
           <div className="flex items-center gap-3">
             <input
@@ -183,17 +185,17 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
               }}
               className="input-field w-24"
             />
-            <span className="text-sm text-gray-600">seconden</span>
+            <span className="text-sm text-gray-600">{t('common.seconds')}</span>
           </div>
           <p className="mt-2 text-xs text-gray-500">
-            Hoe vaak de app nieuwe notificaties ophaalt (5-300 seconden). Lagere waarden = snellere updates maar meer serverkracht.
+            {t('notifications.pollIntervalHint')}
           </p>
         </div>
 
         {/* Provider Selection */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">
-            Push Provider
+            {t('settings.pushProvider')}
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* None */}
@@ -209,9 +211,9 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div className="font-medium">Uitgeschakeld</div>
+              <div className="font-medium">{t('settings.disabled')}</div>
               <div className="text-sm text-gray-500 mt-1">
-                Geen push notificaties
+                {t('notifications.noPushNotifications')}
               </div>
             </button>
 
@@ -228,9 +230,9 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div className="font-medium">Web Push (VAPID)</div>
+              <div className="font-medium">{t('settings.webPush')}</div>
               <div className="text-sm text-gray-500 mt-1">
-                Aanbevolen - werkt in alle moderne browsers
+                {t('notifications.webPushRecommended')}
               </div>
             </button>
 
@@ -247,9 +249,9 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div className="font-medium">Firebase Cloud Messaging</div>
+              <div className="font-medium">{t('settings.firebase')}</div>
               <div className="text-sm text-gray-500 mt-1">
-                Google Firebase (legacy)
+                {t('notifications.firebaseLegacy')}
               </div>
             </button>
           </div>
@@ -259,7 +261,7 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
         {provider === 'webpush' && (
           <div className="space-y-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center justify-between">
-              <h3 className="text-md font-semibold text-blue-900">VAPID Configuratie</h3>
+              <h3 className="text-md font-semibold text-blue-900">{t('notifications.vapidConfiguration')}</h3>
               <button
                 onClick={handleGenerateKeys}
                 disabled={generatingKeys}
@@ -268,12 +270,12 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
                 {generatingKeys ? (
                   <>
                     <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                    Genereren...
+                    {t('settings.generatingKeys')}
                   </>
                 ) : (
                   <>
                     <SparklesIcon className="h-4 w-4 mr-2" />
-                    Nieuwe Keys Genereren
+                    {t('notifications.generateNewKeys')}
                   </>
                 )}
               </button>
@@ -283,7 +285,7 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
               {/* Admin Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Admin E-mail (mailto:)
+                  {t('settings.adminEmail')} (mailto:)
                 </label>
                 <input
                   type="email"
@@ -296,7 +298,7 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
                   placeholder="admin@example.com"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Contactadres voor push service providers
+                  {t('notifications.contactAddress')}
                 </p>
               </div>
 
@@ -331,7 +333,7 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
                       setHasChanges(true)
                     }}
                     className="input-field pr-10 font-mono text-sm"
-                    placeholder={settings?.has_vapid_private_key ? '(versleuteld opgeslagen)' : 'Voer private key in...'}
+                    placeholder={settings?.has_vapid_private_key ? t('notifications.encryptedStored') : t('notifications.enterPrivateKey')}
                   />
                   <button
                     type="button"
@@ -347,9 +349,9 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
                 </div>
                 <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
                   <KeyIcon className="h-3 w-3" />
-                  Wordt versleuteld opgeslagen in de database
+                  {t('notifications.encryptedInDatabase')}
                   {settings?.has_vapid_private_key && (
-                    <span className="text-green-600 ml-2">✓ Opgeslagen</span>
+                    <span className="text-green-600 ml-2">✓ {t('common.saved')}</span>
                   )}
                 </p>
               </div>
@@ -357,12 +359,12 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
 
             {/* Instructions */}
             <div className="bg-white border border-blue-200 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">Hoe werkt Web Push?</h4>
+              <h4 className="text-sm font-medium text-blue-900 mb-2">{t('notifications.howWebPushWorks')}</h4>
               <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                <li>VAPID keys worden automatisch gegenereerd</li>
-                <li>Werkt in Chrome, Firefox, Edge en Safari (macOS 13+)</li>
-                <li>Geen externe dienst nodig - alles wordt lokaal verwerkt</li>
-                <li>Gratis en privacy-vriendelijk</li>
+                <li>{t('notifications.vapidAutoGenerated')}</li>
+                <li>{t('notifications.worksInBrowsers')}</li>
+                <li>{t('notifications.noExternalService')}</li>
+                <li>{t('notifications.freePrivacy')}</li>
               </ul>
             </div>
           </div>
@@ -371,7 +373,7 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
         {/* Firebase Settings */}
         {provider === 'firebase' && (
           <div className="space-y-6 p-6 bg-orange-50 border border-orange-200 rounded-lg">
-            <h3 className="text-md font-semibold text-orange-900">Firebase Configuratie</h3>
+            <h3 className="text-md font-semibold text-orange-900">{t('notifications.firebaseConfiguration')}</h3>
 
             <div className="space-y-4">
               {/* Project ID */}
@@ -422,7 +424,7 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
                       setHasChanges(true)
                     }}
                     className="input-field pr-10"
-                    placeholder={settings?.has_firebase_api_key ? '(versleuteld opgeslagen)' : 'Voer API key in...'}
+                    placeholder={settings?.has_firebase_api_key ? t('notifications.encryptedStored') : t('notifications.enterApiKey')}
                   />
                   <button
                     type="button"
@@ -438,9 +440,9 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
                 </div>
                 <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
                   <KeyIcon className="h-3 w-3" />
-                  Wordt versleuteld opgeslagen in de database
+                  {t('notifications.encryptedInDatabase')}
                   {settings?.has_firebase_api_key && (
-                    <span className="text-green-600 ml-2">✓ Opgeslagen</span>
+                    <span className="text-green-600 ml-2">✓ {t('common.saved')}</span>
                   )}
                 </p>
               </div>
@@ -448,12 +450,12 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
 
             {/* Firebase setup instructions */}
             <div className="bg-white border border-orange-200 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-orange-900 mb-2">Firebase instellen:</h4>
+              <h4 className="text-sm font-medium text-orange-900 mb-2">{t('notifications.firebaseSetup')}:</h4>
               <ol className="text-sm text-orange-800 space-y-1 list-decimal list-inside">
-                <li>Ga naar de <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="underline">Firebase Console</a></li>
-                <li>Maak een nieuw project of selecteer een bestaand project</li>
-                <li>Ga naar Project Settings → Cloud Messaging</li>
-                <li>Kopieer de Server Key en Sender ID</li>
+                <li>{t('notifications.firebaseStep1')} <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="underline">Firebase Console</a></li>
+                <li>{t('notifications.firebaseStep2')}</li>
+                <li>{t('notifications.firebaseStep3')}</li>
+                <li>{t('notifications.firebaseStep4')}</li>
               </ol>
             </div>
           </div>
@@ -470,12 +472,12 @@ export default function PushSettingsTab({ onSuccess, onError }: PushSettingsTabP
               {saving ? (
                 <>
                   <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-                  Opslaan...
+                  {t('common.saving')}
                 </>
               ) : (
                 <>
                   <CheckCircleIcon className="h-5 w-5 mr-2" />
-                  Instellingen Opslaan
+                  {t('common.save')}
                 </>
               )}
             </button>
