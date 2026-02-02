@@ -663,50 +663,18 @@ function AdminPlanningView() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Bedrijf
             </label>
-            <Listbox value={selectedCompany} onChange={setSelectedCompany}>
-              <div className="relative">
-                <Listbox.Button className="input-field w-full text-left flex items-center justify-between">
-                  <span className="truncate">
-                    {companies.find(c => c.id === selectedCompany)?.naam || 'Selecteer...'}
-                  </span>
-                  <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
-                </Listbox.Button>
-                <Transition
-                  as={Fragment}
-                  leave="transition ease-in duration-100"
-                  leaveFrom="opacity-100"
-                  leaveTo="opacity-0"
-                >
-                  <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                    {companies.map((company) => (
-                      <Listbox.Option
-                        key={company.id}
-                        value={company.id}
-                        className={({ active }) =>
-                          clsx(
-                            'cursor-pointer select-none relative py-2 pl-10 pr-4',
-                            active ? 'bg-primary-100 text-primary-900' : 'text-gray-900'
-                          )
-                        }
-                      >
-                        {({ selected }) => (
-                          <>
-                            <span className={clsx('block truncate', selected && 'font-semibold')}>
-                              {company.naam}
-                            </span>
-                            {selected && (
-                              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-primary-600">
-                                <CheckIcon className="h-5 w-5" />
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </Listbox.Option>
-                    ))}
-                  </Listbox.Options>
-                </Transition>
-              </div>
-            </Listbox>
+            <select
+              value={selectedCompany}
+              onChange={(e) => setSelectedCompany(e.target.value)}
+              className="input-field w-full"
+            >
+              <option value="">Selecteer...</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.naam}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Week navigation */}
