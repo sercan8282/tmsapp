@@ -231,7 +231,8 @@
     "contactDetails": "Contactgegevens",
     "companyCreated": "Bedrijf succesvol aangemaakt",
     "companyUpdated": "Bedrijf succesvol bijgewerkt",
-    "companyDeleted": "Bedrijf succesvol verwijderd"
+    "companyDeleted": "Bedrijf succesvol verwijderd",
+    "allCompanies": "Alle bedrijven"
   },
   "drivers": {
     "title": "Chauffeurs",

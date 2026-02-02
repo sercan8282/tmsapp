@@ -231,7 +231,8 @@
     "contactDetails": "Contact details",
     "companyCreated": "Company successfully created",
     "companyUpdated": "Company successfully updated",
-    "companyDeleted": "Company successfully deleted"
+    "companyDeleted": "Company successfully deleted",
+    "allCompanies": "All companies"
   },
   "drivers": {
     "title": "Drivers",
