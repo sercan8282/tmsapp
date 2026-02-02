@@ -779,9 +779,14 @@ export default function InvoiceCreatePage() {
 
   // Import time entries with automatic KM and DOT calculations
   const handleImportEntries = (entries: TimeEntry[]) => {
+    // Sort entries by date ascending (oldest first)
+    const sortedEntries = [...entries].sort((a, b) => 
+      new Date(a.datum).getTime() - new Date(b.datum).getTime()
+    )
+    
     // Extract week/chauffeur from first entry (all entries in a group have same week/chauffeur)
-    if (entries.length > 0) {
-      const firstEntry = entries[0]
+    if (sortedEntries.length > 0) {
+      const firstEntry = sortedEntries[0]
       setWeekNumber(firstEntry.weeknummer)
       setWeekYear(new Date(firstEntry.datum).getFullYear())
       setChauffeur(firstEntry.user)
@@ -792,7 +797,7 @@ export default function InvoiceCreatePage() {
     let totalUren = 0
     
     // Create lines for each time entry (day)
-    const entryLines: InvoiceLineData[] = entries.map(entry => {
+    const entryLines: InvoiceLineData[] = sortedEntries.map(entry => {
       const values: Record<string, number | string> = {}
       
       // Parse uren
