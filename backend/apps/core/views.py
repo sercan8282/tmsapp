@@ -455,13 +455,13 @@ class RecentActivityView(APIView):
         is_admin = user.is_superuser or user.rol == 'admin'
         
         # Recent invoices (last 7 days)
-        recent_invoices = Invoice.objects.select_related('klant', 'created_by').order_by('-created_at')[:5]
+        recent_invoices = Invoice.objects.select_related('bedrijf', 'created_by').order_by('-created_at')[:5]
         for inv in recent_invoices:
             activities.append({
                 'type': 'invoice',
                 'icon': 'document',
                 'title': f"Factuur {inv.factuurnummer or 'concept'}",
-                'description': f"voor {inv.klant.naam if inv.klant else 'Onbekend'} - €{inv.totaal_incl_btw or 0:.2f}",
+                'description': f"voor {inv.bedrijf.naam if inv.bedrijf else 'Onbekend'} - €{inv.totaal_incl_btw or 0:.2f}",
                 'status': inv.status,
                 'timestamp': inv.created_at.isoformat(),
                 'user': inv.created_by.email if inv.created_by else None,
