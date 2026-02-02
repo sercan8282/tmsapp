@@ -135,15 +135,15 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',         # Anonymous users: 100 requests per hour
-        'user': '1000/hour',        # Authenticated users: 1000 requests per hour
-        'login': '5/minute',        # Login attempts: 5 per minute
-        'password_reset': '3/hour', # Password reset: 3 per hour
-        'mfa_verify': '10/minute',  # MFA verification: 10 per minute
-        'burst': '60/minute',       # Burst protection: 60 per minute
-        'document_email': '10/hour',  # Document email: 10 per hour
-        'document_sign': '30/hour',   # Document signing: 30 per hour
-        'email_import': '20/hour',    # Email import fetch: 20 per hour
+        'anon': '500/hour',          # Anonymous users: 500 requests per hour
+        'user': '10000/hour',        # Authenticated users: 10000 requests per hour
+        'login': '10/minute',        # Login attempts: 10 per minute
+        'password_reset': '5/hour',  # Password reset: 5 per hour
+        'mfa_verify': '20/minute',   # MFA verification: 20 per minute
+        'burst': '120/minute',       # Burst protection: 120 per minute
+        'document_email': '20/hour', # Document email: 20 per hour
+        'document_sign': '60/hour',  # Document signing: 60 per hour
+        'email_import': '30/hour',   # Email import fetch: 30 per hour
     },
 }
 

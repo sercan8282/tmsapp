@@ -35,5 +35,19 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'] = timedelta(days=1)
 SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'] = timedelta(days=30)
 
+# Disable throttling in development
+REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
+REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+    'anon': None,
+    'user': None,
+    'login': None,
+    'password_reset': None,
+    'mfa_verify': None,
+    'burst': None,
+    'document_email': None,
+    'document_sign': None,
+    'email_import': None,
+}
+
 # Static files
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
