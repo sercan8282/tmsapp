@@ -806,7 +806,8 @@ export default function InvoiceCreatePage() {
       columns.forEach(col => {
         // Map time entry fields to template columns
         if (col.type === 'text' || col.id === 'omschrijving') {
-          values[col.id] = `Rit ${entry.ritnummer} - ${new Date(entry.datum).toLocaleDateString('nl-NL')}`
+          // Include km in description
+          values[col.id] = `Rit ${entry.ritnummer} - ${new Date(entry.datum).toLocaleDateString('nl-NL')} (${km} km)`
         } else if (col.type === 'aantal' || col.id === 'aantal') {
           // Aantal = uren van die dag
           values[col.id] = uren
