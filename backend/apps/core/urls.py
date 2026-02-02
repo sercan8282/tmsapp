@@ -8,6 +8,7 @@ from .views import (
     AdminSettingsViewSet, 
     DashboardStatsView,
     RecentActivityView,
+    ActivityListView,
     ImageUploadView,
     HealthCheckView,
     CustomFontViewSet,
@@ -27,8 +28,11 @@ urlpatterns = [
     # Dashboard stats
     path('dashboard/stats/', DashboardStatsView.as_view(), name='dashboard-stats'),
     
-    # Recent activity
+    # Recent activity (dashboard - max 10)
     path('dashboard/activity/', RecentActivityView.as_view(), name='recent-activity'),
+    
+    # Full activity list (activity page - paginated)
+    path('activities/', ActivityListView.as_view(), name='activity-list'),
     
     # Image upload
     path('upload/image/', ImageUploadView.as_view(), name='upload-image'),

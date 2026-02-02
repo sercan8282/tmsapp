@@ -270,7 +270,12 @@ function AdminDashboard({ user }: { user: any }) {
       
       {/* Recent activity placeholder */}
       <div className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recente activiteit</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Recente activiteit</h2>
+          <Link to="/activities" className="text-sm text-primary-600 hover:text-primary-700">
+            Bekijk alles →
+          </Link>
+        </div>
         <div className="card overflow-hidden">
           {activitiesLoading ? (
             <div className="p-6 text-center">
@@ -283,38 +288,65 @@ function AdminDashboard({ user }: { user: any }) {
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100">
-              {activities.map((activity, idx) => {
-                const Icon = getActivityIcon(activity.type)
-                const colorClass = getActivityColor(activity.type)
-                return (
-                  <li key={idx}>
-                    <Link 
-                      to={activity.link} 
-                      className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className={`flex-shrink-0 p-2 rounded-lg ${colorClass}`}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {activity.title}
-                        </p>
-                        <p className="text-sm text-gray-500 truncate">
-                          {activity.description}
-                        </p>
-                      </div>
-                      <div className="flex-shrink-0 flex items-center gap-3">
-                        <span className="text-xs text-gray-400">
-                          {formatTimestamp(activity.timestamp)}
-                        </span>
-                        <ArrowRightIcon className="h-4 w-4 text-gray-400" />
-                      </div>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
+            <>
+              <ul className="divide-y divide-gray-100">
+                {activities.slice(0, 10).map((activity, idx) => {
+                  const Icon = getActivityIcon(activity.type)
+                  const colorClass = getActivityColor(activity.type)
+                  const isClickable = activity.link && activity.link !== '/'
+                  
+                  return (
+                    <li key={activity.id || idx}>
+                      {isClickable ? (
+                        <Link 
+                          to={activity.link} 
+                          className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className={`flex-shrink-0 p-2 rounded-lg ${colorClass}`}>
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {activity.title}
+                            </p>
+                            <p className="text-sm text-gray-500 truncate">
+                              {activity.description}
+                              {activity.user_name && <span className="ml-2 text-gray-400">• door {activity.user_name}</span>}
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0 flex items-center gap-3">
+                            <span className="text-xs text-gray-400">
+                              {formatTimestamp(activity.timestamp)}
+                            </span>
+                            <ArrowRightIcon className="h-4 w-4 text-gray-400" />
+                          </div>
+                        </Link>
+                      ) : (
+                        <div className="flex items-center gap-4 p-4">
+                          <div className={`flex-shrink-0 p-2 rounded-lg ${colorClass}`}>
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {activity.title}
+                            </p>
+                            <p className="text-sm text-gray-500 truncate">
+                              {activity.description}
+                              {activity.user_name && <span className="ml-2 text-gray-400">• door {activity.user_name}</span>}
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0">
+                            <span className="text-xs text-gray-400">
+                              {formatTimestamp(activity.timestamp)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
           )}
         </div>
       </div>

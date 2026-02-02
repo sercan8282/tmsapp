@@ -432,110 +432,121 @@ class DashboardStatsView(APIView):
 
 class RecentActivityView(APIView):
     """
-    Recent activity endpoint.
-    Returns recent activities from various sources: invoices, planning, leave requests, etc.
+    Recent activity endpoint for dashboard.
+    Returns recent activities from ActivityLog, limited to 10.
     """
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        from apps.invoicing.models import Invoice
-        from apps.planning.models import WeekPlanning, PlanningEntry
-        from apps.leave.models import LeaveRequest
-        from apps.accounts.models import User
-        from apps.companies.models import Company
-        from apps.fleet.models import Vehicle
-        from itertools import chain
-        from operator import attrgetter
+        from .models import ActivityLog
         
-        activities = []
-        limit = int(request.query_params.get('limit', 10))
+        limit = min(int(request.query_params.get('limit', 10)), 10)  # Max 10 for dashboard
         
-        # Only admins see all activities
         user = request.user
         is_admin = user.is_superuser or user.rol == 'admin'
         
-        # Recent invoices (last 7 days)
-        recent_invoices = Invoice.objects.select_related('bedrijf', 'created_by').order_by('-created_at')[:5]
-        for inv in recent_invoices:
+        # Get activities from ActivityLog
+        if is_admin:
+            activities_qs = ActivityLog.objects.select_related('user').order_by('-created_at')[:limit]
+        else:
+            # Non-admins only see their own activities
+            activities_qs = ActivityLog.objects.filter(user=user).select_related('user').order_by('-created_at')[:limit]
+        
+        activities = []
+        for activity in activities_qs:
             activities.append({
-                'type': 'invoice',
-                'icon': 'document',
-                'title': f"Factuur {inv.factuurnummer or 'concept'}",
-                'description': f"voor {inv.bedrijf.naam if inv.bedrijf else 'Onbekend'} - €{inv.totaal_incl_btw or 0:.2f}",
-                'status': inv.status,
-                'timestamp': inv.created_at.isoformat(),
-                'user': inv.created_by.email if inv.created_by else None,
-                'link': f"/invoices/{inv.id}",
+                'id': str(activity.id),
+                'type': activity.entity_type,
+                'action': activity.action,
+                'icon': self._get_icon(activity.entity_type),
+                'title': activity.title,
+                'description': activity.description,
+                'timestamp': activity.created_at.isoformat(),
+                'user': activity.user.email if activity.user else None,
+                'user_name': f"{activity.user.voornaam} {activity.user.achternaam}" if activity.user else 'Systeem',
+                'link': activity.link,
             })
         
-        # Recent planning entries (last 7 days)
-        recent_planning = WeekPlanning.objects.select_related('bedrijf').order_by('-created_at')[:5]
-        for pl in recent_planning:
+        return Response({
+            'activities': activities,
+            'has_more': ActivityLog.objects.count() > limit
+        })
+    
+    def _get_icon(self, entity_type):
+        icons = {
+            'invoice': 'document',
+            'planning': 'calendar',
+            'leave': 'clock',
+            'user': 'user',
+            'company': 'building',
+            'vehicle': 'truck',
+            'driver': 'user',
+            'time_entry': 'clock',
+        }
+        return icons.get(entity_type, 'document')
+
+
+class ActivityListView(APIView):
+    """
+    Full activity list with pagination for the activity page.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        from .models import ActivityLog
+        from django.core.paginator import Paginator
+        
+        user = request.user
+        is_admin = user.is_superuser or user.rol == 'admin'
+        
+        page = int(request.query_params.get('page', 1))
+        per_page = int(request.query_params.get('per_page', 25))
+        entity_type = request.query_params.get('type')
+        action = request.query_params.get('action')
+        
+        # Base queryset
+        if is_admin:
+            qs = ActivityLog.objects.select_related('user').order_by('-created_at')
+        else:
+            qs = ActivityLog.objects.filter(user=user).select_related('user').order_by('-created_at')
+        
+        # Apply filters
+        if entity_type:
+            qs = qs.filter(entity_type=entity_type)
+        if action:
+            qs = qs.filter(action=action)
+        
+        # Paginate
+        paginator = Paginator(qs, per_page)
+        page_obj = paginator.get_page(page)
+        
+        activities = []
+        for activity in page_obj:
             activities.append({
-                'type': 'planning',
-                'icon': 'calendar',
-                'title': f"Planning W{pl.weeknummer}/{pl.jaar}",
-                'description': f"voor {pl.bedrijf.naam if pl.bedrijf else 'Onbekend'}",
-                'status': 'active',
-                'timestamp': pl.created_at.isoformat(),
-                'user': None,
-                'link': f"/planning?week={pl.weeknummer}&year={pl.jaar}",
+                'id': str(activity.id),
+                'type': activity.entity_type,
+                'action': activity.action,
+                'action_display': activity.get_action_display(),
+                'title': activity.title,
+                'description': activity.description,
+                'timestamp': activity.created_at.isoformat(),
+                'user': activity.user.email if activity.user else None,
+                'user_name': f"{activity.user.voornaam} {activity.user.achternaam}" if activity.user else 'Systeem',
+                'link': activity.link,
+                'ip_address': activity.ip_address if is_admin else None,
             })
         
-        # Recent leave requests
-        recent_leave = LeaveRequest.objects.select_related('user').order_by('-created_at')[:5]
-        for lr in recent_leave:
-            status_map = {
-                'pending': 'In behandeling',
-                'approved': 'Goedgekeurd',
-                'rejected': 'Afgewezen',
+        return Response({
+            'activities': activities,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': paginator.count,
+                'total_pages': paginator.num_pages,
+                'has_next': page_obj.has_next(),
+                'has_previous': page_obj.has_previous(),
             }
-            activities.append({
-                'type': 'leave',
-                'icon': 'clock',
-                'title': f"Verlofaanvraag {lr.get_leave_type_display()}",
-                'description': f"van {lr.user.voornaam} {lr.user.achternaam}" if lr.user else 'Onbekend',
-                'status': lr.status,
-                'timestamp': lr.created_at.isoformat(),
-                'user': lr.user.email if lr.user else None,
-                'link': f"/leave",
-            })
-        
-        # Recent new users (admins only)
-        if is_admin:
-            recent_users = User.objects.filter(is_active=True).order_by('-date_joined')[:3]
-            for u in recent_users:
-                activities.append({
-                    'type': 'user',
-                    'icon': 'user',
-                    'title': f"Nieuwe gebruiker",
-                    'description': f"{u.voornaam} {u.achternaam} ({u.email})",
-                    'status': 'active',
-                    'timestamp': u.date_joined.isoformat(),
-                    'user': None,
-                    'link': f"/users/{u.id}",
-                })
-        
-        # Recent companies (admins only)
-        if is_admin:
-            recent_companies = Company.objects.order_by('-created_at')[:3]
-            for c in recent_companies:
-                activities.append({
-                    'type': 'company',
-                    'icon': 'building',
-                    'title': f"Nieuw bedrijf",
-                    'description': c.naam,
-                    'status': 'active',
-                    'timestamp': c.created_at.isoformat() if hasattr(c, 'created_at') and c.created_at else timezone.now().isoformat(),
-                    'user': None,
-                    'link': f"/companies/{c.id}",
-                })
-        
-        # Sort by timestamp descending and limit
-        activities.sort(key=lambda x: x['timestamp'], reverse=True)
-        activities = activities[:limit]
-        
-        return Response({'activities': activities})
+        })
 
 
 class CustomFontViewSet(viewsets.ModelViewSet):

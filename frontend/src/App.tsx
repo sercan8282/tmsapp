@@ -22,6 +22,9 @@ import MfaSetupPage from '@/pages/auth/MfaSetupPage'
 // Dashboard pages
 import DashboardPage from '@/pages/dashboard/DashboardPage'
 
+// Activity page
+import ActivityPage from '@/pages/activity/ActivityPage'
+
 // Admin pages
 import UsersPage from '@/pages/admin/UsersPage'
 import SettingsPage from '@/pages/settings/SettingsPage'
@@ -194,6 +197,7 @@ function App() {
         }
       >
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/activities" element={<ActivityPage />} />
         
         {/* Admin routes */}
         <Route path="/admin/users" element={<AdminRoute><UsersPage /></AdminRoute>} />

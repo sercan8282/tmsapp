@@ -521,3 +521,120 @@ class AppSettings(models.Model):
     def get_default_pk(cls):
         """Get or create the default primary key for singleton."""
         return uuid.UUID('00000000-0000-0000-0000-000000000001')
+
+
+class ActivityType(models.TextChoices):
+    """Types of activities that can be logged."""
+    CREATED = 'created', 'Aangemaakt'
+    UPDATED = 'updated', 'Bijgewerkt'
+    DELETED = 'deleted', 'Verwijderd'
+    SUBMITTED = 'submitted', 'Ingediend'
+    APPROVED = 'approved', 'Goedgekeurd'
+    REJECTED = 'rejected', 'Afgewezen'
+    SENT = 'sent', 'Verzonden'
+    LOGIN = 'login', 'Ingelogd'
+    LOGOUT = 'logout', 'Uitgelogd'
+
+
+class ActivityLog(models.Model):
+    """
+    Log of user activities in the system.
+    Tracks who did what and when.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Who performed the action
+    user = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activities',
+        verbose_name='Gebruiker'
+    )
+    
+    # What type of action
+    action = models.CharField(
+        max_length=20,
+        choices=ActivityType.choices,
+        verbose_name='Actie'
+    )
+    
+    # What entity was affected
+    entity_type = models.CharField(
+        max_length=50,
+        verbose_name='Entiteit type'
+    )  # e.g., 'invoice', 'planning', 'user', 'leave_request'
+    
+    entity_id = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Entiteit ID'
+    )
+    
+    # Human-readable description
+    title = models.CharField(max_length=200, verbose_name='Titel')
+    description = models.TextField(blank=True, verbose_name='Beschrijving')
+    
+    # Link to navigate to
+    link = models.CharField(max_length=500, blank=True, verbose_name='Link')
+    
+    # Metadata
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name='IP-adres')
+    user_agent = models.TextField(blank=True, verbose_name='User Agent')
+    
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Tijdstip')
+    
+    class Meta:
+        verbose_name = 'Activiteit'
+        verbose_name_plural = 'Activiteiten'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['entity_type', '-created_at']),
+        ]
+    
+    def __str__(self):
+        user_str = self.user.email if self.user else 'Systeem'
+        return f"{user_str} - {self.get_action_display()} - {self.title}"
+    
+    @classmethod
+    def log(cls, user, action, entity_type, title, description='', entity_id='', link='', request=None):
+        """
+        Convenience method to log an activity.
+        
+        Args:
+            user: User who performed the action (can be None for system actions)
+            action: ActivityType choice
+            entity_type: Type of entity (e.g., 'invoice', 'planning')
+            title: Short title for the activity
+            description: Longer description
+            entity_id: ID of the affected entity
+            link: URL to navigate to the entity
+            request: HTTP request object (to extract IP and user agent)
+        """
+        ip_address = None
+        user_agent = ''
+        
+        if request:
+            # Get IP address
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip_address = x_forwarded_for.split(',')[0].strip()
+            else:
+                ip_address = request.META.get('REMOTE_ADDR')
+            
+            user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]
+        
+        return cls.objects.create(
+            user=user,
+            action=action,
+            entity_type=entity_type,
+            entity_id=str(entity_id) if entity_id else '',
+            title=title,
+            description=description,
+            link=link,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )

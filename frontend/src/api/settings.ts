@@ -12,18 +12,35 @@ export interface DashboardStats {
 }
 
 export interface ActivityItem {
-  type: 'invoice' | 'planning' | 'leave' | 'user' | 'company'
-  icon: string
+  id?: string
+  type: string
+  action?: string
+  action_display?: string
+  icon?: string
   title: string
   description: string
-  status: string
   timestamp: string
   user: string | null
+  user_name?: string
   link: string
+  ip_address?: string | null
 }
 
 export interface RecentActivityResponse {
   activities: ActivityItem[]
+  has_more?: boolean
+}
+
+export interface ActivityListResponse {
+  activities: ActivityItem[]
+  pagination: {
+    page: number
+    per_page: number
+    total: number
+    total_pages: number
+    has_next: boolean
+    has_previous: boolean
+  }
 }
 
 export const settingsApi = {
@@ -83,9 +100,18 @@ export const settingsApi = {
     return response.data
   },
   
-  // Recent activity
+  // Recent activity (dashboard - max 10)
   getRecentActivity: async (limit: number = 10): Promise<RecentActivityResponse> => {
     const response = await api.get(`/core/dashboard/activity/?limit=${limit}`)
+    return response.data
+  },
+  
+  // Full activity list (paginated)
+  getActivities: async (page: number = 1, perPage: number = 25, type?: string, action?: string): Promise<ActivityListResponse> => {
+    let url = `/core/activities/?page=${page}&per_page=${perPage}`
+    if (type) url += `&type=${type}`
+    if (action) url += `&action=${action}`
+    const response = await api.get(url)
     return response.data
   },
   
