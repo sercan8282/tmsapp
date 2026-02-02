@@ -35,6 +35,16 @@ def log_invoice_activity(sender, instance, created, **kwargs):
             description=f"voor {instance.bedrijf.naam if instance.bedrijf else 'Onbekend'} - €{instance.totaal_incl_btw or 0:.2f}",
             link=f"/invoices/{instance.id}",
         )
+    else:
+        ActivityLog.log(
+            user=instance.created_by,
+            action=ActivityType.UPDATED,
+            entity_type='invoice',
+            entity_id=instance.id,
+            title=f"Factuur {instance.factuurnummer or 'concept'} bijgewerkt",
+            description=f"voor {instance.bedrijf.naam if instance.bedrijf else 'Onbekend'} - €{instance.totaal_incl_btw or 0:.2f}",
+            link=f"/invoices/{instance.id}",
+        )
 
 
 # ==================== Planning Signals ====================
@@ -94,7 +104,7 @@ def log_leave_activity(sender, instance, created, **kwargs):
 # ==================== User Signals ====================
 @receiver(post_save, sender='accounts.User')
 def log_user_activity(sender, instance, created, **kwargs):
-    """Log user creation."""
+    """Log user creation and updates."""
     if created:
         ActivityLog.log(
             user=None,  # Admin who created is not easily accessible
@@ -105,12 +115,22 @@ def log_user_activity(sender, instance, created, **kwargs):
             description=f"{instance.voornaam} {instance.achternaam} ({instance.email})",
             link=f"/admin/users/{instance.id}",
         )
+    else:
+        ActivityLog.log(
+            user=None,
+            action=ActivityType.UPDATED,
+            entity_type='user',
+            entity_id=instance.id,
+            title=f"Gebruiker bijgewerkt",
+            description=f"{instance.voornaam} {instance.achternaam} ({instance.email})",
+            link=f"/admin/users/{instance.id}",
+        )
 
 
 # ==================== Company Signals ====================
 @receiver(post_save, sender='companies.Company')
 def log_company_activity(sender, instance, created, **kwargs):
-    """Log company creation."""
+    """Log company creation and updates."""
     if created:
         ActivityLog.log(
             user=None,
@@ -121,12 +141,22 @@ def log_company_activity(sender, instance, created, **kwargs):
             description=instance.naam,
             link=f"/companies/{instance.id}",
         )
+    else:
+        ActivityLog.log(
+            user=None,
+            action=ActivityType.UPDATED,
+            entity_type='company',
+            entity_id=instance.id,
+            title=f"Bedrijf bijgewerkt",
+            description=instance.naam,
+            link=f"/companies/{instance.id}",
+        )
 
 
 # ==================== Vehicle Signals ====================
 @receiver(post_save, sender='fleet.Vehicle')
 def log_vehicle_activity(sender, instance, created, **kwargs):
-    """Log vehicle creation."""
+    """Log vehicle creation and updates."""
     if created:
         ActivityLog.log(
             user=None,
@@ -137,12 +167,22 @@ def log_vehicle_activity(sender, instance, created, **kwargs):
             description=f"{instance.kenteken} - {instance.merk} {instance.model}" if hasattr(instance, 'merk') else instance.kenteken,
             link=f"/fleet/{instance.id}",
         )
+    else:
+        ActivityLog.log(
+            user=None,
+            action=ActivityType.UPDATED,
+            entity_type='vehicle',
+            entity_id=instance.id,
+            title=f"Voertuig bijgewerkt",
+            description=f"{instance.kenteken} - {instance.merk} {instance.model}" if hasattr(instance, 'merk') else instance.kenteken,
+            link=f"/fleet/{instance.id}",
+        )
 
 
 # ==================== Driver Signals ====================
 @receiver(post_save, sender='drivers.Driver')
 def log_driver_activity(sender, instance, created, **kwargs):
-    """Log driver creation."""
+    """Log driver creation and updates."""
     if created:
         ActivityLog.log(
             user=None,
@@ -150,6 +190,16 @@ def log_driver_activity(sender, instance, created, **kwargs):
             entity_type='driver',
             entity_id=instance.id,
             title=f"Nieuwe chauffeur toegevoegd",
+            description=instance.naam,
+            link=f"/drivers/{instance.id}",
+        )
+    else:
+        ActivityLog.log(
+            user=None,
+            action=ActivityType.UPDATED,
+            entity_type='driver',
+            entity_id=instance.id,
+            title=f"Chauffeur bijgewerkt",
             description=instance.naam,
             link=f"/drivers/{instance.id}",
         )

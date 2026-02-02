@@ -308,6 +308,45 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         
         return Response(list(weeks))
 
+    @action(detail=False, methods=['get'], url_path='driver_report_years')
+    def driver_report_years(self, request):
+        """Get available years for driver report, limited to last 5 years from current year."""
+        from apps.planning.models import PlanningEntry
+        from datetime import date
+        
+        user = request.user
+        if not (user.is_superuser or user.rol == 'admin'):
+            return Response(
+                {'error': 'Geen toegang'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        driver_id = request.query_params.get('driver_id')
+        
+        # Get years from planning entries
+        entries_query = PlanningEntry.objects.all()
+        if driver_id:
+            entries_query = entries_query.filter(chauffeur_id=driver_id)
+        
+        years_from_db = list(
+            entries_query.values_list('planning__jaar', flat=True)
+            .distinct()
+            .order_by('-planning__jaar')
+        )
+        
+        # Filter to only last 5 years from current year
+        current_year = date.today().year
+        min_year = current_year - 4  # Current year + 4 previous = 5 years
+        
+        available_years = [y for y in years_from_db if y >= min_year and y <= current_year]
+        
+        # Sort descending (newest first)
+        available_years = sorted(set(available_years), reverse=True)
+        
+        return Response({
+            'years': available_years
+        })
+
     @action(detail=False, methods=['get'], url_path='driver_report')
     def driver_report(self, request):
         """Get driver report: weeks with days showing ritnummer, kenteken, km, uren from planning entries."""
@@ -327,6 +366,9 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Get year filter (optional)
+        jaar = request.query_params.get('jaar')
+        
         # Get the driver
         from apps.drivers.models import Driver
         from apps.planning.models import PlanningEntry
@@ -341,7 +383,13 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         # Get all planning entries for this driver
         entries = PlanningEntry.objects.filter(
             chauffeur=driver
-        ).select_related('planning', 'vehicle').order_by('-planning__jaar', '-planning__weeknummer', 'dag')
+        ).select_related('planning', 'vehicle')
+        
+        # Apply year filter if provided
+        if jaar:
+            entries = entries.filter(planning__jaar=int(jaar))
+        
+        entries = entries.order_by('-planning__jaar', '-planning__weeknummer', 'dag')
         
         # Group by week
         from collections import defaultdict

@@ -33,7 +33,7 @@ import {
 } from '@/api/planning'
 import { getCompanies } from '@/api/companies'
 import { getDrivers } from '@/api/drivers'
-import { getDriverReport, DriverReport, downloadDriverReportPdf } from '@/api/timetracking'
+import { getDriverReport, DriverReport, downloadDriverReportPdf, getDriverReportYears } from '@/api/timetracking'
 import clsx from '@/utils/clsx'
 
 const DAYS = [
@@ -1186,6 +1186,8 @@ function HistorieView() {
   const [report, setReport] = useState<DriverReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
+  const [availableYears, setAvailableYears] = useState<number[]>([])
+  const [selectedYear, setSelectedYear] = useState<number | ''>('')
 
   // Load drivers on mount
   useEffect(() => {
@@ -1201,6 +1203,17 @@ function HistorieView() {
     }
   }
 
+  // Load available years when driver is selected
+  const loadAvailableYears = async (driverId: string) => {
+    try {
+      const response = await getDriverReportYears(driverId)
+      setAvailableYears(response.years || [])
+    } catch (err) {
+      console.error('Failed to load available years:', err)
+      setAvailableYears([])
+    }
+  }
+
   // Filter drivers based on search
   const filteredDrivers = drivers.filter(driver => 
     driver.naam.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1212,10 +1225,35 @@ function HistorieView() {
     setSelectedDriver(driver)
     setSearchQuery(driver.naam)
     setSearchFocused(false)
+    setSelectedYear('')
     setLoading(true)
     
     try {
-      const reportData = await getDriverReport(driver.id)
+      // Load available years for this driver
+      await loadAvailableYears(driver.id.toString())
+      
+      // Load report without year filter initially
+      const reportData = await getDriverReport(driver.id.toString())
+      setReport(reportData)
+    } catch (err) {
+      console.error('Failed to load driver report:', err)
+      setReport(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Reload report when year filter changes
+  const handleYearChange = async (year: number | '') => {
+    setSelectedYear(year)
+    if (!selectedDriver) return
+    
+    setLoading(true)
+    try {
+      const reportData = await getDriverReport(
+        selectedDriver.id.toString(),
+        year ? year : undefined
+      )
       setReport(reportData)
     } catch (err) {
       console.error('Failed to load driver report:', err)
@@ -1229,67 +1267,97 @@ function HistorieView() {
     setSelectedDriver(null)
     setReport(null)
     setSearchQuery('')
+    setSelectedYear('')
+    setAvailableYears([])
   }
 
   return (
     <div className="space-y-6">
-      {/* Search Bar */}
+      {/* Search Bar and Year Filter */}
       <div className="bg-white rounded-lg shadow-sm border p-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Zoek chauffeur
-        </label>
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value)
-              if (selectedDriver) {
-                setSelectedDriver(null)
-                setReport(null)
-              }
-            }}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-            placeholder="Typ om te zoeken..."
-            className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-          />
-          {searchQuery && (
-            <button
-              onClick={clearSelection}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
-            >
-              <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-            </button>
-          )}
-          
-          {/* Search Results Dropdown */}
-          {searchFocused && searchQuery && !selectedDriver && filteredDrivers.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-              {filteredDrivers.map((driver) => (
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Chauffeur Search */}
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Zoek chauffeur
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  if (selectedDriver) {
+                    setSelectedDriver(null)
+                    setReport(null)
+                    setSelectedYear('')
+                    setAvailableYears([])
+                  }
+                }}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+                placeholder="Typ om te zoeken..."
+                className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+              />
+              {searchQuery && (
                 <button
-                  key={driver.id}
-                  onClick={() => handleSelectDriver(driver)}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3"
+                  onClick={clearSelection}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 >
-                  <UserIcon className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <div className="font-medium text-gray-900">{driver.naam}</div>
-                    {driver.gekoppelde_gebruiker_naam && (
-                      <div className="text-sm text-gray-500">{driver.gekoppelde_gebruiker_naam}</div>
-                    )}
-                  </div>
+                  <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
                 </button>
-              ))}
+              )}
+              
+              {/* Search Results Dropdown */}
+              {searchFocused && searchQuery && !selectedDriver && filteredDrivers.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                  {filteredDrivers.map((driver) => (
+                    <button
+                      key={driver.id}
+                      onClick={() => handleSelectDriver(driver)}
+                      className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3"
+                    >
+                      <UserIcon className="h-5 w-5 text-gray-400" />
+                      <div>
+                        <div className="font-medium text-gray-900">{driver.naam}</div>
+                        {driver.gekoppelde_gebruiker_naam && (
+                          <div className="text-sm text-gray-500">{driver.gekoppelde_gebruiker_naam}</div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              
+              {searchFocused && searchQuery && !selectedDriver && filteredDrivers.length === 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-4 text-center text-gray-500">
+                  Geen chauffeurs gevonden
+                </div>
+              )}
             </div>
-          )}
-          
-          {searchFocused && searchQuery && !selectedDriver && filteredDrivers.length === 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-4 text-center text-gray-500">
-              Geen chauffeurs gevonden
+          </div>
+
+          {/* Year Filter - only show when driver is selected */}
+          {selectedDriver && availableYears.length > 0 && (
+            <div className="md:w-48">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Jaar
+              </label>
+              <select
+                value={selectedYear}
+                onChange={(e) => handleYearChange(e.target.value ? parseInt(e.target.value) : '')}
+                className="block w-full py-2 px-3 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">Alle jaren</option>
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>

@@ -194,11 +194,34 @@ export interface DriverReport {
   weeks: DriverReportWeek[]
 }
 
+export interface DriverReportYearsResponse {
+  years: number[]
+}
+
+/**
+ * Get available years for driver report (admin only)
+ * Returns max 5 years from current year going back
+ */
+export async function getDriverReportYears(driverId?: string): Promise<DriverReportYearsResponse> {
+  let url = '/time-entries/driver_report_years/'
+  if (driverId) {
+    url += `?driver_id=${driverId}`
+  }
+  const response = await api.get(url)
+  return response.data
+}
+
 /**
  * Get driver history report (admin only)
+ * @param driverId - The driver ID
+ * @param jaar - Optional year filter
  */
-export async function getDriverReport(driverId: string): Promise<DriverReport> {
-  const response = await api.get(`/time-entries/driver_report/?driver_id=${driverId}`)
+export async function getDriverReport(driverId: string, jaar?: number): Promise<DriverReport> {
+  let url = `/time-entries/driver_report/?driver_id=${driverId}`
+  if (jaar) {
+    url += `&jaar=${jaar}`
+  }
+  const response = await api.get(url)
   return response.data
 }
 
