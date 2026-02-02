@@ -4,6 +4,9 @@ import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
+// i18n initialization (must be imported before App)
+import './i18n'
+
 // Local font (no external requests to Google Fonts)
 import '@fontsource/inter/400.css'
 import '@fontsource/inter/500.css'

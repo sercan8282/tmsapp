@@ -32,6 +32,8 @@ import { AppSettings } from '@/types'
 import clsx from '@/utils/clsx'
 import NotificationBell from '@/components/notifications/NotificationBell'
 import PushNotificationPrompt from '@/components/pwa/PushNotificationPrompt'
+import LanguageSwitcher from '@/components/common/LanguageSwitcher'
+import { useTranslation } from 'react-i18next'
 
 interface NavItem {
   name: string
@@ -40,29 +42,29 @@ interface NavItem {
   roles?: ('admin' | 'gebruiker' | 'chauffeur')[]  // If undefined, all roles can see it
 }
 
-// Navigation items with role-based access
+// Navigation items with role-based access - keys for translation
 const navigation: NavItem[] = [
-  { name: 'Dashboard', href: '/', icon: HomeIcon, roles: ['admin', 'gebruiker'] },
-  { name: 'Bedrijven', href: '/companies', icon: BuildingOfficeIcon, roles: ['admin', 'gebruiker'] },
-  { name: 'Chauffeurs', href: '/drivers', icon: UsersIcon, roles: ['admin', 'gebruiker'] },
-  { name: 'Vloot', href: '/fleet', icon: TruckIcon, roles: ['admin', 'gebruiker'] },
-  { name: 'Urenregistratie', href: '/time-entries', icon: ClockIcon },  // All roles
-  { name: 'Mijn Uren', href: '/my-hours', icon: ClipboardDocumentListIcon, roles: ['chauffeur'] },
-  { name: 'Ingediende Uren', href: '/submitted-hours', icon: ClipboardDocumentListIcon, roles: ['admin', 'gebruiker'] },
-  { name: 'Planning', href: '/planning', icon: CalendarIcon },  // All roles (filtered by backend)
-  { name: 'Verlof', href: '/leave', icon: CalendarDaysIcon },  // All roles
-  { name: 'Verlofaanvragen', href: '/leave/admin', icon: ClipboardDocumentCheckIcon, roles: ['admin'] },
-  { name: 'Documenten', href: '/documents', icon: PencilSquareIcon },  // All roles - PDF signing
-  { name: 'Notificaties', href: '/notifications', icon: BellIcon, roles: ['admin'] },  // Admin only
-  { name: 'Facturen', href: '/invoices', icon: DocumentTextIcon, roles: ['admin', 'gebruiker'] },
-  { name: 'Factuur Templates', href: '/invoices/templates', icon: DocumentDuplicateIcon, roles: ['admin'] },
-  { name: 'Factuur Import', href: '/imports', icon: ArrowUpTrayIcon, roles: ['admin', 'gebruiker'] },
-  { name: 'Omzet', href: '/revenue', icon: CurrencyEuroIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'nav.dashboard', href: '/', icon: HomeIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'nav.companies', href: '/companies', icon: BuildingOfficeIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'nav.drivers', href: '/drivers', icon: UsersIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'nav.fleet', href: '/fleet', icon: TruckIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'nav.timeEntries', href: '/time-entries', icon: ClockIcon },  // All roles
+  { name: 'nav.myHours', href: '/my-hours', icon: ClipboardDocumentListIcon, roles: ['chauffeur'] },
+  { name: 'nav.submittedHours', href: '/submitted-hours', icon: ClipboardDocumentListIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'nav.planning', href: '/planning', icon: CalendarIcon },  // All roles (filtered by backend)
+  { name: 'nav.leave', href: '/leave', icon: CalendarDaysIcon },  // All roles
+  { name: 'nav.leaveRequests', href: '/leave/admin', icon: ClipboardDocumentCheckIcon, roles: ['admin'] },
+  { name: 'nav.documents', href: '/documents', icon: PencilSquareIcon },  // All roles - PDF signing
+  { name: 'nav.notifications', href: '/notifications', icon: BellIcon, roles: ['admin'] },  // Admin only
+  { name: 'nav.invoices', href: '/invoices', icon: DocumentTextIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'nav.invoiceTemplates', href: '/invoices/templates', icon: DocumentDuplicateIcon, roles: ['admin'] },
+  { name: 'nav.invoiceImport', href: '/imports', icon: ArrowUpTrayIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'nav.revenue', href: '/revenue', icon: CurrencyEuroIcon, roles: ['admin', 'gebruiker'] },
 ]
 
 const adminNavigation: NavItem[] = [
-  { name: 'Gebruikers', href: '/admin/users', icon: UsersIcon, roles: ['admin'] },
-  { name: 'Instellingen', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
+  { name: 'nav.users', href: '/admin/users', icon: UsersIcon, roles: ['admin'] },
+  { name: 'nav.settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
 ]
 
 export default function DashboardLayout() {
@@ -70,6 +72,7 @@ export default function DashboardLayout() {
   const { user, logout } = useAuthStore()
   const { settings, sidebarOpen, setSidebarOpen, fetchSettings } = useAppStore()
   const { currentTheme, applyTheme } = useThemeStore()
+  const { t } = useTranslation()
   
   useEffect(() => {
     fetchSettings()
@@ -160,8 +163,11 @@ export default function DashboardLayout() {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1" />
             
-            {/* Notification Bell & Profile dropdown */}
+            {/* Language Switcher, Notification Bell & Profile dropdown */}
             <div className="flex items-center gap-x-2 sm:gap-x-4 lg:gap-x-6">
+              {/* Language Switcher */}
+              <LanguageSwitcher />
+              
               {/* Notification Bell */}
               <NotificationBell />
               
@@ -200,7 +206,7 @@ export default function DashboardLayout() {
                           )}
                         >
                           <KeyIcon className="mr-3 h-5 w-5 text-gray-400" />
-                          Wachtwoord wijzigen
+                          {t('auth.changePassword')}
                         </button>
                       )}
                     </Menu.Item>
@@ -214,7 +220,7 @@ export default function DashboardLayout() {
                           )}
                         >
                           <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5 text-gray-400" />
-                          Uitloggen
+                          {t('auth.logout')}
                         </button>
                       )}
                     </Menu.Item>
@@ -246,6 +252,8 @@ interface SidebarContentProps {
 }
 
 function SidebarContent({ navigation, settings, onNavigate }: SidebarContentProps) {
+  const { t } = useTranslation()
+  
   return (
     <div 
       className="flex grow flex-col gap-y-5 overflow-y-auto px-6 pb-4"
@@ -281,7 +289,7 @@ function SidebarContent({ navigation, settings, onNavigate }: SidebarContentProp
                     })}
                   >
                     <item.icon className="h-6 w-6 shrink-0" />
-                    {item.name}
+                    {t(item.name)}
                   </NavLink>
                 </li>
               ))}
