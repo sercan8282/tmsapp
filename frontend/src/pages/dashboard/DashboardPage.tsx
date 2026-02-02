@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
-import { settingsApi, DashboardStats } from '@/api/settings'
+import { settingsApi, DashboardStats, ActivityItem } from '@/api/settings'
 import {
   UsersIcon,
   BuildingOfficeIcon,
@@ -10,6 +10,7 @@ import {
   DocumentTextIcon,
   CalendarDaysIcon,
   ClipboardDocumentListIcon,
+  ArrowRightIcon,
 } from '@heroicons/react/24/outline'
 
 // Chauffeur-specific dashboard
@@ -95,10 +96,13 @@ function ChauffeurDashboard({ user }: { user: any }) {
 // Admin/Gebruiker dashboard
 function AdminDashboard({ user }: { user: any }) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [activitiesLoading, setActivitiesLoading] = useState(true)
 
   useEffect(() => {
     loadStats()
+    loadActivities()
   }, [])
 
   const loadStats = async () => {
@@ -110,6 +114,54 @@ function AdminDashboard({ user }: { user: any }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadActivities = async () => {
+    try {
+      const data = await settingsApi.getRecentActivity(8)
+      setActivities(data.activities)
+    } catch (err) {
+      console.error('Failed to load recent activity:', err)
+    } finally {
+      setActivitiesLoading(false)
+    }
+  }
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'invoice': return DocumentTextIcon
+      case 'planning': return CalendarDaysIcon
+      case 'leave': return ClockIcon
+      case 'user': return UsersIcon
+      case 'company': return BuildingOfficeIcon
+      default: return ClipboardDocumentListIcon
+    }
+  }
+
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case 'invoice': return 'text-blue-600 bg-blue-50'
+      case 'planning': return 'text-purple-600 bg-purple-50'
+      case 'leave': return 'text-orange-600 bg-orange-50'
+      case 'user': return 'text-green-600 bg-green-50'
+      case 'company': return 'text-indigo-600 bg-indigo-50'
+      default: return 'text-gray-600 bg-gray-50'
+    }
+  }
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Zojuist'
+    if (diffMins < 60) return `${diffMins} min geleden`
+    if (diffHours < 24) return `${diffHours} uur geleden`
+    if (diffDays < 7) return `${diffDays} dagen geleden`
+    return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
   }
 
   const statCards = [
@@ -219,10 +271,51 @@ function AdminDashboard({ user }: { user: any }) {
       {/* Recent activity placeholder */}
       <div className="mt-8">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Recente activiteit</h2>
-        <div className="card p-6">
-          <p className="text-gray-500 text-center py-8">
-            Nog geen recente activiteit.
-          </p>
+        <div className="card overflow-hidden">
+          {activitiesLoading ? (
+            <div className="p-6 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto" />
+            </div>
+          ) : activities.length === 0 ? (
+            <div className="p-6">
+              <p className="text-gray-500 text-center py-8">
+                Nog geen recente activiteit.
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {activities.map((activity, idx) => {
+                const Icon = getActivityIcon(activity.type)
+                const colorClass = getActivityColor(activity.type)
+                return (
+                  <li key={idx}>
+                    <Link 
+                      to={activity.link} 
+                      className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className={`flex-shrink-0 p-2 rounded-lg ${colorClass}`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {activity.title}
+                        </p>
+                        <p className="text-sm text-gray-500 truncate">
+                          {activity.description}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 flex items-center gap-3">
+                        <span className="text-xs text-gray-400">
+                          {formatTimestamp(activity.timestamp)}
+                        </span>
+                        <ArrowRightIcon className="h-4 w-4 text-gray-400" />
+                      </div>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </div>
       </div>
     </div>

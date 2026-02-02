@@ -11,6 +11,21 @@ export interface DashboardStats {
   year: number
 }
 
+export interface ActivityItem {
+  type: 'invoice' | 'planning' | 'leave' | 'user' | 'company'
+  icon: string
+  title: string
+  description: string
+  status: string
+  timestamp: string
+  user: string | null
+  link: string
+}
+
+export interface RecentActivityResponse {
+  activities: ActivityItem[]
+}
+
 export const settingsApi = {
   // Public settings (no auth required)
   getPublic: async (): Promise<AppSettings> => {
@@ -65,6 +80,12 @@ export const settingsApi = {
   // Dashboard stats
   getDashboardStats: async (): Promise<DashboardStats> => {
     const response = await api.get('/core/dashboard/stats/')
+    return response.data
+  },
+  
+  // Recent activity
+  getRecentActivity: async (limit: number = 10): Promise<RecentActivityResponse> => {
+    const response = await api.get(`/core/dashboard/activity/?limit=${limit}`)
     return response.data
   },
   

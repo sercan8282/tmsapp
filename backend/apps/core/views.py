@@ -430,6 +430,114 @@ class DashboardStatsView(APIView):
         })
 
 
+class RecentActivityView(APIView):
+    """
+    Recent activity endpoint.
+    Returns recent activities from various sources: invoices, planning, leave requests, etc.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        from apps.invoicing.models import Invoice
+        from apps.planning.models import WeekPlanning, PlanningEntry
+        from apps.leave.models import LeaveRequest
+        from apps.accounts.models import User
+        from apps.companies.models import Company
+        from apps.fleet.models import Vehicle
+        from itertools import chain
+        from operator import attrgetter
+        
+        activities = []
+        limit = int(request.query_params.get('limit', 10))
+        
+        # Only admins see all activities
+        user = request.user
+        is_admin = user.is_superuser or user.rol == 'admin'
+        
+        # Recent invoices (last 7 days)
+        recent_invoices = Invoice.objects.select_related('klant', 'created_by').order_by('-created_at')[:5]
+        for inv in recent_invoices:
+            activities.append({
+                'type': 'invoice',
+                'icon': 'document',
+                'title': f"Factuur {inv.factuurnummer or 'concept'}",
+                'description': f"voor {inv.klant.naam if inv.klant else 'Onbekend'} - €{inv.totaal_incl_btw or 0:.2f}",
+                'status': inv.status,
+                'timestamp': inv.created_at.isoformat(),
+                'user': inv.created_by.email if inv.created_by else None,
+                'link': f"/invoices/{inv.id}",
+            })
+        
+        # Recent planning entries (last 7 days)
+        recent_planning = WeekPlanning.objects.select_related('bedrijf').order_by('-created_at')[:5]
+        for pl in recent_planning:
+            activities.append({
+                'type': 'planning',
+                'icon': 'calendar',
+                'title': f"Planning W{pl.weeknummer}/{pl.jaar}",
+                'description': f"voor {pl.bedrijf.naam if pl.bedrijf else 'Onbekend'}",
+                'status': 'active',
+                'timestamp': pl.created_at.isoformat(),
+                'user': None,
+                'link': f"/planning?week={pl.weeknummer}&year={pl.jaar}",
+            })
+        
+        # Recent leave requests
+        recent_leave = LeaveRequest.objects.select_related('user').order_by('-created_at')[:5]
+        for lr in recent_leave:
+            status_map = {
+                'pending': 'In behandeling',
+                'approved': 'Goedgekeurd',
+                'rejected': 'Afgewezen',
+            }
+            activities.append({
+                'type': 'leave',
+                'icon': 'clock',
+                'title': f"Verlofaanvraag {lr.get_leave_type_display()}",
+                'description': f"van {lr.user.voornaam} {lr.user.achternaam}" if lr.user else 'Onbekend',
+                'status': lr.status,
+                'timestamp': lr.created_at.isoformat(),
+                'user': lr.user.email if lr.user else None,
+                'link': f"/leave",
+            })
+        
+        # Recent new users (admins only)
+        if is_admin:
+            recent_users = User.objects.filter(is_active=True).order_by('-date_joined')[:3]
+            for u in recent_users:
+                activities.append({
+                    'type': 'user',
+                    'icon': 'user',
+                    'title': f"Nieuwe gebruiker",
+                    'description': f"{u.voornaam} {u.achternaam} ({u.email})",
+                    'status': 'active',
+                    'timestamp': u.date_joined.isoformat(),
+                    'user': None,
+                    'link': f"/users/{u.id}",
+                })
+        
+        # Recent companies (admins only)
+        if is_admin:
+            recent_companies = Company.objects.order_by('-created_at')[:3]
+            for c in recent_companies:
+                activities.append({
+                    'type': 'company',
+                    'icon': 'building',
+                    'title': f"Nieuw bedrijf",
+                    'description': c.naam,
+                    'status': 'active',
+                    'timestamp': c.created_at.isoformat() if hasattr(c, 'created_at') and c.created_at else timezone.now().isoformat(),
+                    'user': None,
+                    'link': f"/companies/{c.id}",
+                })
+        
+        # Sort by timestamp descending and limit
+        activities.sort(key=lambda x: x['timestamp'], reverse=True)
+        activities = activities[:limit]
+        
+        return Response({'activities': activities})
+
+
 class CustomFontViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing custom fonts.
