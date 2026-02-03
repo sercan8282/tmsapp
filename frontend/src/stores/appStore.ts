@@ -18,6 +18,7 @@ const defaultSettings: AppSettings = {
   logo_url: null,
   favicon_url: null,
   primary_color: '#3B82F6',
+  login_background_color: '#F9FAFB',
   company_name: '',
 }
 
