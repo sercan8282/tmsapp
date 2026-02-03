@@ -1245,7 +1245,7 @@ export default function TimeEntriesPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                onClick={() => { setError(null); setPage(prev => Math.max(1, prev - 1)); }}
                 disabled={page === 1}
                 className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -1255,7 +1255,7 @@ export default function TimeEntriesPage() {
                 {t('timeEntries.page')} {page} {t('common.of')} {totalPages}
               </span>
               <button
-                onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                onClick={() => { setError(null); setPage(prev => Math.min(totalPages, prev + 1)); }}
                 disabled={page === totalPages}
                 className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >

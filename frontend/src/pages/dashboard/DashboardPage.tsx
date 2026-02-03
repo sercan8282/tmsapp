@@ -224,20 +224,20 @@ function AdminDashboard({ user }: { user: any }) {
       </div>
       
       {/* Stats grid */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-5">
         {statCards.map((stat) => (
           <Link
             key={stat.name}
             to={stat.href}
-            className="card p-6 hover:shadow-md transition-shadow"
+            className="card p-3 sm:p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center">
-              <div className={`flex-shrink-0 p-3 rounded-lg ${stat.bgColor}`}>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+              <div className={`flex-shrink-0 p-2 sm:p-3 rounded-lg ${stat.bgColor}`}>
+                <stat.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${stat.color}`} />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">{stat.name}</p>
-                <p className="text-2xl font-semibold text-gray-900">
+              <div className="ml-2 sm:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">{stat.name}</p>
+                <p className="text-lg sm:text-2xl font-semibold text-gray-900">
                   {loading ? (
                     <span className="inline-block w-8 h-6 bg-gray-200 rounded animate-pulse"></span>
                   ) : (
@@ -253,20 +253,20 @@ function AdminDashboard({ user }: { user: any }) {
       {/* Quick actions */}
       <div className="mt-8">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.quickActions')}</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <Link to="/time-entries" className="btn-primary text-center">
+        <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-5">
+          <Link to="/time-entries" className="btn-primary text-center text-sm sm:text-base py-2 sm:py-2.5">
             + {t('dashboard.registerHoursAction')}
           </Link>
-          <Link to="/leave" className="btn-secondary text-center">
+          <Link to="/leave" className="btn-secondary text-center text-sm sm:text-base py-2 sm:py-2.5">
             {t('dashboard.requestLeaveAction')}
           </Link>
-          <Link to="/planning" className="btn-secondary text-center">
+          <Link to="/planning" className="btn-secondary text-center text-sm sm:text-base py-2 sm:py-2.5">
             + {t('dashboard.newPlanningAction')}
           </Link>
-          <Link to="/invoices/new" className="btn-secondary text-center">
+          <Link to="/invoices/new" className="btn-secondary text-center text-sm sm:text-base py-2 sm:py-2.5">
             + {t('dashboard.createInvoiceAction')}
           </Link>
-          <Link to="/companies" className="btn-secondary text-center">
+          <Link to="/companies" className="btn-secondary text-center text-sm sm:text-base py-2 sm:py-2.5 col-span-2 lg:col-span-1">
             + {t('companies.addCompany')}
           </Link>
         </div>

@@ -478,9 +478,9 @@ export default function CompaniesPage() {
       {/* Filters */}
       <div className="card mb-6">
         <div className="p-4">
-          <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
             {/* Search */}
-            <div className="flex-1 min-w-64">
+            <div className="flex-1 min-w-0 sm:min-w-64">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('common.search')}
               </label>
