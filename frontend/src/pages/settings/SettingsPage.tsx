@@ -377,6 +377,31 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              {/* Login Background Color */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('settings.loginBackgroundColor')}
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={formData.login_background_color || '#F9FAFB'}
+                    onChange={(e) => handleInputChange('login_background_color', e.target.value)}
+                    className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={formData.login_background_color || '#F9FAFB'}
+                    onChange={(e) => handleInputChange('login_background_color', e.target.value)}
+                    className="input-field w-32"
+                    placeholder="#F9FAFB"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  {t('settings.loginBackgroundColorHint')}
+                </p>
+              </div>
+
               {/* Logo */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

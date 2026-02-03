@@ -301,6 +301,11 @@ class AppSettings(models.Model):
         default='#3B82F6',
         verbose_name='Primaire Kleur'
     )
+    login_background_color = models.CharField(
+        max_length=7, 
+        default='#F9FAFB',
+        verbose_name='Login Achtergrondkleur'
+    )
     
     # Company info (for invoices, etc.)
     company_name = models.CharField(

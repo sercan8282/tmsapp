@@ -724,6 +724,8 @@
     "logo": "Logo",
     "favicon": "Favicon",
     "primaryColor": "Primary color",
+    "loginBackgroundColor": "Login background color",
+    "loginBackgroundColorHint": "The background color of the login screen",
     "sidebarColor": "Sidebar color",
     "language": "Language",
     "dutch": "Dutch",

@@ -724,6 +724,8 @@
     "logo": "Logo",
     "favicon": "Favicon",
     "primaryColor": "Primaire kleur",
+    "loginBackgroundColor": "Login achtergrondkleur",
+    "loginBackgroundColorHint": "De achtergrondkleur van het inlogscherm",
     "sidebarColor": "Zijbalk kleur",
     "language": "Taal",
     "dutch": "Nederlands",

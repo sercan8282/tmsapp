@@ -84,6 +84,7 @@ class AppSettingsSerializer(serializers.ModelSerializer):
             'logo_url',
             'favicon_url',
             'primary_color',
+            'login_background_color',
             'company_name',
         ]
     
@@ -116,6 +117,7 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
         model = AppSettings
         fields = [
             'id', 'app_name', 'logo', 'logo_url', 'favicon', 'favicon_url', 'primary_color',
+            'login_background_color',
             'company_name', 'company_address', 'company_phone', 'company_email',
             'company_kvk', 'company_btw', 'company_iban',
             'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password',

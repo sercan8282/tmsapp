@@ -13,7 +13,7 @@ export default function AuthLayout() {
   
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: settings?.login_background_color || '#F9FAFB' }}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     )
@@ -24,11 +24,14 @@ export default function AuthLayout() {
   }
   
   return (
-    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50">
+    <div 
+      className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8"
+      style={{ backgroundColor: settings?.login_background_color || '#F9FAFB' }}
+    >
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {settings?.logo_url ? (
           <img
-            className="mx-auto h-16 w-auto"
+            className="mx-auto h-32 w-auto"
             src={settings.logo_url}
             alt={settings.app_name}
           />
