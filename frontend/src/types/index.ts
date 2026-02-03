@@ -55,6 +55,7 @@ export interface AppSettings {
   logo_url: string | null
   favicon_url: string | null
   primary_color: string
+  login_background_color: string
   company_name: string
 }
 
