@@ -32,7 +32,7 @@ def log_invoice_activity(sender, instance, created, **kwargs):
             entity_type='invoice',
             entity_id=instance.id,
             title=f"Factuur {instance.factuurnummer or 'concept'} aangemaakt",
-            description=f"voor {instance.bedrijf.naam if instance.bedrijf else 'Onbekend'} - €{instance.totaal_incl_btw or 0:.2f}",
+            description=f"voor {instance.bedrijf.naam if instance.bedrijf else 'Onbekend'} - €{instance.totaal or 0:.2f}",
             link=f"/invoices/{instance.id}",
         )
     else:
@@ -42,7 +42,7 @@ def log_invoice_activity(sender, instance, created, **kwargs):
             entity_type='invoice',
             entity_id=instance.id,
             title=f"Factuur {instance.factuurnummer or 'concept'} bijgewerkt",
-            description=f"voor {instance.bedrijf.naam if instance.bedrijf else 'Onbekend'} - €{instance.totaal_incl_btw or 0:.2f}",
+            description=f"voor {instance.bedrijf.naam if instance.bedrijf else 'Onbekend'} - €{instance.totaal or 0:.2f}",
             link=f"/invoices/{instance.id}",
         )
 
