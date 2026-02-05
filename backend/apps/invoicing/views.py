@@ -300,13 +300,17 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Override create to return full invoice data with id."""
         from rest_framework import status as drf_status
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        # Return full invoice data using InvoiceSerializer
-        response_serializer = InvoiceSerializer(self._created_invoice)
-        headers = self.get_success_headers(response_serializer.data)
-        return Response(response_serializer.data, status=drf_status.HTTP_201_CREATED, headers=headers)
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            # Return full invoice data using InvoiceSerializer
+            response_serializer = InvoiceSerializer(self._created_invoice)
+            headers = self.get_success_headers(response_serializer.data)
+            return Response(response_serializer.data, status=drf_status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            logger.error(f"Invoice create failed: {str(e)} | Data: {request.data} | User: {request.user.email}")
+            raise
     
     def perform_update(self, serializer):
         old_status = self.get_object().status
@@ -705,15 +709,19 @@ class InvoiceLineViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Override create to add better error logging."""
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            logger.error(
-                f"InvoiceLine validation failed: {serializer.errors} "
-                f"Data: {request.data} "
-                f"User: {request.user.email}"
-            )
-            return Response(serializer.errors, status=400)
-        return super().create(request, *args, **kwargs)
+        try:
+            serializer = self.get_serializer(data=request.data)
+            if not serializer.is_valid():
+                logger.error(
+                    f"InvoiceLine validation failed: {serializer.errors} "
+                    f"Data: {request.data} "
+                    f"User: {request.user.email}"
+                )
+                return Response(serializer.errors, status=400)
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"InvoiceLine create failed: {str(e)} | Data: {request.data} | User: {request.user.email}")
+            raise
     
     def perform_create(self, serializer):
         line = serializer.save()
