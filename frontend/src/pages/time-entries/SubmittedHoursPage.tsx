@@ -49,6 +49,7 @@ export default function SubmittedHoursPage() {
   const [weekHistory, setWeekHistory] = useState<WeekHistory[]>([])
   const [filteredWeeks, setFilteredWeeks] = useState<WeekHistory[]>([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'concept' | 'ingediend' | ''>('')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState<PageSize>(30)
   
@@ -73,10 +74,10 @@ export default function SubmittedHoursPage() {
   })
   const [saving, setSaving] = useState(false)
 
-  // Load week history on mount
+  // Load week history on mount and when status filter changes
   useEffect(() => {
     loadWeekHistory()
-  }, [])
+  }, [statusFilter])
 
   // Filter weeks when search changes
   useEffect(() => {
@@ -100,7 +101,7 @@ export default function SubmittedHoursPage() {
   const loadWeekHistory = async () => {
     try {
       setLoading(true)
-      const history = await getWeekHistory()
+      const history = await getWeekHistory(undefined, statusFilter || undefined)
       // Sort by year and week descending
       const sorted = history.sort((a, b) => {
         if (a.jaar !== b.jaar) return b.jaar - a.jaar
@@ -123,7 +124,7 @@ export default function SubmittedHoursPage() {
         weeknummer: week.weeknummer,
         jaar: week.jaar,
         user: week.user_id,
-        status: 'ingediend',
+        status: statusFilter || undefined,
         page_size: 100,
         ordering: 'datum',
       })
@@ -208,18 +209,29 @@ export default function SubmittedHoursPage() {
         </div>
       </div>
 
-      {/* Search bar */}
+      {/* Search bar and filters */}
       <div className="card mb-6">
         <div className="p-4">
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder={t('timeEntries.searchPlaceholder')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="form-input pl-10 w-full"
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder={t('timeEntries.searchPlaceholder')}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="form-input pl-10 w-full"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'concept' | 'ingediend' | '')}
+              className="form-select sm:w-48"
+            >
+              <option value="">{t('timeEntries.allStatuses')}</option>
+              <option value="concept">{t('timeEntries.concept')}</option>
+              <option value="ingediend">{t('timeEntries.submitted')}</option>
+            </select>
           </div>
         </div>
       </div>

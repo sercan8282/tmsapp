@@ -104,7 +104,7 @@ def log_leave_activity(sender, instance, created, **kwargs):
 # ==================== User Signals ====================
 @receiver(post_save, sender='accounts.User')
 def log_user_activity(sender, instance, created, **kwargs):
-    """Log user creation and updates."""
+    """Log user creation only (not updates to avoid noise from login/token refresh)."""
     if created:
         ActivityLog.log(
             user=None,  # Admin who created is not easily accessible
@@ -115,18 +115,6 @@ def log_user_activity(sender, instance, created, **kwargs):
             description=f"{instance.voornaam} {instance.achternaam} ({instance.email})",
             link=f"/admin/users/{instance.id}",
         )
-    else:
-        ActivityLog.log(
-            user=None,
-            action=ActivityType.UPDATED,
-            entity_type='user',
-            entity_id=instance.id,
-            title=f"Gebruiker bijgewerkt",
-            description=f"{instance.voornaam} {instance.achternaam} ({instance.email})",
-            link=f"/admin/users/{instance.id}",
-        )
-
-
 # ==================== Company Signals ====================
 @receiver(post_save, sender='companies.Company')
 def log_company_activity(sender, instance, created, **kwargs):

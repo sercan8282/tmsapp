@@ -29,22 +29,21 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = TimeEntry.objects.select_related('user')
         
-        # Admins and managers see all SUBMITTED entries, others see only their own
+        # Admins and managers see ALL entries (including concept), others see only their own
         if user.is_superuser or user.rol in ['admin', 'gebruiker']:
-            # Admins only see submitted entries (not concept entries from chauffeurs)
-            # Unless they explicitly filter by status or are viewing their own entries
+            # Admins can see all entries (concept and submitted)
+            # Filter by user if provided
             user_filter = self.request.query_params.get('user')
             status_filter = self.request.query_params.get('status')
             
             if user_filter:
                 # If filtering by specific user, show all their entries
                 queryset = queryset.filter(user_id=user_filter)
-            elif status_filter:
-                # If explicit status filter, respect it
-                pass
-            else:
-                # Default: only show submitted entries to admins
-                queryset = queryset.filter(status=TimeEntryStatus.INGEDIEND)
+            
+            # If explicit status filter, apply it
+            if status_filter:
+                queryset = queryset.filter(status=status_filter)
+            # No default filter - admins see all statuses
         else:
             # Chauffeurs only see their own (all statuses)
             queryset = queryset.filter(user=user)
@@ -286,9 +285,12 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         if not (user.is_superuser or user.rol in ['admin', 'gebruiker']):
             # Chauffeurs see all their own entries
             queryset = queryset.filter(user=user)
-        else:
-            # Admins only see submitted entries (not concept entries from chauffeurs)
-            queryset = queryset.filter(status=TimeEntryStatus.INGEDIEND)
+        # Admins see ALL entries (including concept) - no status filter
+        
+        # Optional status filter
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
         
         # Optional user filter for admins
         user_filter = request.query_params.get('user')

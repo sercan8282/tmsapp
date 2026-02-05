@@ -21,6 +21,10 @@ COPY . .
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 
+# Build argument for allowing localhost (local development)
+ARG VITE_ALLOW_LOCALHOST=false
+ENV VITE_ALLOW_LOCALHOST=$VITE_ALLOW_LOCALHOST
+
 # Build the application
 RUN npm run build
 

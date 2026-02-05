@@ -30,8 +30,9 @@ export default function ServerSetupPage() {
         return t('settings.urlMustBeHttp')
       }
       
-      // Prevent localhost in production builds
-      if (import.meta.env.PROD && 
+      // Prevent localhost in production builds (unless explicitly allowed for local dev)
+      const allowLocalhost = import.meta.env.VITE_ALLOW_LOCALHOST === 'true'
+      if (import.meta.env.PROD && !allowLocalhost &&
           (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')) {
         return t('settings.localhostNotAllowed')
       }
@@ -219,12 +220,13 @@ export default function ServerSetupPage() {
           </form>
 
           {/* Development Mode Option */}
-          {import.meta.env.DEV && (
+          {(import.meta.env.DEV || import.meta.env.VITE_ALLOW_LOCALHOST === 'true') && (
             <div className="mt-6 pt-6 border-t border-gray-200">
               <button
                 onClick={() => {
-                  // In development, use relative URLs (Vite proxy)
-                  setServerUrl('', t('settings.localDevelopment'))
+                  // In development/local mode, use localhost backend
+                  const localUrl = 'http://localhost:8001'
+                  setServerUrl(localUrl, t('settings.localDevelopment'))
                   navigate('/login')
                 }}
                 className="w-full text-sm text-gray-500 hover:text-gray-700 py-2"

@@ -753,6 +753,13 @@ export default function TimeEntriesPage() {
   // Pagination
   const totalPages = Math.ceil(totalCount / pageSize)
 
+  // Reset page if it becomes out of range
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      setPage(1)
+    }
+  }, [totalPages, page])
+
   // Sort icon
   const SortIcon = ({ field }: { field: string }) => {
     if (sortField !== field) return null
