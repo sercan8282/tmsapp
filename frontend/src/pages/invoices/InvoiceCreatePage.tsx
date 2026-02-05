@@ -1002,13 +1002,32 @@ export default function InvoiceCreatePage() {
           lineData.time_entry = line.timeEntryId
         }
         
-        await createInvoiceLine(lineData)
+        try {
+          await createInvoiceLine(lineData)
+        } catch (lineErr: any) {
+          // Parse DRF validation errors
+          const validationErrors = lineErr.response?.data
+          let errorMsg = ''
+          if (validationErrors && typeof validationErrors === 'object') {
+            errorMsg = Object.entries(validationErrors)
+              .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : val}`)
+              .join('; ')
+          }
+          throw new Error(errorMsg || t('errors.saveFailed'))
+        }
       }
 
       // Navigate to invoice list
       navigate('/invoices')
     } catch (err: any) {
-      setError(err.response?.data?.detail || t('errors.saveFailed'))
+      // Parse error message from Error object or API response
+      const errorMessage = err.message || err.response?.data?.detail || 
+        (err.response?.data && typeof err.response.data === 'object' 
+          ? Object.entries(err.response.data)
+              .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : val}`)
+              .join('; ')
+          : t('errors.saveFailed'))
+      setError(errorMessage)
     } finally {
       setIsSaving(false)
     }
