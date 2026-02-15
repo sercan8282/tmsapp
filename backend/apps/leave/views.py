@@ -67,12 +67,16 @@ class GlobalLeaveSettingsViewSet(viewsets.ModelViewSet):
         old_values = {
             'default_leave_hours': str(settings_obj.default_leave_hours),
             'max_concurrent_leave': settings_obj.max_concurrent_leave,
-            'special_leave_monthly_limit': str(settings_obj.special_leave_monthly_limit),
+            'overtime_leave_percentage': settings_obj.overtime_leave_percentage,
+            'free_special_leave_hours_per_month': str(settings_obj.free_special_leave_hours_per_month),
         }
         
         serializer = self.get_serializer(settings_obj, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        
+        # Refresh from DB to get updated values
+        settings_obj.refresh_from_db()
         
         # Audit log
         log_leave_action(
@@ -83,7 +87,8 @@ class GlobalLeaveSettingsViewSet(viewsets.ModelViewSet):
                 'new_values': {
                     'default_leave_hours': str(settings_obj.default_leave_hours),
                     'max_concurrent_leave': settings_obj.max_concurrent_leave,
-                    'special_leave_monthly_limit': str(settings_obj.special_leave_monthly_limit),
+                    'overtime_leave_percentage': settings_obj.overtime_leave_percentage,
+                    'free_special_leave_hours_per_month': str(settings_obj.free_special_leave_hours_per_month),
                 },
                 'update_data': request.data,
             },
