@@ -121,6 +121,7 @@ export default function SpreadsheetEditorPage() {
   const [importMode, setImportMode] = useState<'replace' | 'append'>('append')
   const [availableWeeks, setAvailableWeeks] = useState<AvailableWeek[]>([])
   const [selectedImportWeek, setSelectedImportWeek] = useState<AvailableWeek | null>(null)
+  const [selectedChauffeur, setSelectedChauffeur] = useState<{ id: string; naam: string } | null>(null)
 
   // Form
   const [naam, setNaam] = useState('')
@@ -243,6 +244,7 @@ export default function SpreadsheetEditorPage() {
   const handleOpenImport = async () => {
     setShowImportModal(true)
     setSelectedImportWeek(null)
+    setSelectedChauffeur(null)
     setImportPreview([])
     setImportMode('append')
     try {
@@ -257,15 +259,16 @@ export default function SpreadsheetEditorPage() {
     }
   }
 
-  const handleSelectWeek = async (week: AvailableWeek) => {
+  const handleSelectChauffeur = async (week: AvailableWeek, chauffeur: { id: string; naam: string }) => {
     setSelectedImportWeek(week)
+    setSelectedChauffeur(chauffeur)
     try {
       setImportLoading(true)
       setError(null)
-      const res = await importTimeEntries({ week_nummer: week.week_nummer, jaar: week.jaar })
+      const res = await importTimeEntries({ week_nummer: week.week_nummer, jaar: week.jaar, user: chauffeur.id })
       setImportPreview(res.rijen)
       if (res.count === 0) {
-        setError(`Geen urenregistraties gevonden voor week ${week.week_nummer} / ${week.jaar}`)
+        setError(`Geen urenregistraties gevonden voor ${chauffeur.naam} in week ${week.week_nummer} / ${week.jaar}`)
       }
     } catch (err: any) {
       setError('Importeren mislukt: ' + (err.response?.data?.error || err.message))
@@ -281,7 +284,6 @@ export default function SpreadsheetEditorPage() {
       const existing = rijen.filter(r => r.ritnr || r.chauffeur || r.datum || r.begin_tijd != null)
       setRijen([...existing, ...importPreview])
     }
-    // Auto-set week/jaar to match imported week
     if (selectedImportWeek) {
       setWeekNummer(selectedImportWeek.week_nummer)
       setJaar(selectedImportWeek.jaar)
@@ -289,7 +291,8 @@ export default function SpreadsheetEditorPage() {
     setShowImportModal(false)
     setImportPreview([])
     setSelectedImportWeek(null)
-    showSuccessMsg(`${importPreview.length} rijen geïmporteerd`)
+    setSelectedChauffeur(null)
+    showSuccessMsg(`${importPreview.length} rijen geïmporteerd (${selectedChauffeur?.naam})`)
   }
 
   const updateRij = (index: number, field: keyof SpreadsheetRij, value: any) => {
@@ -969,7 +972,7 @@ export default function SpreadsheetEditorPage() {
         </div>
       )}
 
-      {/* Import Modal – Two-step: week overview → entries preview */}
+      {/* Import Modal – Two-step: chauffeur per week → entries preview */}
       {showImportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 p-6 max-h-[80vh] flex flex-col">
@@ -985,8 +988,8 @@ export default function SpreadsheetEditorPage() {
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
               </div>
-            ) : !selectedImportWeek ? (
-              /* ── Step 1: Week overview ── */
+            ) : !selectedChauffeur ? (
+              /* ── Step 1: Week + chauffeur overview ── */
               availableWeeks.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p>{t('spreadsheets.noWeeksAvailable')}</p>
@@ -997,42 +1000,38 @@ export default function SpreadsheetEditorPage() {
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
                         <th className="px-3 py-2 text-left font-medium text-gray-600">{t('spreadsheets.week')}</th>
-                        <th className="px-3 py-2 text-left font-medium text-gray-600">{t('spreadsheets.period')}</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">{t('spreadsheets.driver')}</th>
                         <th className="px-3 py-2 text-right font-medium text-gray-600">{t('spreadsheets.entries')}</th>
-                        <th className="px-3 py-2 text-left font-medium text-gray-600">{t('spreadsheets.drivers')}</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-600">{t('spreadsheets.totalHours')}</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-600">{t('spreadsheets.totalKm')}</th>
                         <th className="px-3 py-2 text-center font-medium text-gray-600"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {availableWeeks.map(week => (
-                        <tr key={`${week.jaar}-${week.week_nummer}`} className="hover:bg-primary-50 cursor-pointer" onClick={() => handleSelectWeek(week)}>
-                          <td className="px-3 py-2">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-primary-100 text-primary-800">
-                              W{week.week_nummer} '{String(week.jaar).slice(-2)}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 text-gray-600 text-xs">{week.datum_van} — {week.datum_tot}</td>
-                          <td className="px-3 py-2 text-right font-medium">{week.count}</td>
-                          <td className="px-3 py-2">
-                            <div className="space-y-0.5">
-                              {week.chauffeurs.map(ch => (
-                                <div key={ch.id} className="flex items-center gap-2 text-xs text-gray-700">
-                                  <span className="font-medium">{ch.naam}</span>
-                                  <span className="text-gray-400">|</span>
-                                  <span>{ch.entries} ritten</span>
-                                  <span className="text-gray-400">|</span>
-                                  <span>{ch.totaal_uren}u</span>
-                                  <span className="text-gray-400">|</span>
-                                  <span>{ch.totaal_km} km</span>
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            <span className="text-primary-600 text-xs font-medium">{t('spreadsheets.selectWeek')} →</span>
-                          </td>
-                        </tr>
-                      ))}
+                      {availableWeeks.map(week =>
+                        week.chauffeurs.map((ch, chIdx) => (
+                          <tr
+                            key={`${week.jaar}-${week.week_nummer}-${ch.id}`}
+                            className="hover:bg-primary-50 cursor-pointer"
+                            onClick={() => handleSelectChauffeur(week, { id: ch.id, naam: ch.naam })}
+                          >
+                            <td className="px-3 py-2">
+                              {chIdx === 0 ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-primary-100 text-primary-800">
+                                  W{week.week_nummer} '{String(week.jaar).slice(-2)}
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className="px-3 py-2 font-medium">{ch.naam}</td>
+                            <td className="px-3 py-2 text-right">{ch.entries}</td>
+                            <td className="px-3 py-2 text-right">{ch.totaal_uren}u</td>
+                            <td className="px-3 py-2 text-right">{ch.totaal_km} km</td>
+                            <td className="px-3 py-2 text-center">
+                              <span className="text-primary-600 text-xs font-medium">Selecteer →</span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1040,17 +1039,23 @@ export default function SpreadsheetEditorPage() {
             ) : importPreview.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <p>{t('spreadsheets.noTimeEntries')}</p>
+                <button onClick={() => { setSelectedChauffeur(null); setSelectedImportWeek(null); setImportPreview([]) }} className="mt-2 text-sm text-primary-600 hover:text-primary-800">
+                  ← {t('spreadsheets.backToWeeks')}
+                </button>
               </div>
             ) : (
-              /* ── Step 2: Entries preview for selected week ── */
+              /* ── Step 2: Entries preview for selected chauffeur + week ── */
               <>
                 <div className="mb-3 flex items-center justify-between">
-                  <button onClick={() => { setSelectedImportWeek(null); setImportPreview([]) }} className="text-sm text-primary-600 hover:text-primary-800 flex items-center gap-1">
+                  <button onClick={() => { setSelectedChauffeur(null); setSelectedImportWeek(null); setImportPreview([]) }} className="text-sm text-primary-600 hover:text-primary-800 flex items-center gap-1">
                     ← {t('spreadsheets.backToWeeks')}
                   </button>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded text-sm font-semibold bg-primary-100 text-primary-800">
-                    Week {selectedImportWeek.week_nummer} / {selectedImportWeek.jaar}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold bg-primary-100 text-primary-800">
+                      W{selectedImportWeek?.week_nummer} '{String(selectedImportWeek?.jaar || '').slice(-2)}
+                    </span>
+                    <span className="text-sm font-medium text-gray-700">{selectedChauffeur.naam}</span>
+                  </div>
                 </div>
 
                 <div className="mb-3 flex items-center gap-4">
@@ -1070,7 +1075,6 @@ export default function SpreadsheetEditorPage() {
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
                         <th className="px-2 py-1.5 text-left font-medium text-gray-600">{t('spreadsheets.tripNumber')}</th>
-                        <th className="px-2 py-1.5 text-left font-medium text-gray-600">{t('spreadsheets.driver')}</th>
                         <th className="px-2 py-1.5 text-left font-medium text-gray-600">{t('spreadsheets.date')}</th>
                         <th className="px-2 py-1.5 text-right font-medium text-gray-600">{t('spreadsheets.startTime')}</th>
                         <th className="px-2 py-1.5 text-right font-medium text-gray-600">{t('spreadsheets.endTime')}</th>
@@ -1083,7 +1087,6 @@ export default function SpreadsheetEditorPage() {
                       {importPreview.map((rij, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
                           <td className="px-2 py-1.5">{rij.ritnr}</td>
-                          <td className="px-2 py-1.5">{rij.chauffeur}</td>
                           <td className="px-2 py-1.5">{rij.datum}</td>
                           <td className="px-2 py-1.5 text-right">{decimalToTime(rij.begin_tijd)}</td>
                           <td className="px-2 py-1.5 text-right">{decimalToTime(rij.eind_tijd)}</td>
@@ -1100,10 +1103,10 @@ export default function SpreadsheetEditorPage() {
             )}
 
             <div className="flex justify-end gap-2">
-              <button onClick={() => { setShowImportModal(false); setImportPreview([]); setSelectedImportWeek(null) }} className="btn-secondary text-sm">
+              <button onClick={() => { setShowImportModal(false); setImportPreview([]); setSelectedImportWeek(null); setSelectedChauffeur(null) }} className="btn-secondary text-sm">
                 {t('common.cancel')}
               </button>
-              {selectedImportWeek && importPreview.length > 0 && (
+              {selectedChauffeur && importPreview.length > 0 && (
                 <button onClick={handleImportConfirm} className="btn-primary text-sm">
                   <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
                   {t('spreadsheets.importConfirm')}
