@@ -295,17 +295,34 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
         from apps.companies.models import Company
         from datetime import date, timedelta
         
-        # Get or create a default template
-        template, _ = InvoiceTemplate.objects.get_or_create(
-            naam='Standaard',
-            defaults={'beschrijving': 'Standaard factuur template', 'layout': {}, 'variables': {}}
-        )
+        # Get template if selected, otherwise None
+        template = None
+        template_id = data.get('template_id')
+        if template_id:
+            try:
+                template = InvoiceTemplate.objects.get(id=template_id, is_active=True)
+            except InvoiceTemplate.DoesNotExist:
+                return Response(
+                    {'error': 'Template niet gevonden'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         
-        # Try to find or create the company (leverancier/klant)
-        leverancier_naam = data.get('leverancier', 'Onbekend')
-        company, _ = Company.objects.get_or_create(
-            naam=leverancier_naam
-        )
+        # Get or create the company
+        bedrijf_id = data.get('bedrijf_id')
+        if bedrijf_id:
+            try:
+                company = Company.objects.get(id=bedrijf_id)
+            except Company.DoesNotExist:
+                return Response(
+                    {'error': 'Bedrijf niet gevonden'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            # Auto-create company from leverancier name
+            leverancier_naam = data.get('leverancier', 'Onbekend')
+            company, _ = Company.objects.get_or_create(
+                naam=leverancier_naam
+            )
         
         # Parse dates
         factuurdatum = data.get('factuurdatum')

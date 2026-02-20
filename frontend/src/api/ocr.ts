@@ -132,6 +132,8 @@ export interface RegionExtractionResult {
 
 export interface ConvertToInvoiceData {
   invoice_type: 'inkoop' | 'verkoop' | 'credit';
+  template_id?: string | null;
+  bedrijf_id?: string | null;
   factuurnummer?: string;
   factuurdatum?: string;
   vervaldatum?: string;

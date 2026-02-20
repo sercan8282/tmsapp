@@ -66,9 +66,11 @@ class Invoice(models.Model):
     # Relations
     template = models.ForeignKey(
         InvoiceTemplate,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
         related_name='invoices',
-        verbose_name='Template'
+        verbose_name='Template',
+        null=True,
+        blank=True,
     )
     bedrijf = models.ForeignKey(
         'companies.Company',

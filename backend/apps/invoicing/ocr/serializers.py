@@ -206,6 +206,12 @@ class ConvertToInvoiceSerializer(serializers.Serializer):
         default='inkoop'
     )
     
+    # Template selection (optional - null means no template)
+    template_id = serializers.UUIDField(required=False, allow_null=True)
+    
+    # Company selection (optional - if not provided, auto-create from leverancier)
+    bedrijf_id = serializers.UUIDField(required=False, allow_null=True)
+    
     # Common fields
     factuurnummer = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
     factuurdatum = serializers.CharField(required=False, allow_blank=True, allow_null=True)  # Accept string to parse

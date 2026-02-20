@@ -30,6 +30,8 @@ import {
   reextractLines,
   BoundingBox,
 } from '../../api/ocr';
+import { getTemplates } from '../../api/invoices';
+import { getAllCompanies } from '../../api/companies';
 import { useAuthStore } from '../../stores/authStore';
 
 // Helper function to parse Dutch formatted amounts (1.234,56 → 1234.56)
@@ -104,6 +106,8 @@ const InvoiceImportDetailPage: React.FC = () => {
   const [corrections, setCorrections] = useState<Record<string, { value: unknown; region?: BoundingBox }>>({});
   const [extractedValues, setExtractedValues] = useState<Record<string, unknown>>({});
   const [selectedInvoiceType, setSelectedInvoiceType] = useState<string>('inkoop');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [selectedBedrijfId, setSelectedBedrijfId] = useState<string | null>(null);
   const [imageLoadError, setImageLoadError] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [editableLines, setEditableLines] = useState<Array<{
@@ -125,6 +129,18 @@ const InvoiceImportDetailPage: React.FC = () => {
       if (query.state.data?.status === 'processing') return 2000;
       return false;
     },
+  });
+
+  // Fetch available templates
+  const { data: templatesData } = useQuery({
+    queryKey: ['invoiceTemplates'],
+    queryFn: () => getTemplates(true),
+  });
+
+  // Fetch available companies
+  const { data: companiesData } = useQuery({
+    queryKey: ['allCompanies'],
+    queryFn: () => getAllCompanies(),
   });
 
   // Initialize extracted values from import data
@@ -186,6 +202,8 @@ const InvoiceImportDetailPage: React.FC = () => {
       )};
       return convertToInvoice(id!, {
         invoice_type: selectedInvoiceType as 'inkoop' | 'verkoop' | 'credit',
+        template_id: selectedTemplateId,
+        bedrijf_id: selectedBedrijfId,
         factuurnummer: data.invoice_number as string,
         factuurdatum: data.invoice_date as string,
         vervaldatum: data.due_date as string,
@@ -685,6 +703,36 @@ const InvoiceImportDetailPage: React.FC = () => {
                 );
               })}
             </div>
+          </div>
+
+          {/* Company Selection */}
+          <div className="bg-white rounded-xl shadow-sm border p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('imports.company', 'Bedrijf')}</h3>
+            <select
+              value={selectedBedrijfId || ''}
+              onChange={(e) => setSelectedBedrijfId(e.target.value || null)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">{t('imports.autoCreateCompany', 'Automatisch aanmaken vanuit leverancier')}</option>
+              {companiesData?.map((company: { id: string; naam: string }) => (
+                <option key={company.id} value={company.id}>{company.naam}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Template Selection */}
+          <div className="bg-white rounded-xl shadow-sm border p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('imports.template', 'Template')}</h3>
+            <select
+              value={selectedTemplateId || ''}
+              onChange={(e) => setSelectedTemplateId(e.target.value || null)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">{t('imports.noTemplate', 'Geen template')}</option>
+              {templatesData?.results?.map((tmpl: { id: string; naam: string }) => (
+                <option key={tmpl.id} value={tmpl.id}>{tmpl.naam}</option>
+              ))}
+            </select>
           </div>
 
           {/* Extracted Fields - Compact Grid */}
