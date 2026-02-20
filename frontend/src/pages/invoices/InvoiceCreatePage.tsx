@@ -23,10 +23,12 @@ import {
 import { getTemplates, createInvoice, createInvoiceLine, getNextInvoiceNumber } from '@/api/invoices'
 import { getCompanies } from '@/api/companies'
 import { getTimeEntries } from '@/api/timetracking'
+import { getSpreadsheets } from '@/api/spreadsheets'
 import { 
   InvoiceTemplate, 
   Company, 
   TimeEntry,
+  Spreadsheet,
   TemplateLayout,
   TemplateColumn 
 } from '@/types'
@@ -640,6 +642,337 @@ function TimeEntryImportModal({
 }
 
 // ============================================
+// Spreadsheet Import Modal
+// ============================================
+
+function SpreadsheetImportModal({
+  isOpen,
+  onClose,
+  onImport,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  onImport: (spreadsheet: Spreadsheet) => void
+}) {
+  const [spreadsheets, setSpreadsheets] = useState<Spreadsheet[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [weekFilter, setWeekFilter] = useState<string>('')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const itemsPerPage = 20
+
+  useEffect(() => {
+    if (isOpen) {
+      loadSpreadsheets()
+      setCurrentPage(1)
+      setWeekFilter('')
+      setSelectedId(null)
+    }
+  }, [isOpen])
+
+  const loadSpreadsheets = async () => {
+    setIsLoading(true)
+    try {
+      const response = await getSpreadsheets({
+        page_size: 1000,
+        ordering: '-jaar,-week_nummer',
+        status: 'ingediend',
+      })
+      setSpreadsheets(response.results)
+    } catch (err) {
+      console.error('Failed to load spreadsheets:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const toggleExpand = (id: string) => {
+    setExpandedId(prev => prev === id ? null : id)
+  }
+
+  const handleImport = () => {
+    const selected = spreadsheets.find(s => s.id === selectedId)
+    if (selected) {
+      onImport(selected)
+      onClose()
+    }
+  }
+
+  // Get unique weeks for filter
+  const availableWeeks = [...new Set(spreadsheets.map(s => `${s.jaar}-W${s.week_nummer}`))]
+    .sort((a, b) => b.localeCompare(a))
+
+  // Filter by week
+  const filteredSpreadsheets = weekFilter
+    ? spreadsheets.filter(s => `${s.jaar}-W${s.week_nummer}` === weekFilter)
+    : spreadsheets
+
+  // Pagination
+  const totalPages = Math.ceil(filteredSpreadsheets.length / itemsPerPage)
+  const paginatedSpreadsheets = filteredSpreadsheets.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [weekFilter])
+
+  // Helper: calculate rij uren
+  const calcRijUren = (rij: any): number => {
+    const begin = parseFloat(rij.begin_tijd || 0)
+    const eind = parseFloat(rij.eind_tijd || 0)
+    const pauze = parseFloat(rij.pauze || 0)
+    const correctie = parseFloat(rij.correctie || 0)
+    return Math.max(0, eind - begin - pauze - correctie)
+  }
+
+  // Helper: calculate rij km
+  const calcRijKm = (rij: any): number => {
+    const begin = parseFloat(rij.begin_km || 0)
+    const eind = parseFloat(rij.eind_km || 0)
+    return Math.max(0, eind - begin)
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="fixed inset-0 bg-gray-500/75" onClick={onClose} />
+        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[85vh] flex flex-col">
+          <div className="px-6 py-4 border-b flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h3 className="text-lg font-semibold">Ritregistratie Importeren</h3>
+              {availableWeeks.length > 0 && (
+                <select
+                  value={weekFilter}
+                  onChange={(e) => setWeekFilter(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">Alle weken</option>
+                  {availableWeeks.map(week => (
+                    <option key={week} value={week}>{week.replace('-W', ' Week ')}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+              <XCircleIcon className="h-5 w-5 text-gray-400" />
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto">
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+              </div>
+            ) : spreadsheets.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <CalculatorIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>Geen ingediende ritregistraties gevonden</p>
+                <p className="text-sm mt-1">Markeer eerst een ritregistratie als ingediend</p>
+              </div>
+            ) : filteredSpreadsheets.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <CalculatorIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>Geen ritregistraties gevonden voor deze week</p>
+              </div>
+            ) : (
+              <>
+                <table className="w-full">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Week
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Naam
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Bedrijf
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ritten
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Totaal
+                      </th>
+                      <th className="px-4 py-3 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {paginatedSpreadsheets.map((spreadsheet) => {
+                      const isSelected = selectedId === spreadsheet.id
+                      const isExpanded = expandedId === spreadsheet.id
+                      
+                      return (
+                        <Fragment key={spreadsheet.id}>
+                          <tr 
+                            className={`hover:bg-gray-50 cursor-pointer ${isSelected ? 'bg-primary-50' : ''}`}
+                            onClick={() => setSelectedId(isSelected ? null : spreadsheet.id)}
+                          >
+                            <td className="px-4 py-3">
+                              <input
+                                type="radio"
+                                checked={isSelected}
+                                onChange={() => setSelectedId(isSelected ? null : spreadsheet.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500"
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="font-medium">Week {spreadsheet.week_nummer}</span>
+                              <span className="text-gray-400 ml-1">{spreadsheet.jaar}</span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {spreadsheet.naam}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                              {spreadsheet.bedrijf_naam}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {spreadsheet.rijen.length}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right whitespace-nowrap font-medium">
+                              {formatCurrency(spreadsheet.totaal_factuur)}
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  toggleExpand(spreadsheet.id)
+                                }}
+                                className="p-1 hover:bg-gray-200 rounded"
+                              >
+                                {isExpanded ? (
+                                  <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+                                ) : (
+                                  <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                                )}
+                              </button>
+                            </td>
+                          </tr>
+                          
+                          {/* Expanded details - show rijen */}
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={7} className="px-4 py-0">
+                                <div className="bg-gray-50 rounded-lg my-2 overflow-hidden">
+                                  <table className="w-full text-sm">
+                                    <thead className="bg-gray-100">
+                                      <tr>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Rit</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Chauffeur</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Datum</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Uren</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Km</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Bedrag</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                      {spreadsheet.rijen.map((rij, idx) => {
+                                        const uren = calcRijUren(rij)
+                                        const km = calcRijKm(rij)
+                                        const overnachting = parseFloat(rij.overnachting as any || 0)
+                                        const overigeKosten = parseFloat(rij.overige_kosten as any || 0)
+                                        const tarUur = uren * spreadsheet.tarief_per_uur
+                                        const tarKm = km * spreadsheet.tarief_per_km
+                                        const dot = km * spreadsheet.tarief_dot
+                                        const rijTotaal = tarUur + tarKm + dot + overnachting + overigeKosten
+                                        
+                                        return (
+                                          <tr key={idx}>
+                                            <td className="px-3 py-2">{rij.ritnr || idx + 1}</td>
+                                            <td className="px-3 py-2">{rij.chauffeur || '-'}</td>
+                                            <td className="px-3 py-2">{rij.datum || '-'}</td>
+                                            <td className="px-3 py-2 text-right">{uren.toFixed(2)}</td>
+                                            <td className="px-3 py-2 text-right">{km.toFixed(0)}</td>
+                                            <td className="px-3 py-2 text-right font-medium">{formatCurrency(rijTotaal)}</td>
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                  </table>
+                                  <div className="px-3 py-2 bg-gray-100 text-xs text-gray-500 flex gap-4">
+                                    <span>Uurtarief: €{spreadsheet.tarief_per_uur}</span>
+                                    <span>KM-tarief: €{spreadsheet.tarief_per_km}</span>
+                                    <span>DOT-tarief: €{spreadsheet.tarief_dot}</span>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      )
+                    })}
+                  </tbody>
+                </table>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                      Pagina {currentPage} van {totalPages} ({filteredSpreadsheets.length} spreadsheets)
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 text-sm border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Vorige
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 text-sm border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Volgende
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          
+          <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
+            <span className="text-sm text-gray-600">
+              {selectedId ? (
+                <>1 ritregistratie geselecteerd ({spreadsheets.find(s => s.id === selectedId)?.rijen.length || 0} ritten)</>
+              ) : (
+                'Selecteer een ritregistratie om te importeren'
+              )}
+            </span>
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={!selectedId}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Importeren
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
 // Main Component
 // ============================================
 
@@ -675,6 +1008,7 @@ export default function InvoiceCreatePage() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showSpreadsheetImportModal, setShowSpreadsheetImportModal] = useState(false)
   
   // Get template layout
   const templateLayout = useMemo(() => {
@@ -912,6 +1246,118 @@ export default function InvoiceCreatePage() {
     }
     
     // Combine all lines
+    setLines(prev => [...prev, ...entryLines, ...summaryLines])
+  }
+
+  // Import spreadsheet ritregistratie entries
+  const handleImportSpreadsheet = (spreadsheet: Spreadsheet) => {
+    // Set week/chauffeur tracking from spreadsheet
+    setWeekNumber(spreadsheet.week_nummer)
+    setWeekYear(spreadsheet.jaar)
+    
+    // Set company if not already set
+    if (!selectedCompany && spreadsheet.bedrijf) {
+      setSelectedCompany(spreadsheet.bedrijf)
+    }
+
+    const tarUur = Number(spreadsheet.tarief_per_uur) || 0
+    const tarKm = Number(spreadsheet.tarief_per_km) || 0
+    const tarDot = Number(spreadsheet.tarief_dot) || 0
+    
+    let totalKm = 0
+    let totalOvernachting = 0
+    let totalOverigeKosten = 0
+    
+    // Create one invoice line per rij (for uren)
+    const entryLines: InvoiceLineData[] = spreadsheet.rijen.map((rij, idx) => {
+      const beginTijd = parseFloat(rij.begin_tijd as any || 0)
+      const eindTijd = parseFloat(rij.eind_tijd as any || 0)
+      const pauze = parseFloat(rij.pauze as any || 0)
+      const correctie = parseFloat(rij.correctie as any || 0)
+      const beginKm = parseFloat(rij.begin_km as any || 0)
+      const eindKm = parseFloat(rij.eind_km as any || 0)
+      const overnachting = parseFloat(rij.overnachting as any || 0)
+      const overigeKosten = parseFloat(rij.overige_kosten as any || 0)
+      
+      const uren = Math.max(0, eindTijd - beginTijd - pauze - correctie)
+      const km = Math.max(0, eindKm - beginKm)
+      
+      totalKm += km
+      totalOvernachting += overnachting
+      totalOverigeKosten += overigeKosten
+      
+      const values: Record<string, number | string> = {}
+      
+      columns.forEach(col => {
+        if (col.type === 'text' || col.id === 'omschrijving') {
+          values[col.id] = `Rit ${rij.ritnr || idx + 1} - ${rij.datum || ''} (${km} km)`
+        } else if (col.type === 'aantal' || col.id === 'aantal') {
+          values[col.id] = uren
+        } else if (col.type === 'prijs' || col.id === 'prijs') {
+          values[col.id] = tarUur
+        } else if (col.type === 'uren' || col.id.includes('uur')) {
+          values[col.id] = uren
+        } else if (col.type === 'km' || col.id.includes('km')) {
+          values[col.id] = km
+        } else {
+          values[col.id] = 0
+        }
+      })
+      
+      // Calculate computed columns
+      columns.forEach(col => {
+        if (col.type === 'berekend' && col.formule) {
+          values[col.id] = evaluateFormula(col.formule, values, defaults)
+        }
+      })
+      
+      return { id: generateId(), values }
+    })
+    
+    // Helper for summary lines
+    const createSummaryLine = (omschrijving: string, aantal: number, prijs: number): InvoiceLineData => {
+      const values: Record<string, number | string> = {}
+      columns.forEach(col => {
+        if (col.type === 'text' || col.id === 'omschrijving' || col.id.includes('omschrijving')) {
+          values[col.id] = omschrijving
+        } else if (col.type === 'aantal' || col.id === 'aantal' || col.id.includes('aantal')) {
+          values[col.id] = aantal
+        } else if (col.type === 'prijs' || col.id === 'prijs' || col.id.includes('prijs') || col.id.includes('tarief')) {
+          values[col.id] = prijs
+        } else {
+          values[col.id] = 0
+        }
+      })
+      columns.forEach(col => {
+        if (col.type === 'berekend' && col.formule) {
+          values[col.id] = evaluateFormula(col.formule, values, defaults)
+        }
+      })
+      return { id: generateId(), values }
+    }
+    
+    const summaryLines: InvoiceLineData[] = []
+    
+    // KM line
+    if (totalKm > 0 && tarKm > 0) {
+      summaryLines.push(createSummaryLine('Totaal KM', totalKm, tarKm))
+    }
+    
+    // DOT line
+    if (totalKm > 0 && tarDot > 0) {
+      summaryLines.push(createSummaryLine('Totaal DOT', totalKm, tarDot))
+    }
+    
+    // Overnachting line
+    if (totalOvernachting > 0) {
+      summaryLines.push(createSummaryLine('Overnachtingen', 1, totalOvernachting))
+    }
+    
+    // Overige kosten line
+    if (totalOverigeKosten > 0) {
+      summaryLines.push(createSummaryLine('Overige kosten', 1, totalOverigeKosten))
+    }
+    
     setLines(prev => [...prev, ...entryLines, ...summaryLines])
   }
 
@@ -1195,6 +1641,13 @@ export default function InvoiceCreatePage() {
                 {t('invoices.importHours')}
               </button>
               <button
+                onClick={() => setShowSpreadsheetImportModal(true)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+              >
+                <CalculatorIcon className="h-4 w-4" />
+                {t('invoices.importSpreadsheet')}
+              </button>
+              <button
                 onClick={addLine}
                 className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 flex items-center gap-2"
               >
@@ -1336,6 +1789,13 @@ export default function InvoiceCreatePage() {
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         onImport={handleImportEntries}
+      />
+
+      {/* Spreadsheet Import Modal */}
+      <SpreadsheetImportModal
+        isOpen={showSpreadsheetImportModal}
+        onClose={() => setShowSpreadsheetImportModal(false)}
+        onImport={handleImportSpreadsheet}
       />
     </div>
   )

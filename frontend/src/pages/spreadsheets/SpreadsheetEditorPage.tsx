@@ -12,6 +12,8 @@ import {
   CheckCircleIcon,
   XMarkIcon,
   Cog6ToothIcon,
+  PaperAirplaneIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 import { Company, SpreadsheetRij } from '@/types'
 import {
@@ -20,6 +22,8 @@ import {
   updateSpreadsheet,
   duplicateSpreadsheet,
   sendSpreadsheetEmail,
+  submitSpreadsheet,
+  reopenSpreadsheet,
   importTimeEntries,
   getAvailableWeeks,
 } from '@/api/spreadsheets'
@@ -122,6 +126,7 @@ export default function SpreadsheetEditorPage() {
   const [availableWeeks, setAvailableWeeks] = useState<AvailableWeek[]>([])
   const [selectedImportWeek, setSelectedImportWeek] = useState<AvailableWeek | null>(null)
   const [selectedChauffeur, setSelectedChauffeur] = useState<{ id: string; naam: string } | null>(null)
+  const [spreadsheetStatus, setSpreadsheetStatus] = useState<'concept' | 'ingediend'>('concept')
 
   // Form
   const [naam, setNaam] = useState('')
@@ -176,6 +181,7 @@ export default function SpreadsheetEditorPage() {
       setTariefDot(Number(data.tarief_dot))
       setRijen(data.rijen.length > 0 ? data.rijen : [emptyRij()])
       setNotities(data.notities || '')
+      setSpreadsheetStatus(data.status || 'concept')
     } catch (err) {
       setError('Kon registratie niet laden')
     } finally {
@@ -221,6 +227,42 @@ export default function SpreadsheetEditorPage() {
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || err.response?.data?.error || 'Opslaan mislukt')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!id) return
+    try {
+      setSaving(true)
+      setError(null)
+      // Save first, then submit
+      await updateSpreadsheet(id, {
+        naam, bedrijf, week_nummer: weekNummer, jaar,
+        tarief_per_uur: tariefPerUur, tarief_per_km: tariefPerKm, tarief_dot: tariefDot,
+        rijen, notities,
+      })
+      const result = await submitSpreadsheet(id)
+      setSpreadsheetStatus(result.status || 'ingediend')
+      showSuccessMsg('Ritregistratie ingediend')
+    } catch (err: any) {
+      setError(err.response?.data?.detail || err.response?.data?.error || 'Indienen mislukt')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleReopen = async () => {
+    if (!id) return
+    try {
+      setSaving(true)
+      setError(null)
+      const result = await reopenSpreadsheet(id)
+      setSpreadsheetStatus(result.status || 'concept')
+      showSuccessMsg('Ritregistratie heropend')
+    } catch (err: any) {
+      setError(err.response?.data?.detail || err.response?.data?.error || 'Heropenen mislukt')
     } finally {
       setSaving(false)
     }
@@ -607,6 +649,15 @@ export default function SpreadsheetEditorPage() {
           <h1 className="page-title truncate">
             {isNew ? t('spreadsheets.newSpreadsheet') : naam || t('spreadsheets.editSpreadsheet')}
           </h1>
+          {!isNew && (
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              spreadsheetStatus === 'ingediend' 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-gray-100 text-gray-800'
+            }`}>
+              {spreadsheetStatus === 'ingediend' ? 'Ingediend' : 'Concept'}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => setShowSettings(s => !s)} className="btn-secondary text-sm">
@@ -640,6 +691,29 @@ export default function SpreadsheetEditorPage() {
               t('common.save')
             )}
           </button>
+          {!isNew && spreadsheetStatus === 'concept' && (
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="btn text-sm text-white"
+              style={{ backgroundColor: '#16a34a' }}
+              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#15803d')}
+              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#16a34a')}
+            >
+              <PaperAirplaneIcon className="w-4 h-4 mr-1" />
+              Indienen
+            </button>
+          )}
+          {!isNew && spreadsheetStatus === 'ingediend' && (
+            <button
+              onClick={handleReopen}
+              disabled={saving}
+              className="btn-secondary text-sm"
+            >
+              <ArrowPathIcon className="w-4 h-4 mr-1" />
+              Heropenen
+            </button>
+          )}
         </div>
       </div>
 

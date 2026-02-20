@@ -208,6 +208,7 @@ export default function SpreadsheetListPage() {
                     <th className="text-center px-4 py-3 font-medium text-gray-600">{t('spreadsheets.week')}</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-600">{t('spreadsheets.year')}</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-600">{t('spreadsheets.totalInvoice')}</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-600">{t('spreadsheets.createdBy')}</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-600">{t('spreadsheets.updatedAt')}</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-600">{t('common.actions')}</th>
@@ -221,6 +222,15 @@ export default function SpreadsheetListPage() {
                       <td className="px-4 py-3 text-center">{sheet.week_nummer}</td>
                       <td className="px-4 py-3 text-center">{sheet.jaar}</td>
                       <td className="px-4 py-3 text-right font-semibold text-primary-600">€ {formatCurrency(sheet.totaal_factuur)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          sheet.status === 'ingediend'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {sheet.status === 'ingediend' ? 'Ingediend' : 'Concept'}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{sheet.created_by_naam}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(sheet.updated_at)}</td>
                       <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>

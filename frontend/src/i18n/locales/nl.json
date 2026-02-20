@@ -584,6 +584,7 @@
     "generateFromHours": "Genereer vanuit uren",
     "importInvoice": "Factuur importeren",
     "importHours": "Uren importeren",
+    "importSpreadsheet": "Ritregistratie importeren",
     "searchInvoices": "Zoek facturen...",
     "filterByStatus": "Filter op status",
     "filterByCompany": "Filter op bedrijf",

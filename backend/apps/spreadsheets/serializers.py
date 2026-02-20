@@ -13,7 +13,7 @@ class SpreadsheetListSerializer(serializers.ModelSerializer):
             'id', 'naam', 'bedrijf', 'bedrijf_naam',
             'week_nummer', 'jaar',
             'tarief_per_uur', 'tarief_per_km', 'tarief_dot',
-            'totaal_factuur',
+            'rijen', 'totaal_factuur', 'status',
             'created_by', 'created_by_naam',
             'created_at', 'updated_at',
         ]
@@ -36,7 +36,7 @@ class SpreadsheetDetailSerializer(serializers.ModelSerializer):
             'id', 'naam', 'bedrijf', 'bedrijf_naam',
             'week_nummer', 'jaar',
             'tarief_per_uur', 'tarief_per_km', 'tarief_dot',
-            'rijen', 'notities', 'totaal_factuur',
+            'rijen', 'notities', 'totaal_factuur', 'status',
             'created_by', 'created_by_naam',
             'created_at', 'updated_at',
         ]
