@@ -11,8 +11,10 @@ import {
   ChevronDownIcon,
   ArrowPathIcon,
   BuildingOfficeIcon,
+  EnvelopeIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
-import { Company } from '@/types'
+import { Company, MailingListContact } from '@/types'
 import { 
   getCompanies, 
   createCompany, 
@@ -21,6 +23,10 @@ import {
   CompanyFilters,
   CompanyCreate,
   CompanyUpdate,
+  getMailingContacts,
+  createMailingContact,
+  updateMailingContact,
+  deleteMailingContact,
 } from '@/api/companies'
 import Pagination, { PageSize } from '@/components/common/Pagination'
 
@@ -293,6 +299,319 @@ function CompanyForm({
   )
 }
 
+// Mailing List Panel component
+function MailingListPanel({
+  company,
+  onClose,
+}: {
+  company: Company
+  onClose: () => void
+}) {
+  const { t } = useTranslation()
+  const [contacts, setContacts] = useState<MailingListContact[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingContact, setEditingContact] = useState<MailingListContact | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<MailingListContact | null>(null)
+
+  // Form state
+  const [formData, setFormData] = useState({ naam: '', email: '', functie: '' })
+
+  useEffect(() => {
+    loadContacts()
+  }, [company.id])
+
+  const loadContacts = async () => {
+    try {
+      setLoading(true)
+      const data = await getMailingContacts(company.id)
+      setContacts(data)
+    } catch (err) {
+      console.error('Failed to load mailing contacts:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({ naam: '', email: '', functie: '' })
+    setShowAddForm(false)
+    setEditingContact(null)
+  }
+
+  const handleAdd = async () => {
+    if (!formData.naam.trim() || !formData.email.trim()) return
+    try {
+      setSaving(true)
+      setError(null)
+      await createMailingContact({
+        bedrijf: company.id,
+        naam: formData.naam,
+        email: formData.email,
+        functie: formData.functie,
+      })
+      resetForm()
+      loadContacts()
+    } catch (err: any) {
+      setError(err.response?.data?.email?.[0] || err.response?.data?.detail || t('common.error'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleEdit = async () => {
+    if (!editingContact || !formData.naam.trim() || !formData.email.trim()) return
+    try {
+      setSaving(true)
+      setError(null)
+      await updateMailingContact(editingContact.id, {
+        naam: formData.naam,
+        email: formData.email,
+        functie: formData.functie,
+      })
+      resetForm()
+      loadContacts()
+    } catch (err: any) {
+      setError(err.response?.data?.email?.[0] || err.response?.data?.detail || t('common.error'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      setSaving(true)
+      await deleteMailingContact(deleteTarget.id)
+      setDeleteTarget(null)
+      loadContacts()
+    } catch (err: any) {
+      setError(err.response?.data?.detail || t('common.error'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleToggleActive = async (contact: MailingListContact) => {
+    try {
+      await updateMailingContact(contact.id, { is_active: !contact.is_active })
+      loadContacts()
+    } catch (err) {
+      console.error('Failed to toggle contact:', err)
+    }
+  }
+
+  const startEdit = (contact: MailingListContact) => {
+    setEditingContact(contact)
+    setFormData({ naam: contact.naam, email: contact.email, functie: contact.functie })
+    setShowAddForm(true)
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <EnvelopeIcon className="h-5 w-5 text-primary-600" />
+            {t('companies.mailingList')}
+          </h3>
+          <p className="text-sm text-gray-500 mt-1">
+            {company.naam} — {t('companies.mailingListDescription')}
+          </p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)}><XMarkIcon className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {/* Contacts list */}
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+        </div>
+      ) : contacts.length === 0 && !showAddForm ? (
+        <div className="py-8 text-center">
+          <UserGroupIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+          <p className="text-gray-500">{t('companies.noContacts')}</p>
+          <p className="text-sm text-gray-400 mb-4">{t('companies.addFirstContact')}</p>
+          <button
+            onClick={() => { resetForm(); setShowAddForm(true) }}
+            className="btn-primary text-sm"
+          >
+            <PlusIcon className="w-4 h-4 mr-1" />
+            {t('companies.addContact')}
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="divide-y border rounded-lg overflow-hidden">
+            {contacts.map(contact => (
+              <div
+                key={contact.id}
+                className={`p-3 flex items-center justify-between gap-3 ${
+                  !contact.is_active ? 'bg-gray-50 opacity-60' : 'bg-white'
+                }`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900 truncate">{contact.naam}</span>
+                    {contact.functie && (
+                      <span className="text-xs text-gray-400 hidden sm:inline">({contact.functie})</span>
+                    )}
+                    {!contact.is_active && (
+                      <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
+                        {t('common.inactive') || 'Inactief'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-500 truncate">{contact.email}</div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleToggleActive(contact)}
+                    className={`p-1.5 rounded text-xs font-medium min-w-[44px] min-h-[44px] flex items-center justify-center ${
+                      contact.is_active
+                        ? 'text-green-600 hover:bg-green-50'
+                        : 'text-gray-400 hover:bg-gray-100'
+                    }`}
+                    title={contact.is_active ? 'Deactiveren' : 'Activeren'}
+                  >
+                    <CheckCircleIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => startEdit(contact)}
+                    className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-gray-100 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  >
+                    <PencilSquareIcon className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget(contact)}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {!showAddForm && (
+            <button
+              onClick={() => { resetForm(); setShowAddForm(true) }}
+              className="btn-secondary text-sm"
+            >
+              <PlusIcon className="w-4 h-4 mr-1" />
+              {t('companies.addContact')}
+            </button>
+          )}
+        </>
+      )}
+
+      {/* Add/Edit Form */}
+      {showAddForm && (
+        <div className="border rounded-lg p-4 bg-gray-50 space-y-3">
+          <h4 className="font-medium text-gray-900 text-sm">
+            {editingContact ? t('companies.editContact') : t('companies.addContact')}
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t('companies.contactName')} *
+              </label>
+              <input
+                type="text"
+                value={formData.naam}
+                onChange={(e) => setFormData(prev => ({ ...prev, naam: e.target.value }))}
+                className="input text-sm"
+                placeholder="Jan de Vries"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t('companies.contactEmail')} *
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                className="input text-sm"
+                placeholder="jan@bedrijf.nl"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              {t('companies.contactFunction')}
+            </label>
+            <input
+              type="text"
+              value={formData.functie}
+              onChange={(e) => setFormData(prev => ({ ...prev, functie: e.target.value }))}
+              className="input text-sm"
+              placeholder="Administratie"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              onClick={resetForm}
+              className="btn-secondary text-sm px-3 py-1.5"
+              disabled={saving}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={editingContact ? handleEdit : handleAdd}
+              className="btn-primary text-sm px-3 py-1.5"
+              disabled={saving || !formData.naam.trim() || !formData.email.trim()}
+            >
+              {saving ? t('common.saving') : editingContact ? t('common.save') : t('common.add')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {deleteTarget && (
+        <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+          <p className="text-sm text-red-700 mb-3">
+            {t('companies.deleteContactConfirm')} <strong>{deleteTarget.naam}</strong> ({deleteTarget.email})?
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setDeleteTarget(null)}
+              className="btn-secondary text-sm px-3 py-1.5"
+              disabled={saving}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleDelete}
+              className="btn-danger text-sm px-3 py-1.5"
+              disabled={saving}
+            >
+              {saving ? t('common.deleting') : t('common.delete')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Close button */}
+      <div className="flex justify-end pt-2 border-t">
+        <button onClick={onClose} className="btn-secondary">
+          {t('common.close')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // Main CompaniesPage component
 export default function CompaniesPage() {
   const { t } = useTranslation()
@@ -314,6 +633,7 @@ export default function CompaniesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showMailingModal, setShowMailingModal] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
 
   // Helper to extract error message
@@ -589,6 +909,16 @@ export default function CompaniesPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button
+                          onClick={() => { setSelectedCompany(company); setShowMailingModal(true) }}
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                          title={t('companies.mailingList')}
+                        >
+                          <EnvelopeIcon className="w-5 h-5" />
+                          {(company.mailing_contacts_count > 0) && (
+                            <span className="sr-only">{company.mailing_contacts_count}</span>
+                          )}
+                        </button>
+                        <button
                           onClick={() => { setSelectedCompany(company); setShowEditModal(true) }}
                           className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
                           title="Bewerken"
@@ -643,6 +973,13 @@ export default function CompaniesPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => { setSelectedCompany(company); setShowMailingModal(true) }}
+                      className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg"
+                      title={t('companies.mailingList')}
+                    >
+                      <EnvelopeIcon className="w-5 h-5" />
+                    </button>
                     <button
                       onClick={() => { setSelectedCompany(company); setShowEditModal(true) }}
                       className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg"
@@ -746,6 +1083,21 @@ export default function CompaniesPage() {
         confirmText="Verwijderen"
         isLoading={isActionLoading}
       />
+
+      {/* Mailing List Modal */}
+      <Modal
+        isOpen={showMailingModal}
+        onClose={() => { setShowMailingModal(false); setSelectedCompany(null) }}
+        title={t('companies.mailingList')}
+        size="lg"
+      >
+        {selectedCompany && (
+          <MailingListPanel
+            company={selectedCompany}
+            onClose={() => { setShowMailingModal(false); setSelectedCompany(null) }}
+          />
+        )}
+      </Modal>
     </div>
   )
 }

@@ -107,6 +107,19 @@ export interface Company {
   adres: string
   postcode: string
   stad: string
+  mailing_contacts: MailingListContact[]
+  mailing_contacts_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface MailingListContact {
+  id: string
+  bedrijf: string
+  naam: string
+  email: string
+  functie: string
+  is_active: boolean
   created_at: string
   updated_at: string
 }

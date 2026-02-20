@@ -216,6 +216,23 @@ export const extractFromRegion = async (
 };
 
 /**
+ * Download the original imported file as a blob (for PDF preview)
+ */
+export const downloadImportFile = async (id: string): Promise<Blob> => {
+  const response = await api.get(`/invoicing/ocr/imports/${id}/download_file/`, {
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
+/**
+ * Get the OCR page image URL (through API, authenticated)
+ */
+export const getImportPageImageUrl = (id: string, page: number): string => {
+  return `${api.defaults.baseURL}/invoicing/ocr/imports/${id}/page_image/?page=${page}`;
+};
+
+/**
  * Convert import to invoice or expense
  */
 export const convertToInvoice = async (

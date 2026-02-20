@@ -582,7 +582,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def send_email(self, request, pk=None):
-        """Send invoice via email."""
+        """Send invoice via email. Supports single email, multiple emails, or mailing list."""
         from django.core.mail import EmailMessage
         from apps.core.models import AppSettings
         
@@ -594,17 +594,48 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get recipient email from request or use company email
-        recipient_email = request.data.get('email')
-        if not recipient_email:
-            # Try to get from company
+        # Collect recipient emails
+        recipient_emails = []
+        
+        # Option 1: Single email from request
+        single_email = request.data.get('email')
+        if single_email:
+            recipient_emails.append(single_email)
+        
+        # Option 2: Multiple emails from request (mailing list selection)
+        emails_list = request.data.get('emails', [])
+        if emails_list and isinstance(emails_list, list):
+            recipient_emails.extend(emails_list)
+        
+        # Option 3: Use mailing list flag - send to all active contacts of the company
+        use_mailing_list = request.data.get('use_mailing_list', False)
+        if use_mailing_list:
+            from apps.companies.models import MailingListContact
+            mailing_contacts = MailingListContact.objects.filter(
+                bedrijf=invoice.bedrijf, is_active=True
+            )
+            for contact in mailing_contacts:
+                if contact.email not in recipient_emails:
+                    recipient_emails.append(contact.email)
+        
+        # Fallback to company email
+        if not recipient_emails:
             if hasattr(invoice.bedrijf, 'email') and invoice.bedrijf.email:
-                recipient_email = invoice.bedrijf.email
+                recipient_emails.append(invoice.bedrijf.email)
             else:
                 return Response(
                     {'error': 'Geen e-mailadres opgegeven en bedrijf heeft geen e-mailadres'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_emails = []
+        for e in recipient_emails:
+            if e not in seen:
+                seen.add(e)
+                unique_emails.append(e)
+        recipient_emails = unique_emails
         
         # Get app settings for SMTP and company info
         settings = AppSettings.get_settings()
@@ -659,7 +690,7 @@ Met vriendelijke groet,
                 subject=subject,
                 body=body,
                 from_email=from_email,
-                to=[recipient_email],
+                to=recipient_emails,
                 connection=connection,
             )
             
@@ -677,13 +708,14 @@ Met vriendelijke groet,
                 invoice.sent_at = timezone.now()
                 invoice.save()
             
+            recipients_str = ', '.join(recipient_emails)
             logger.info(
-                f"Invoice email sent: {invoice.factuurnummer} to {recipient_email} "
+                f"Invoice email sent: {invoice.factuurnummer} to {recipients_str} "
                 f"by user {request.user.email}"
             )
             
             return Response({
-                'message': f'Factuur succesvol verzonden naar {recipient_email}',
+                'message': f'Factuur succesvol verzonden naar {recipients_str}',
                 'invoice': InvoiceSerializer(invoice).data
             })
             

@@ -183,7 +183,7 @@ class WeekPlanningViewSet(viewsets.ModelViewSet):
                 'kenteken': entry.vehicle.kenteken if entry.vehicle else '',
                 'voertuig_type': entry.vehicle.type_wagen if entry.vehicle else '',
                 'bedrijf': entry.planning.bedrijf.naam if entry.planning.bedrijf else '',
-                'ritnummer': entry.ritnummer or '',
+                'ritnummer': entry.ritnummer or (entry.vehicle.ritnummer if entry.vehicle else ''),
                 'weeknummer': entry.planning.weeknummer,
                 'jaar': entry.planning.jaar,
             })
@@ -235,6 +235,7 @@ class WeekPlanningViewSet(viewsets.ModelViewSet):
                 vehicle=entry.vehicle,
                 dag=entry.dag,
                 chauffeur=entry.chauffeur,
+                ritnummer=entry.ritnummer,
                 telefoon=entry.telefoon,
                 adr=entry.adr
             )

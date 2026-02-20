@@ -25,3 +25,30 @@ class Company(models.Model):
     
     def __str__(self):
         return self.naam
+
+
+class MailingListContact(models.Model):
+    """Contact in een mailinglijst van een bedrijf."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    bedrijf = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name='mailing_contacts',
+        verbose_name='Bedrijf'
+    )
+    naam = models.CharField(max_length=200, verbose_name='Naam')
+    email = models.EmailField(verbose_name='E-mail')
+    functie = models.CharField(max_length=200, blank=True, verbose_name='Functie')
+    is_active = models.BooleanField(default=True, verbose_name='Actief')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Mailinglijst contact'
+        verbose_name_plural = 'Mailinglijst contacten'
+        ordering = ['naam']
+        unique_together = ['bedrijf', 'email']
+    
+    def __str__(self):
+        return f"{self.naam} <{self.email}>"

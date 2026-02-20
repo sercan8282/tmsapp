@@ -187,6 +187,90 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
             'region': bbox.to_dict()
         })
     
+    @action(detail=True, methods=['get'])
+    def download_file(self, request, pk=None):
+        """
+        Download the original imported file.
+        Returns the file as a blob for secure iframe embedding.
+        """
+        invoice_import = self.get_object()
+        
+        if not invoice_import.original_file:
+            return Response(
+                {'error': 'Geen bestand beschikbaar'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        import os
+        from django.http import FileResponse
+        
+        file_path = invoice_import.original_file.path
+        if not os.path.exists(file_path):
+            return Response(
+                {'error': 'Bestand niet gevonden'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Determine content type
+        content_type = 'application/pdf'
+        if invoice_import.file_type in ['jpg', 'jpeg']:
+            content_type = 'image/jpeg'
+        elif invoice_import.file_type == 'png':
+            content_type = 'image/png'
+        
+        response = FileResponse(
+            open(file_path, 'rb'),
+            content_type=content_type,
+        )
+        response['Content-Disposition'] = f'inline; filename="{invoice_import.file_name}"'
+        # Allow iframe embedding
+        if 'X-Frame-Options' in response:
+            del response['X-Frame-Options']
+        return response
+
+    @action(detail=True, methods=['get'])
+    def page_image(self, request, pk=None):
+        """
+        Get the OCR page image for a specific page.
+        Returns the rendered page image for the PDF preview canvas.
+        """
+        invoice_import = self.get_object()
+        page_num = int(request.query_params.get('page', 0))
+        
+        ocr_pages = invoice_import.extracted_data.get('ocr_pages', [])
+        if page_num >= len(ocr_pages):
+            return Response(
+                {'error': 'Pagina niet gevonden'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        image_path = ocr_pages[page_num].get('image_path')
+        if not image_path:
+            return Response(
+                {'error': 'Afbeelding niet beschikbaar'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        import os
+        from django.http import FileResponse
+        from django.conf import settings as django_settings
+        
+        # Resolve absolute path
+        if not os.path.isabs(image_path):
+            image_path = os.path.join(django_settings.MEDIA_ROOT, image_path)
+        
+        if not os.path.exists(image_path):
+            return Response(
+                {'error': 'Afbeelding niet gevonden op schijf'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        response = FileResponse(
+            open(image_path, 'rb'),
+            content_type='image/png',
+        )
+        return response
+
     @action(detail=True, methods=['post'])
     def convert(self, request, pk=None):
         """

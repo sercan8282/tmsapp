@@ -68,15 +68,37 @@ function getCurrentWeekNumber(): number {
 function ChauffeurPlanningView() {
   const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
-  const [currentWeek, setCurrentWeek] = useState<number>(getCurrentWeekNumber())
-  const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear())
+  const [weekInitialized, setWeekInitialized] = useState(false)
+  const [currentWeek, setCurrentWeek] = useState<number>(0)
+  const [currentYear, setCurrentYear] = useState<number>(0)
   const [entries, setEntries] = useState<MyPlanningEntry[]>([])
   const [chauffeurName, setChauffeurName] = useState<string>('')
   const [message, setMessage] = useState<string>('')
 
+  // Load the correct current week from the backend (ISO 8601)
   useEffect(() => {
-    loadMyPlanning()
-  }, [currentWeek, currentYear])
+    const initWeek = async () => {
+      try {
+        const weekInfo = await getCurrentWeek()
+        setCurrentWeek(weekInfo.weeknummer)
+        setCurrentYear(weekInfo.jaar)
+        setWeekInitialized(true)
+      } catch (err) {
+        console.error('Failed to get current week:', err)
+        // Fallback to local calculation
+        setCurrentWeek(getCurrentWeekNumber())
+        setCurrentYear(new Date().getFullYear())
+        setWeekInitialized(true)
+      }
+    }
+    initWeek()
+  }, [])
+
+  useEffect(() => {
+    if (weekInitialized) {
+      loadMyPlanning()
+    }
+  }, [currentWeek, currentYear, weekInitialized])
 
   const loadMyPlanning = async () => {
     try {

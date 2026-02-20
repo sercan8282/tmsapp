@@ -258,8 +258,17 @@ export async function openPdfInNewTab(id: string): Promise<void> {
   window.open(pdfUrl, '_blank')
 }
 
-export async function sendInvoiceEmail(id: string, email?: string): Promise<{ message: string }> {
-  const response = await api.post(`/invoicing/invoices/${id}/send_email/`, email ? { email } : {})
+export async function sendInvoiceEmail(
+  id: string,
+  email?: string,
+  emails?: string[],
+  useMailingList?: boolean
+): Promise<{ message: string }> {
+  const data: Record<string, unknown> = {}
+  if (email) data.email = email
+  if (emails && emails.length > 0) data.emails = emails
+  if (useMailingList) data.use_mailing_list = true
+  const response = await api.post(`/invoicing/invoices/${id}/send_email/`, data)
   return response.data
 }
 

@@ -25,8 +25,11 @@ import {
   submitCorrections,
   extractFromRegion,
   convertToInvoice,
+  downloadImportFile,
+  getImportPageImageUrl,
   BoundingBox,
 } from '../../api/ocr';
+import { useAuthStore } from '../../stores/authStore';
 
 // Helper function to parse Dutch formatted amounts (1.234,56 → 1234.56)
 const parseAmount = (value: unknown): number => {
@@ -101,6 +104,7 @@ const InvoiceImportDetailPage: React.FC = () => {
   const [extractedValues, setExtractedValues] = useState<Record<string, unknown>>({});
   const [selectedInvoiceType, setSelectedInvoiceType] = useState<string>('inkoop');
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [editableLines, setEditableLines] = useState<Array<{
     id: string;
     omschrijving: string;
@@ -204,6 +208,33 @@ const InvoiceImportDetailPage: React.FC = () => {
     },
   });
 
+  // Load PDF blob for iframe fallback
+  useEffect(() => {
+    if (importData && id) {
+      loadPdfBlob();
+    }
+    return () => {
+      // Clean up blob URL on unmount
+      if (pdfBlobUrl) {
+        URL.revokeObjectURL(pdfBlobUrl);
+      }
+    };
+  }, [importData?.id]);
+
+  const loadPdfBlob = async () => {
+    if (!id) return;
+    try {
+      if (pdfBlobUrl) {
+        URL.revokeObjectURL(pdfBlobUrl);
+      }
+      const blob = await downloadImportFile(id);
+      const url = URL.createObjectURL(blob);
+      setPdfBlobUrl(url);
+    } catch (err) {
+      console.error('Could not load PDF blob:', err);
+    }
+  };
+
   // Draw image on canvas
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -288,10 +319,31 @@ const InvoiceImportDetailPage: React.FC = () => {
         setImageLoadError(true);
         imageRef.current = null;
       };
-      // Construct URL from path - use backend media URL directly
-      const imageUrl = `http://localhost:8001/media/${page.image_path}`;
-      console.log('Loading image:', imageUrl);
-      img.src = imageUrl;
+      // Use authenticated API endpoint for page images
+      const imageUrl = getImportPageImageUrl(id!, currentPage);
+      // Add auth token for image loading
+      const accessToken = useAuthStore.getState().accessToken;
+      if (accessToken) {
+        // Fetch image through API with auth header, then create object URL
+        fetch(imageUrl, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+          .then(res => {
+            if (!res.ok) throw new Error('Image fetch failed');
+            return res.blob();
+          })
+          .then(blob => {
+            const url = URL.createObjectURL(blob);
+            img.src = url;
+          })
+          .catch(() => {
+            console.log('Image fetch failed, showing PDF fallback');
+            setImageLoadError(true);
+            imageRef.current = null;
+          });
+      } else {
+        img.src = imageUrl;
+      }
     } else {
       // No image path available, show PDF fallback
       console.log('No image path, showing PDF fallback');
@@ -525,10 +577,10 @@ const InvoiceImportDetailPage: React.FC = () => {
                 <Loader2 className="w-8 h-8 animate-spin mb-2" />
                 <p className="text-sm">{t('imports.statusProcessing', 'Verwerken...')}</p>
               </div>
-            ) : imageLoadError && importData.original_file_url ? (
+            ) : imageLoadError && pdfBlobUrl ? (
               // Fallback to PDF embed when OCR image is not available
               <iframe
-                src={importData.original_file_url}
+                src={pdfBlobUrl}
                 className="w-full h-full min-h-[700px] bg-white"
                 title="PDF Preview"
               />

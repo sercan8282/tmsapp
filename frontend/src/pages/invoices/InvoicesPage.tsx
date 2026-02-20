@@ -21,7 +21,7 @@ import {
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/stores/authStore'
-import { Company, Invoice } from '@/types'
+import { Company, Invoice, MailingListContact } from '@/types'
 import Pagination, { PageSize } from '@/components/common/Pagination'
 import {
   getInvoices,
@@ -36,7 +36,7 @@ import {
   changeStatus,
   InvoiceFilters,
 } from '@/api/invoices'
-import { getCompanies } from '@/api/companies'
+import { getCompanies, getMailingContacts } from '@/api/companies'
 import clsx from '@/utils/clsx'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -76,6 +76,9 @@ export default function InvoicesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [emailAddress, setEmailAddress] = useState('')
   const [emailSending, setEmailSending] = useState(false)
+  const [mailingContacts, setMailingContacts] = useState<MailingListContact[]>([])
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
+  const [emailMode, setEmailMode] = useState<'mailing' | 'manual'>('mailing')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -257,16 +260,28 @@ export default function InvoicesPage() {
   }
 
   const handleSendEmail = async () => {
-    if (!selectedInvoice || !emailAddress) return
+    if (!selectedInvoice) return
+    
+    // Determine recipients based on mode
+    const emails: string[] = []
+    if (emailMode === 'mailing') {
+      selectedEmails.forEach(e => emails.push(e))
+    } else if (emailAddress.trim()) {
+      emails.push(emailAddress.trim())
+    }
+    
+    if (emails.length === 0) return
     
     try {
       setEmailSending(true)
       setError(null)
       
-      const result = await sendInvoiceEmail(selectedInvoice.id, emailAddress)
+      const result = await sendInvoiceEmail(selectedInvoice.id, undefined, emails)
       
       setShowEmailModal(false)
       setEmailAddress('')
+      setSelectedEmails(new Set())
+      setMailingContacts([])
       setSuccessMessage(result.message || t('invoices.invoiceSent'))
       loadInvoices()
       
@@ -279,10 +294,30 @@ export default function InvoicesPage() {
     }
   }
 
-  const openEmailModal = (invoice: Invoice) => {
+  const openEmailModal = async (invoice: Invoice) => {
     setSelectedInvoice(invoice)
     setEmailAddress('')
+    setSelectedEmails(new Set())
+    setMailingContacts([])
     setShowEmailModal(true)
+    
+    // Load mailing contacts for the invoice's company
+    if (invoice.bedrijf) {
+      try {
+        const contacts = await getMailingContacts(invoice.bedrijf)
+        setMailingContacts(contacts.filter(c => c.is_active))
+        if (contacts.filter(c => c.is_active).length > 0) {
+          setEmailMode('mailing')
+        } else {
+          setEmailMode('manual')
+        }
+      } catch (err) {
+        console.error('Failed to load mailing contacts:', err)
+        setEmailMode('manual')
+      }
+    } else {
+      setEmailMode('manual')
+    }
   }
 
   const handleDownloadPdf = async (invoice: Invoice) => {
@@ -1204,18 +1239,89 @@ export default function InvoicesPage() {
                         {t('invoices.sendInvoiceDescription')} {selectedInvoice?.factuurnummer}
                       </p>
                       
-                      <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('common.email')}
-                        </label>
-                        <input
-                          type="email"
-                          value={emailAddress}
-                          onChange={(e) => setEmailAddress(e.target.value)}
-                          placeholder="example@company.com"
-                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                        />
-                      </div>
+                      {/* Mode toggle when mailing contacts exist */}
+                      {mailingContacts.length > 0 && (
+                        <div className="mt-4 flex rounded-lg border overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setEmailMode('mailing')}
+                            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                              emailMode === 'mailing'
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {t('invoices.useMailingList')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEmailMode('manual')}
+                            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                              emailMode === 'manual'
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {t('invoices.manualEmail')}
+                          </button>
+                        </div>
+                      )}
+
+                      {emailMode === 'mailing' && mailingContacts.length > 0 ? (
+                        <div className="mt-4 space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            {t('invoices.selectRecipients')}
+                          </label>
+                          <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
+                            {mailingContacts.map(contact => (
+                              <label
+                                key={contact.id}
+                                className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedEmails.has(contact.email)}
+                                  onChange={(e) => {
+                                    const newSet = new Set(selectedEmails)
+                                    if (e.target.checked) {
+                                      newSet.add(contact.email)
+                                    } else {
+                                      newSet.delete(contact.email)
+                                    }
+                                    setSelectedEmails(newSet)
+                                  }}
+                                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-gray-900 truncate">{contact.naam}</div>
+                                  <div className="text-xs text-gray-500 truncate">{contact.email}</div>
+                                </div>
+                                {contact.functie && (
+                                  <span className="text-xs text-gray-400 shrink-0">{contact.functie}</span>
+                                )}
+                              </label>
+                            ))}
+                          </div>
+                          {selectedEmails.size > 0 && (
+                            <p className="text-xs text-gray-500">
+                              {t('invoices.selectedRecipients')}: {selectedEmails.size}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            {t('common.email')}
+                          </label>
+                          <input
+                            type="email"
+                            value={emailAddress}
+                            onChange={(e) => setEmailAddress(e.target.value)}
+                            placeholder="example@company.com"
+                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                          />
+                        </div>
+                      )}
                       
                       <p className="mt-3 text-xs text-gray-500">
                         {t('invoices.smtpNote')}
@@ -1234,7 +1340,7 @@ export default function InvoicesPage() {
                     </button>
                     <button 
                       onClick={handleSendEmail} 
-                      disabled={emailSending || !emailAddress}
+                      disabled={emailSending || (emailMode === 'manual' ? !emailAddress : selectedEmails.size === 0)}
                       className="btn-primary flex items-center gap-2"
                     >
                       {emailSending ? (

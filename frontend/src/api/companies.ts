@@ -3,7 +3,7 @@
  * CRUD operations for company management
  */
 import api from './client'
-import { Company } from '@/types'
+import { Company, MailingListContact } from '@/types'
 
 export interface CompanyCreate {
   naam: string
@@ -72,4 +72,51 @@ export async function updateCompany(id: string, data: CompanyUpdate): Promise<Co
 // Delete company
 export async function deleteCompany(id: string): Promise<void> {
   await api.delete(`/companies/${id}/`)
+}
+
+// ---- Mailing List Contacts ----
+
+export interface MailingListContactCreate {
+  bedrijf: string
+  naam: string
+  email: string
+  functie?: string
+  is_active?: boolean
+}
+
+export interface MailingListContactUpdate {
+  naam?: string
+  email?: string
+  functie?: string
+  is_active?: boolean
+}
+
+export interface MailingListContactsResponse {
+  count: number
+  next: string | null
+  previous: string | null
+  results: MailingListContact[]
+}
+
+// Get mailing list contacts for a company
+export async function getMailingContacts(bedrijfId: string): Promise<MailingListContact[]> {
+  const response = await api.get(`/companies/mailing-contacts/?bedrijf=${bedrijfId}&page_size=100`)
+  return response.data.results || response.data
+}
+
+// Create a new mailing list contact
+export async function createMailingContact(data: MailingListContactCreate): Promise<MailingListContact> {
+  const response = await api.post('/companies/mailing-contacts/', data)
+  return response.data
+}
+
+// Update a mailing list contact
+export async function updateMailingContact(id: string, data: MailingListContactUpdate): Promise<MailingListContact> {
+  const response = await api.patch(`/companies/mailing-contacts/${id}/`, data)
+  return response.data
+}
+
+// Delete a mailing list contact
+export async function deleteMailingContact(id: string): Promise<void> {
+  await api.delete(`/companies/mailing-contacts/${id}/`)
 }
