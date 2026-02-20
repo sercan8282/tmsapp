@@ -248,6 +248,33 @@ class LeaveRequestCreateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class LeaveRequestAdminCreateSerializer(serializers.Serializer):
+    """Serializer for admin creating leave requests on behalf of a user."""
+    user_id = serializers.UUIDField()
+    leave_type = serializers.ChoiceField(choices=[
+        ('vakantie', 'Vakantie'),
+        ('overuren', 'Verlof overuren'),
+        ('bijzonder_tandarts', 'Bijzonder verlof tandarts'),
+        ('bijzonder_huisarts', 'Bijzonder verlof huisarts'),
+    ])
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+    hours_requested = serializers.DecimalField(max_digits=6, decimal_places=2)
+    reason = serializers.CharField(required=False, allow_blank=True, default='')
+    auto_approve = serializers.BooleanField(default=True)
+
+    def validate(self, data):
+        if data['start_date'] > data['end_date']:
+            raise serializers.ValidationError({
+                'end_date': 'Einddatum moet na startdatum liggen.'
+            })
+        if data['hours_requested'] <= 0:
+            raise serializers.ValidationError({
+                'hours_requested': 'Aantal uren moet groter zijn dan 0.'
+            })
+        return data
+
+
 class LeaveRequestAdminActionSerializer(serializers.Serializer):
     """Serializer for admin actions on leave requests."""
     action = serializers.ChoiceField(choices=['approve', 'reject', 'delete'])

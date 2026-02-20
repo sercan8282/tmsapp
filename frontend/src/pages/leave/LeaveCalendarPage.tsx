@@ -272,10 +272,10 @@ export default function LeaveCalendarPage() {
                             key={entry.id}
                             className={`absolute top-2 h-8 ${colors.bg} ${colors.border} border rounded-md shadow-sm cursor-pointer hover:opacity-90 transition-opacity flex items-center justify-center overflow-hidden`}
                             style={{ left: style.left, width: style.width, minWidth: '24px' }}
-                            title={`${entry.user_naam}: ${entry.leave_type_display}\n${new Date(entry.start_date).toLocaleDateString('nl-NL')} - ${new Date(entry.end_date).toLocaleDateString('nl-NL')}\n${entry.hours} uur`}
+                            title={`${entry.user_naam}: ${entry.leave_type_display}\n${new Date(entry.start_date).toLocaleDateString('nl-NL')} - ${new Date(entry.end_date).toLocaleDateString('nl-NL')}`}
                           >
                             <span className={`text-xs font-medium ${colors.text} truncate px-1`}>
-                              {entry.hours}u
+                              {entry.leave_type_display}
                             </span>
                           </div>
                         )
@@ -316,7 +316,6 @@ export default function LeaveCalendarPage() {
                         <> - {new Date(entry.end_date).toLocaleDateString('nl-NL')}</>
                       )}
                     </p>
-                    <p className="text-xs text-gray-500">{entry.hours} uur</p>
                   </div>
                 </div>
               )

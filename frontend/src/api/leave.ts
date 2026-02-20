@@ -179,6 +179,21 @@ export async function createLeaveRequest(data: LeaveRequestCreate): Promise<Leav
   return response.data
 }
 
+export interface AdminLeaveRequestCreate {
+  user_id: string
+  leave_type: LeaveType
+  start_date: string
+  end_date: string
+  hours_requested: number
+  reason?: string
+  auto_approve?: boolean
+}
+
+export async function adminCreateLeaveRequest(data: AdminLeaveRequestCreate): Promise<LeaveRequest> {
+  const response = await api.post('/leave/requests/admin_create/', data)
+  return response.data
+}
+
 export async function adminUpdateLeaveRequest(
   id: string,
   data: Partial<LeaveRequestCreate>

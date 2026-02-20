@@ -13,15 +13,20 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   PencilIcon,
+  PlusIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline'
 import {
   getAllLeaveRequests,
   adminLeaveAction,
   adminUpdateLeaveRequest,
+  adminCreateLeaveRequest,
   LeaveRequest,
   LeaveRequestCreate,
+  AdminLeaveRequestCreate,
   LEAVE_TYPE_OPTIONS,
 } from '@/api/leave'
+import { getUsers } from '@/api/users'
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected'
 
@@ -63,8 +68,23 @@ export default function LeaveRequestsAdminPage() {
   const [editForm, setEditForm] = useState<Partial<LeaveRequestCreate>>({})
   const [isSaving, setIsSaving] = useState(false)
 
+  // Create modal state
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [users, setUsers] = useState<Array<{ id: string; voornaam: string; achternaam: string; username: string }>>([])
+  const [createForm, setCreateForm] = useState<AdminLeaveRequestCreate>({
+    user_id: '',
+    leave_type: 'vakantie',
+    start_date: '',
+    end_date: '',
+    hours_requested: 8,
+    reason: '',
+    auto_approve: true,
+  })
+  const [isCreating, setIsCreating] = useState(false)
+
   useEffect(() => {
     fetchRequests()
+    fetchUsers()
   }, [])
 
   useEffect(() => {
@@ -87,6 +107,51 @@ export default function LeaveRequestsAdminPage() {
       setError(err.message || t('common.error'))
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchUsers = async () => {
+    try {
+      const data = await getUsers({ page_size: 1000, is_active: 'true' })
+      setUsers(data.results || [])
+    } catch {
+      // silently fail, users list optional
+    }
+  }
+
+  const openCreateModal = () => {
+    setCreateForm({
+      user_id: '',
+      leave_type: 'vakantie',
+      start_date: '',
+      end_date: '',
+      hours_requested: 8,
+      reason: '',
+      auto_approve: true,
+    })
+    setShowCreateModal(true)
+  }
+
+  const handleCreate = async () => {
+    if (!createForm.user_id) {
+      setError('Selecteer een medewerker.')
+      return
+    }
+    if (!createForm.start_date || !createForm.end_date) {
+      setError('Vul start- en einddatum in.')
+      return
+    }
+    setIsCreating(true)
+    setError(null)
+    try {
+      await adminCreateLeaveRequest(createForm)
+      setShowCreateModal(false)
+      await fetchRequests()
+      showSuccess(t('leave.requestCreated', 'Verlofaanvraag aangemaakt.'))
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.message || t('common.error'))
+    } finally {
+      setIsCreating(false)
     }
   }
 
@@ -180,6 +245,13 @@ export default function LeaveRequestsAdminPage() {
             )}
           </p>
         </div>
+        <button
+          onClick={openCreateModal}
+          className="btn btn-primary flex items-center gap-2"
+        >
+          <PlusIcon className="w-5 h-5" />
+          {t('leave.createRequest', 'Verlof aanmaken')}
+        </button>
       </div>
 
       {/* Alerts */}
@@ -449,6 +521,157 @@ export default function LeaveRequestsAdminPage() {
                   disabled={isSaving}
                 >
                   {isSaving ? t('common.saving') : t('common.save')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/30" onClick={() => setShowCreateModal(false)} />
+            <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <UserIcon className="w-5 h-5" />
+                {t('leave.createRequest', 'Verlof aanmaken')}
+              </h2>
+              
+              <div className="space-y-4">
+                {/* User Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('leave.employee', 'Medewerker')}
+                  </label>
+                  <select
+                    value={createForm.user_id}
+                    onChange={(e) => setCreateForm({ ...createForm, user_id: e.target.value })}
+                    className="input w-full"
+                  >
+                    <option value="">{t('leave.selectEmployee', 'Selecteer medewerker...')}</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.voornaam && user.achternaam
+                          ? `${user.voornaam} ${user.achternaam}`
+                          : user.username}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Leave Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('leave.leaveType')}
+                  </label>
+                  <select
+                    value={createForm.leave_type}
+                    onChange={(e) => setCreateForm({ ...createForm, leave_type: e.target.value as any })}
+                    className="input w-full"
+                  >
+                    {LEAVE_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('leave.startDate')}
+                    </label>
+                    <input
+                      type="date"
+                      value={createForm.start_date}
+                      onChange={(e) => {
+                        const start = e.target.value
+                        setCreateForm({ ...createForm, start_date: start, end_date: createForm.end_date || start })
+                      }}
+                      className="input w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t('leave.endDate')}
+                    </label>
+                    <input
+                      type="date"
+                      value={createForm.end_date}
+                      onChange={(e) => setCreateForm({ ...createForm, end_date: e.target.value })}
+                      min={createForm.start_date}
+                      className="input w-full"
+                    />
+                  </div>
+                </div>
+
+                {/* Hours */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('leave.hoursRequested')}
+                  </label>
+                  <input
+                    type="number"
+                    value={createForm.hours_requested}
+                    onChange={(e) => setCreateForm({ ...createForm, hours_requested: parseFloat(e.target.value) || 0 })}
+                    min="0.5"
+                    step="0.5"
+                    className="input w-full"
+                  />
+                </div>
+
+                {/* Reason */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('leave.comment')}
+                  </label>
+                  <textarea
+                    value={createForm.reason || ''}
+                    onChange={(e) => setCreateForm({ ...createForm, reason: e.target.value })}
+                    rows={2}
+                    className="input w-full"
+                    placeholder={t('leave.reasonPlaceholder', 'Reden (optioneel)...')}
+                  />
+                </div>
+
+                {/* Auto Approve */}
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="auto-approve"
+                    checked={createForm.auto_approve}
+                    onChange={(e) => setCreateForm({ ...createForm, auto_approve: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <label htmlFor="auto-approve" className="text-sm text-gray-700">
+                    {t('leave.autoApprove', 'Direct goedkeuren en uren inhouden')}
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="btn btn-secondary"
+                  disabled={isCreating}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  onClick={handleCreate}
+                  className="btn btn-primary flex items-center gap-2"
+                  disabled={isCreating || !createForm.user_id}
+                >
+                  {isCreating ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  ) : (
+                    <PlusIcon className="w-4 h-4" />
+                  )}
+                  {isCreating ? t('common.saving') : t('leave.createRequest', 'Verlof aanmaken')}
                 </button>
               </div>
             </div>

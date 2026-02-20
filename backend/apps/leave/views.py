@@ -22,6 +22,7 @@ from .serializers import (
     LeaveBalanceAdminUpdateSerializer,
     LeaveRequestSerializer,
     LeaveRequestCreateSerializer,
+    LeaveRequestAdminCreateSerializer,
     LeaveRequestAdminActionSerializer,
     CalendarLeaveEntrySerializer,
     ConcurrentLeaveCheckSerializer,
@@ -386,6 +387,116 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         serializer = LeaveRequestSerializer(queryset, many=True)
         return Response(serializer.data)
     
+    @action(detail=False, methods=['post'])
+    def admin_create(self, request):
+        """Admin creates a leave request on behalf of a user."""
+        if not (request.user.is_superuser or request.user.rol == 'admin'):
+            return Response(
+                {'error': 'Alleen admins kunnen verlofaanvragen aanmaken voor gebruikers.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        serializer = LeaveRequestAdminCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            target_user = User.objects.get(id=data['user_id'], is_active=True)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Gebruiker niet gevonden.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Ensure user has a leave balance
+        try:
+            balance = target_user.leave_balance
+        except LeaveBalance.DoesNotExist:
+            settings_obj = GlobalLeaveSettings.get_settings()
+            balance = LeaveBalance.objects.create(
+                user=target_user,
+                vacation_hours=settings_obj.default_leave_hours
+            )
+
+        # Create the leave request
+        leave_request = LeaveRequest.objects.create(
+            user=target_user,
+            leave_type=data['leave_type'],
+            start_date=data['start_date'],
+            end_date=data['end_date'],
+            hours_requested=data['hours_requested'],
+            reason=data.get('reason', ''),
+            status=LeaveRequestStatus.PENDING,
+        )
+
+        # Auto-approve if requested
+        if data.get('auto_approve', True):
+            deductions = leave_request.calculate_deductions()
+
+            # Validate sufficient balance
+            if deductions['vacation_deduct'] > balance.vacation_hours:
+                leave_request.delete()
+                return Response(
+                    {'error': f"Onvoldoende verlofuren. Nodig: {deductions['vacation_deduct']}u, beschikbaar: {balance.vacation_hours}u"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if deductions['overtime_deduct'] > balance.available_overtime_for_leave:
+                leave_request.delete()
+                return Response(
+                    {'error': f"Onvoldoende overuren. Nodig: {deductions['overtime_deduct']}u, beschikbaar: {balance.available_overtime_for_leave}u"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Apply deductions
+            if deductions['vacation_deduct'] > 0:
+                balance.deduct_vacation(deductions['vacation_deduct'])
+            if deductions['overtime_deduct'] > 0:
+                balance.deduct_overtime(deductions['overtime_deduct'])
+            if deductions['special_free'] > 0:
+                month_key = leave_request.get_month_key()
+                balance.add_special_leave_used(month_key, deductions['special_free'])
+
+            leave_request.status = LeaveRequestStatus.APPROVED
+            leave_request.admin_comment = f'Aangemaakt door admin'
+            leave_request.reviewed_by = request.user
+            leave_request.reviewed_at = timezone.now()
+            leave_request.save()
+
+            # Audit log
+            log_leave_action(
+                action=LeaveAuditAction.REQUEST_APPROVED,
+                admin_user=request.user,
+                target_user=target_user,
+                leave_request=leave_request,
+                details={
+                    'admin_created': True,
+                    'auto_approved': True,
+                    'deductions': {
+                        'vacation': str(deductions['vacation_deduct']),
+                        'overtime': str(deductions['overtime_deduct']),
+                        'special_free': str(deductions['special_free']),
+                    }
+                },
+                ip_address=get_client_ip(request)
+            )
+        else:
+            # Audit log for creation without auto-approve
+            log_leave_action(
+                action=LeaveAuditAction.REQUEST_UPDATED,
+                admin_user=request.user,
+                target_user=target_user,
+                leave_request=leave_request,
+                details={'admin_created': True, 'auto_approved': False},
+                ip_address=get_client_ip(request)
+            )
+
+        return Response(
+            LeaveRequestSerializer(leave_request).data,
+            status=status.HTTP_201_CREATED
+        )
+
     @action(detail=True, methods=['post'])
     def admin_action(self, request, pk=None):
         """Admin action to approve/reject/delete a request."""
