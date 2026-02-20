@@ -339,6 +339,61 @@ export interface InvoiceLine {
   updated_at: string
 }
 
+// Spreadsheet Template types
+export type SpreadsheetColumnType = 'text' | 'nummer' | 'datum' | 'tijd' | 'valuta' | 'berekend'
+
+export interface SpreadsheetTemplateKolom {
+  id: string              // unieke identifier (bijv. 'ritnr', 'chauffeur', 'totaal_uren')
+  naam: string            // display naam (bijv. 'RITNR', 'CHAUFFEUR')
+  type: SpreadsheetColumnType
+  breedte: number         // kolom breedte in pixels
+  formule?: string        // Excel-achtige formule (bijv. '=eind_tijd-begin_tijd-pauze')
+  zichtbaar: boolean      // kolom tonen of verbergen
+  bewerkbaar: boolean     // of de gebruiker de waarde kan aanpassen
+  styling?: {
+    achtergrond?: string  // achtergrondkleur (hex)
+    tekstKleur?: string   // tekstkleur (hex)
+    lettertype?: string   // 'normal' | 'bold' | 'italic'
+    uitlijning?: string   // 'left' | 'center' | 'right'
+  }
+}
+
+export interface SpreadsheetTemplateFooter {
+  toon_subtotaal: boolean
+  toon_btw: boolean
+  toon_totaal: boolean
+  btw_percentage: number
+  totaal_kolommen: string[]  // welke kolommen een SUM krijgen in de footer
+}
+
+export interface SpreadsheetTemplateStyling {
+  header_achtergrond: string
+  header_tekst_kleur: string
+  header_lettertype: string
+  rij_even_achtergrond: string
+  rij_oneven_achtergrond: string
+  rij_tekst_kleur: string
+}
+
+export interface SpreadsheetTemplateStandaardTarieven {
+  tarief_per_uur: number
+  tarief_per_km: number
+  tarief_dot: number
+}
+
+export interface SpreadsheetTemplate {
+  id: string
+  naam: string
+  beschrijving: string
+  kolommen: SpreadsheetTemplateKolom[]
+  footer: SpreadsheetTemplateFooter
+  standaard_tarieven: SpreadsheetTemplateStandaardTarieven
+  styling: SpreadsheetTemplateStyling
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 // Spreadsheet types
 export interface SpreadsheetRij {
   ritnr: string
@@ -369,6 +424,8 @@ export interface Spreadsheet {
   notities: string
   totaal_factuur: number
   status: 'concept' | 'ingediend'
+  template: string | null
+  template_naam: string | null
   created_by: string | null
   created_by_naam: string | null
   created_at: string

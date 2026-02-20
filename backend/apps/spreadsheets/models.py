@@ -3,6 +3,70 @@ from django.db import models
 from django.conf import settings
 
 
+class SpreadsheetColumnType(models.TextChoices):
+    TEXT = 'text', 'Tekst'
+    NUMMER = 'nummer', 'Nummer'
+    DATUM = 'datum', 'Datum'
+    TIJD = 'tijd', 'Tijd (decimaal)'
+    VALUTA = 'valuta', 'Valuta'
+    BEREKEND = 'berekend', 'Berekend (formule)'
+
+
+class SpreadsheetTemplate(models.Model):
+    """
+    Admin-configureerbaar template voor ritregistratie spreadsheets.
+    Bevat kolommen, formules, styling en footer-configuratie.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    naam = models.CharField(max_length=150, verbose_name='Template naam')
+    beschrijving = models.TextField(blank=True, default='', verbose_name='Beschrijving')
+
+    # JSON: lijst van kolommen met configuratie
+    # Elke kolom: {id, naam, type, breedte, formule?, styling?, zichtbaar?}
+    kolommen = models.JSONField(
+        default=list,
+        verbose_name='Kolommen',
+        help_text='Kolom-definities: id, naam, type, breedte, formule, styling',
+    )
+
+    # JSON: footer/totalen configuratie
+    # {toon_subtotaal, toon_btw, toon_totaal, btw_percentage, extra_rijen: [...]}
+    footer = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Footer configuratie',
+    )
+
+    # JSON: standaard tarieven
+    # {tarief_per_uur, tarief_per_km, tarief_dot}
+    standaard_tarieven = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Standaard tarieven',
+    )
+
+    # JSON: globale styling
+    # {header_achtergrond, header_tekst_kleur, header_lettertype, ...}
+    styling = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Styling configuratie',
+    )
+
+    is_active = models.BooleanField(default=True, verbose_name='Actief')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Spreadsheet Template'
+        verbose_name_plural = 'Spreadsheet Templates'
+        ordering = ['naam']
+
+    def __str__(self):
+        return self.naam
+
+
 class SpreadsheetStatus(models.TextChoices):
     CONCEPT = 'concept', 'Concept'
     INGEDIEND = 'ingediend', 'Ingediend'
@@ -22,6 +86,14 @@ class Spreadsheet(models.Model):
         max_length=255,
         verbose_name='Naam',
         help_text='Naam van de spreadsheet',
+    )
+    template = models.ForeignKey(
+        SpreadsheetTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='spreadsheets',
+        verbose_name='Template',
     )
     bedrijf = models.ForeignKey(
         'companies.Company',

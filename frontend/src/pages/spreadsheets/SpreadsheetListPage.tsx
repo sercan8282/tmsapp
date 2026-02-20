@@ -11,6 +11,7 @@ import {
   TableCellsIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  SwatchIcon,
 } from '@heroicons/react/24/outline'
 import { Spreadsheet } from '@/types'
 import {
@@ -121,6 +122,13 @@ export default function SpreadsheetListPage() {
           <span className="text-sm text-gray-500">({totalCount})</span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/spreadsheets/templates')}
+            className="btn-secondary text-sm"
+          >
+            <SwatchIcon className="w-4 h-4 mr-1" />
+            Templates
+          </button>
           <button
             onClick={() => setShowFilters(s => !s)}
             className={`btn-secondary text-sm ${showFilters ? 'bg-primary-50 text-primary-700' : ''}`}
