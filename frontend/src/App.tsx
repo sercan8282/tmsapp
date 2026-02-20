@@ -77,6 +77,10 @@ import {
   DocumentSignPage,
 } from '@/pages/documents'
 
+// Spreadsheets (Ritregistratie)
+import SpreadsheetListPage from '@/pages/spreadsheets/SpreadsheetListPage'
+import SpreadsheetEditorPage from '@/pages/spreadsheets/SpreadsheetEditorPage'
+
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, pendingMfaSetup } = useAuthStore()
@@ -251,6 +255,11 @@ function App() {
         <Route path="/leave/calendar" element={<LeaveCalendarPage />} />
         <Route path="/leave/admin" element={<AdminRoute><LeaveRequestsAdminPage /></AdminRoute>} />
         <Route path="/settings/leave" element={<AdminRoute><LeaveSettingsPage /></AdminRoute>} />
+
+        {/* Spreadsheets (Ritregistratie) */}
+        <Route path="/spreadsheets" element={<AdminRoute><SpreadsheetListPage /></AdminRoute>} />
+        <Route path="/spreadsheets/new" element={<AdminRoute><SpreadsheetEditorPage /></AdminRoute>} />
+        <Route path="/spreadsheets/:id" element={<AdminRoute><SpreadsheetEditorPage /></AdminRoute>} />
 
         {/* Documents (PDF Signing) */}
         <Route path="/documents" element={<DocumentsPage />} />

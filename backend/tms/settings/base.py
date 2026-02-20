@@ -46,6 +46,7 @@ LOCAL_APPS = [
     'apps.leave',
     'apps.notifications',
     'apps.documents',
+    'apps.spreadsheets',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

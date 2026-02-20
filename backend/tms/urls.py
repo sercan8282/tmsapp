@@ -46,6 +46,7 @@ urlpatterns = [
     path('api/leave/', include('apps.leave.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
     path('api/documents/', include('apps.documents.urls')),
+    path('api/spreadsheets/', include('apps.spreadsheets.urls')),
 ]
 
 # Serve media files in development
