@@ -339,6 +339,41 @@ export interface InvoiceLine {
   updated_at: string
 }
 
+// Spreadsheet types
+export interface SpreadsheetRij {
+  ritnr: string
+  volgnummer: string
+  chauffeur: string
+  datum: string
+  begin_tijd: number | null
+  eind_tijd: number | null
+  pauze: number | null
+  correctie: number | null
+  begin_km: number | null
+  eind_km: number | null
+  overnachting: number | null
+  overige_kosten: number | null
+}
+
+export interface Spreadsheet {
+  id: string
+  naam: string
+  bedrijf: string
+  bedrijf_naam: string
+  week_nummer: number
+  jaar: number
+  tarief_per_uur: number
+  tarief_per_km: number
+  tarief_dot: number
+  rijen: SpreadsheetRij[]
+  notities: string
+  totaal_factuur: number
+  created_by: string | null
+  created_by_naam: string | null
+  created_at: string
+  updated_at: string
+}
+
 // API Response types
 export interface PaginatedResponse<T> {
   count: number
