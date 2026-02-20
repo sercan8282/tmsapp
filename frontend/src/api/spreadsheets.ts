@@ -26,6 +26,7 @@ export interface SpreadsheetCreate {
   tarief_dot?: number
   rijen?: any[]
   notities?: string
+  template?: string | null
 }
 
 export interface SpreadsheetUpdate extends Partial<SpreadsheetCreate> {}

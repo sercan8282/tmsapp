@@ -12,8 +12,13 @@ from rest_framework.response import Response
 from apps.core.permissions import IsAdminOnly
 from apps.core.models import AppSettings
 from apps.timetracking.models import TimeEntry
-from .models import Spreadsheet
-from .serializers import SpreadsheetListSerializer, SpreadsheetDetailSerializer
+from .models import Spreadsheet, SpreadsheetTemplate
+from .serializers import (
+    SpreadsheetListSerializer,
+    SpreadsheetDetailSerializer,
+    SpreadsheetTemplateListSerializer,
+    SpreadsheetTemplateDetailSerializer,
+)
 
 
 def safe_str(value):
@@ -29,6 +34,43 @@ def safe_str(value):
     for char, replacement in replacements.items():
         s = s.replace(char, replacement)
     return s
+
+
+class SpreadsheetTemplateViewSet(viewsets.ModelViewSet):
+    """ViewSet for spreadsheet template CRUD."""
+    permission_classes = [IsAuthenticated, IsAdminOnly]
+    search_fields = ['naam', 'beschrijving']
+    ordering_fields = ['naam', 'created_at', 'updated_at']
+    ordering = ['naam']
+
+    def get_queryset(self):
+        qs = SpreadsheetTemplate.objects.all()
+        # Optionally filter on active only
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            qs = qs.filter(is_active=is_active.lower() in ('true', '1'))
+        return qs
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return SpreadsheetTemplateListSerializer
+        return SpreadsheetTemplateDetailSerializer
+
+    @action(detail=True, methods=['post'])
+    def duplicate(self, request, pk=None):
+        """Dupliceer een template."""
+        original = self.get_object()
+        new_template = SpreadsheetTemplate.objects.create(
+            naam=f"{original.naam} (kopie)",
+            beschrijving=original.beschrijving,
+            kolommen=original.kolommen,
+            footer=original.footer,
+            standaard_tarieven=original.standaard_tarieven,
+            styling=original.styling,
+            is_active=original.is_active,
+        )
+        serializer = SpreadsheetTemplateDetailSerializer(new_template)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class SpreadsheetViewSet(viewsets.ModelViewSet):

@@ -80,6 +80,8 @@ import {
 // Spreadsheets (Ritregistratie)
 import SpreadsheetListPage from '@/pages/spreadsheets/SpreadsheetListPage'
 import SpreadsheetEditorPage from '@/pages/spreadsheets/SpreadsheetEditorPage'
+import SpreadsheetTemplateListPage from '@/pages/spreadsheets/SpreadsheetTemplateListPage'
+import SpreadsheetTemplateEditorPage from '@/pages/spreadsheets/SpreadsheetTemplateEditorPage'
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -259,6 +261,9 @@ function App() {
         {/* Spreadsheets (Ritregistratie) */}
         <Route path="/spreadsheets" element={<AdminRoute><SpreadsheetListPage /></AdminRoute>} />
         <Route path="/spreadsheets/new" element={<AdminRoute><SpreadsheetEditorPage /></AdminRoute>} />
+        <Route path="/spreadsheets/templates" element={<AdminRoute><SpreadsheetTemplateListPage /></AdminRoute>} />
+        <Route path="/spreadsheets/templates/new" element={<AdminRoute><SpreadsheetTemplateEditorPage /></AdminRoute>} />
+        <Route path="/spreadsheets/templates/:id/edit" element={<AdminRoute><SpreadsheetTemplateEditorPage /></AdminRoute>} />
         <Route path="/spreadsheets/:id" element={<AdminRoute><SpreadsheetEditorPage /></AdminRoute>} />
 
         {/* Documents (PDF Signing) */}

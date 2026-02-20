@@ -15,7 +15,7 @@ import {
   PaperAirplaneIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline'
-import { Company, SpreadsheetRij } from '@/types'
+import { Company, SpreadsheetRij, SpreadsheetTemplate } from '@/types'
 import {
   getSpreadsheet,
   createSpreadsheet,
@@ -27,9 +27,17 @@ import {
   importTimeEntries,
   getAvailableWeeks,
 } from '@/api/spreadsheets'
-import type { AvailableWeek } from '@/api/spreadsheets'
+import type { AvailableWeek, SpreadsheetCreate } from '@/api/spreadsheets'
 import { getCompanies, getMailingContacts } from '@/api/companies'
+import { getSpreadsheetTemplates } from '@/api/spreadsheetTemplates'
 import type { MailingListContact } from '@/types'
+import {
+  calcRowWithTemplate,
+  buildColumnMap,
+  colIndexToLetter,
+  translateFormulaToExcel,
+  buildSysVarExcelMap,
+} from '@/utils/formulaEngine'
 
 // ── Helpers ──
 
@@ -128,6 +136,10 @@ export default function SpreadsheetEditorPage() {
   const [selectedChauffeur, setSelectedChauffeur] = useState<{ id: string; naam: string } | null>(null)
   const [spreadsheetStatus, setSpreadsheetStatus] = useState<'concept' | 'ingediend'>('concept')
 
+  // Templates
+  const [templates, setTemplates] = useState<SpreadsheetTemplate[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('')
+
   // Form
   const [naam, setNaam] = useState('')
   const [bedrijf, setBedrijf] = useState('')
@@ -156,8 +168,62 @@ export default function SpreadsheetEditorPage() {
   // ── Load data ──
   useEffect(() => {
     loadCompanies()
+    loadTemplates()
     if (id) loadSpreadsheet(id)
   }, [id])
+
+  const loadTemplates = async () => {
+    try {
+      const res = await getSpreadsheetTemplates({ is_active: true, page_size: 100 })
+      setTemplates(res.results)
+    } catch (err) {
+      console.error('Failed to load templates:', err)
+    }
+  }
+
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplate(templateId)
+    if (!templateId) return
+    const tpl = templates.find(t => t.id === templateId)
+    if (!tpl) return
+    // Apply template default rates
+    if (tpl.standaard_tarieven) {
+      if (tpl.standaard_tarieven.tarief_per_uur) setTariefPerUur(tpl.standaard_tarieven.tarief_per_uur)
+      if (tpl.standaard_tarieven.tarief_per_km) setTariefPerKm(tpl.standaard_tarieven.tarief_per_km)
+      if (tpl.standaard_tarieven.tarief_dot) setTariefDot(tpl.standaard_tarieven.tarief_dot)
+    }
+  }
+
+  // Active template object (for formula evaluation)
+  const activeTemplate = useMemo(() => {
+    if (!selectedTemplate) return null
+    return templates.find(t => t.id === selectedTemplate) || null
+  }, [selectedTemplate, templates])
+
+  // Template-aware row calculation
+  const calcRowSmart = useCallback((rij: SpreadsheetRij) => {
+    if (activeTemplate?.kolommen?.length) {
+      const sysVars = {
+        tarief_per_uur: tariefPerUur,
+        tarief_per_km: tariefPerKm,
+        tarief_dot: tariefDot,
+        week_nummer: weekNummer,
+      }
+      const tplResult = calcRowWithTemplate(activeTemplate.kolommen, rij, sysVars)
+      // Map template result back to the legacy calcRow format
+      return {
+        totaalTijd: tplResult.totaal_tijd ?? (num(rij.eind_tijd) - num(rij.begin_tijd)),
+        totaalUren: tplResult.totaal_uren ?? ((num(rij.eind_tijd) - num(rij.begin_tijd)) - num(rij.pauze) - num(rij.correctie)),
+        totaalKm: tplResult.totaal_km ?? (num(rij.eind_km) - num(rij.begin_km)),
+        bedragUur: tplResult.tarief_uur ?? 0,
+        bedragKm: tplResult.tarief_km ?? 0,
+        subtotaal: tplResult.subtotaal ?? 0,
+        dot: tplResult.dot ?? 0,
+        rijTotaal: tplResult.rij_totaal ?? 0,
+      }
+    }
+    return calcRow(rij, tariefPerUur, tariefPerKm, tariefDot)
+  }, [activeTemplate, tariefPerUur, tariefPerKm, tariefDot, weekNummer])
 
   const loadCompanies = async () => {
     try {
@@ -182,6 +248,7 @@ export default function SpreadsheetEditorPage() {
       setRijen(data.rijen.length > 0 ? data.rijen : [emptyRij()])
       setNotities(data.notities || '')
       setSpreadsheetStatus(data.status || 'concept')
+      setSelectedTemplate(data.template || '')
     } catch (err) {
       setError('Kon registratie niet laden')
     } finally {
@@ -205,7 +272,7 @@ export default function SpreadsheetEditorPage() {
       setSaving(true)
       setError(null)
 
-      const payload = {
+      const payload: SpreadsheetCreate = {
         naam,
         bedrijf,
         week_nummer: weekNummer,
@@ -215,6 +282,7 @@ export default function SpreadsheetEditorPage() {
         tarief_dot: tariefDot,
         rijen,
         notities,
+        template: selectedTemplate || null,
       }
 
       if (isNew) {
@@ -241,7 +309,7 @@ export default function SpreadsheetEditorPage() {
       await updateSpreadsheet(id, {
         naam, bedrijf, week_nummer: weekNummer, jaar,
         tarief_per_uur: tariefPerUur, tarief_per_km: tariefPerKm, tarief_dot: tariefDot,
-        rijen, notities,
+        rijen, notities, template: selectedTemplate || null,
       })
       const result = await submitSpreadsheet(id)
       setSpreadsheetStatus(result.status || 'ingediend')
@@ -378,199 +446,461 @@ export default function SpreadsheetEditorPage() {
       left: { style: 'thin' },
       right: { style: 'thin' },
     }
-    // Red-text columns: TOTAAL UREN=11, TOTAAL KM=14, TARIEF UUR=15, TARIEF KM=16, DOT=18
-    const redCols = new Set([11, 14, 15, 16, 18])
 
-    // ── Column widths ──
-    ws.columns = [
-      { width: 8 },   // A - WEEK
-      { width: 12 },  // B - RITNR
-      { width: 12 },  // C - volgnummer
-      { width: 14 },  // D - CHAUFFEUR
-      { width: 12 },  // E - DATUM
-      { width: 9 },   // F - BEGIN
-      { width: 9 },   // G - EIND
-      { width: 9 },   // H - TOTAAL
-      { width: 9 },   // I - PAUZE
-      { width: 12 },  // J - CORRECTIE
-      { width: 14 },  // K - TOTAAL UREN
-      { width: 10 },  // L - BEGIN KM
-      { width: 10 },  // M - EIND KM
-      { width: 12 },  // N - TOTAAL KM
-      { width: 15 },  // O - tarief uur bedrag
-      { width: 15 },  // P - tarief km bedrag
-      { width: 12 },  // Q - subtotaal
-      { width: 10 },  // R - DOT
-      { width: 16 },  // S - OVERNACHTING
-      { width: 17 },  // T - OVERIGE KOSTEN
-      { width: 14 },  // U - totaal factuur
-    ]
+    // Determine if we use template-based export or legacy hardcoded export
+    const tplKolommen = activeTemplate?.kolommen?.length ? activeTemplate.kolommen.filter(k => k.zichtbaar) : null
 
-    // ── Row 1–2: Company header ──
-    ws.addRow([]); ws.addRow([])
-    ws.mergeCells('A1:D2')
-    ws.getCell('A1').value = companyName
-    ws.getCell('A1').font = { bold: true, size: 16 }
-    ws.getCell('A1').alignment = { vertical: 'middle' }
-    ws.mergeCells('E1:G1')
-    ws.getCell('E1').value = naam || ''
-    ws.getCell('E1').font = { size: 14, bold: true }
-    ws.getCell('E1').alignment = { vertical: 'middle' }
-    ws.getCell('H1').value = 'Week:'
-    ws.getCell('H1').font = { size: 12 }
-    ws.getCell('H1').alignment = { vertical: 'middle', horizontal: 'right' }
-    ws.getCell('I1').value = weekNummer
-    ws.getCell('I1').font = { size: 14, bold: true }
-    ws.getCell('I1').alignment = { vertical: 'middle' }
-    ws.getRow(1).height = 30
+    if (tplKolommen) {
+      // ═══════════════════════════════════════════
+      // ── TEMPLATE-BASED XLSX EXPORT ──
+      // ═══════════════════════════════════════════
+      const numCols = tplKolommen.length
+      const colMap = buildColumnMap(tplKolommen)
 
-    // ── Row 3: Empty ──
-    ws.addRow([])
-
-    // ── Row 4: Tariff sub-headers ──
-    const subRow = ws.addRow([])
-    subRow.getCell(15).value = 'TARIEF PER UUR'
-    subRow.getCell(15).font = redBoldFont
-    subRow.getCell(15).alignment = { horizontal: 'center' }
-    subRow.getCell(15).border = thinBorder
-    subRow.getCell(16).value = 'TARIEF PER KM'
-    subRow.getCell(16).font = redBoldFont
-    subRow.getCell(16).alignment = { horizontal: 'center' }
-    subRow.getCell(16).border = thinBorder
-    subRow.getCell(18).value = 'TARIEF DOT'
-    subRow.getCell(18).font = redBoldFont
-    subRow.getCell(18).alignment = { horizontal: 'center' }
-    subRow.getCell(18).border = thinBorder
-    subRow.getCell(21).value = 'totaal factuur'
-    subRow.getCell(21).font = boldFont
-    subRow.getCell(21).alignment = { horizontal: 'center' }
-    subRow.getCell(21).border = thinBorder
-
-    // ── Row 5: Main column headers ──
-    const hdrRow = ws.addRow([
-      'WEEK', 'RITNR', 'volgnummer', 'CHAUFFEUR', 'DATUM',
-      'BEGIN', 'EIND', 'TOTAAL', 'PAUZE', 'CORRECTIE', 'TOTAAL UREN',
-      'BEGIN KM', 'EIND KM', 'TOTAAL KM',
-      Number(tariefPerUur.toFixed(2)),
-      Number(tariefPerKm.toFixed(2)),
-      'totaal',
-      Number(tariefDot.toFixed(2)),
-      'OVERNACHTING', 'OVERIGE KOSTEN', '',
-    ])
-    for (let col = 1; col <= 21; col++) {
-      const cell = hdrRow.getCell(col)
-      cell.border = thinBorder
-      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
-      if (redCols.has(col)) {
-        cell.font = redBoldFont
-        if (col === 15 || col === 16 || col === 18) cell.numFmt = '0.00'
-      } else {
-        cell.font = boldFont
+      // Map of data field IDs for getting raw values from SpreadsheetRij
+      const dataFields: Record<string, keyof SpreadsheetRij> = {
+        ritnr: 'ritnr', volgnummer: 'volgnummer', chauffeur: 'chauffeur',
+        datum: 'datum', begin_tijd: 'begin_tijd', eind_tijd: 'eind_tijd',
+        pauze: 'pauze', correctie: 'correctie', begin_km: 'begin_km',
+        eind_km: 'eind_km', overnachting: 'overnachting', overige_kosten: 'overige_kosten',
       }
-    }
 
-    // ── Row 6: Empty ──
-    ws.addRow([])
+      // ── Column widths from template ──
+      ws.columns = tplKolommen.map(k => ({ width: Math.max(Math.round(k.breedte / 7), 6) }))
 
-    // ── Data rows (row 7+) with Excel formulas ──
-    const dataStartRow = 7
-
-    rijen.forEach((rij, idx) => {
-      const r = dataStartRow + idx  // Excel row number
-
-      // Convert datum to a real Date so WEEKDAY() works in Excel
-      let datumValue: Date | string | null = null
-      const datumStr = rij.datum || ''
-      if (datumStr) {
-        const d = new Date(datumStr)
-        if (!isNaN(d.getTime())) {
-          datumValue = d
-        } else {
-          datumValue = datumStr
+      // ── Row 1–2: Company header ──
+      ws.addRow([]); ws.addRow([])
+      const lastHeaderLetter = colIndexToLetter(Math.min(4, numCols))
+      ws.mergeCells(`A1:${lastHeaderLetter}2`)
+      ws.getCell('A1').value = companyName
+      ws.getCell('A1').font = { bold: true, size: 16 }
+      ws.getCell('A1').alignment = { vertical: 'middle' }
+      if (numCols > 4) {
+        const eLetter = colIndexToLetter(5)
+        const gLetter = colIndexToLetter(Math.min(7, numCols))
+        ws.mergeCells(`${eLetter}1:${gLetter}1`)
+        ws.getCell(`${eLetter}1`).value = naam || ''
+        ws.getCell(`${eLetter}1`).font = { size: 14, bold: true }
+        ws.getCell(`${eLetter}1`).alignment = { vertical: 'middle' }
+      }
+      if (numCols > 7) {
+        const hLetter = colIndexToLetter(8)
+        ws.getCell(`${hLetter}1`).value = 'Week:'
+        ws.getCell(`${hLetter}1`).font = { size: 12 }
+        ws.getCell(`${hLetter}1`).alignment = { vertical: 'middle', horizontal: 'right' }
+        if (numCols > 8) {
+          const iLetter = colIndexToLetter(9)
+          ws.getCell(`${iLetter}1`).value = weekNummer
+          ws.getCell(`${iLetter}1`).font = { size: 14, bold: true }
+          ws.getCell(`${iLetter}1`).alignment = { vertical: 'middle' }
         }
       }
+      ws.getRow(1).height = 30
 
-      const dataRow = ws.addRow([
-        weekNummer,
-        rij.ritnr || '',
-        rij.volgnummer || '',
-        rij.chauffeur || '',
-        datumValue,                               // E - datum (Date for WEEKDAY)
-        num(rij.begin_tijd) || null,          // F - decimal
-        num(rij.eind_tijd) || null,           // G - decimal
-        null,                                  // H - TOTAAL (formula)
-        num(rij.pauze) || null,               // I - decimal
-        num(rij.correctie) || null,           // J - decimal
-        null,                                  // K - TOTAAL UREN (formula)
-        rij.begin_km != null ? Math.round(num(rij.begin_km)) : null,  // L
-        rij.eind_km != null ? Math.round(num(rij.eind_km)) : null,    // M
-        null,                                  // N - TOTAAL KM (formula)
-        null,                                  // O - tarief uur (formula)
-        null,                                  // P - tarief km (formula)
-        null,                                  // Q - subtotaal (formula)
-        null,                                  // R - DOT (formula)
-        num(rij.overnachting) || null,         // S
-        num(rij.overige_kosten) || null,      // T
-        null,                                  // U - rij totaal (formula)
-      ])
+      // ── Row 3: Empty ──
+      ws.addRow([])
 
-      // Date format for column E
-      if (datumValue instanceof Date) {
-        dataRow.getCell(5).numFmt = 'DD-MM-YYYY'
+      // ── Row 4: Tariff sub-headers for berekend columns that use tarieven ──
+      const subRow = ws.addRow([])
+      const tariffLabels: Record<string, string> = {
+        tarief_per_uur: 'TARIEF PER UUR',
+        tarief_per_km: 'TARIEF PER KM',
+        tarief_dot: 'TARIEF DOT',
+      }
+      // Find which columns use which tariff
+      for (const [sysVar, label] of Object.entries(tariffLabels)) {
+        for (const kolom of tplKolommen) {
+          if (kolom.formule && kolom.formule.includes(sysVar)) {
+            const colIdx = colMap.get(kolom.id)
+            if (colIdx) {
+              subRow.getCell(colIdx).value = label
+              subRow.getCell(colIdx).font = redBoldFont
+              subRow.getCell(colIdx).alignment = { horizontal: 'center' }
+              subRow.getCell(colIdx).border = thinBorder
+            }
+            break
+          }
+        }
+      }
+      // "totaal factuur" on last column
+      const lastKolom = tplKolommen[tplKolommen.length - 1]
+      const lastColIdx = colMap.get(lastKolom.id)
+      if (lastColIdx) {
+        subRow.getCell(lastColIdx).value = 'totaal factuur'
+        subRow.getCell(lastColIdx).font = boldFont
+        subRow.getCell(lastColIdx).alignment = { horizontal: 'center' }
+        subRow.getCell(lastColIdx).border = thinBorder
       }
 
-      // Excel formulas for calculated columns
-      dataRow.getCell(8).value  = { formula: `G${r}-F${r}` }                                      // H = EIND - BEGIN
-      dataRow.getCell(11).value = { formula: `H${r}-I${r}-J${r}` }                                 // K = TOTAAL - PAUZE - CORRECTIE
-      dataRow.getCell(14).value = { formula: `M${r}-L${r}` }                                       // N = EIND KM - BEGIN KM
-      dataRow.getCell(15).value = { formula: `(IF(WEEKDAY(E${r})=7,1.3,1)*K${r})*$O$5` }           // O = weekend-toeslag * uren * tarief
-      dataRow.getCell(16).value = { formula: `N${r}*$P$5` }                                        // P = TOTAAL KM * tarief per km
-      dataRow.getCell(17).value = { formula: `SUM(O${r}:P${r})` }                                  // Q = subtotaal
-      dataRow.getCell(18).value = { formula: `N${r}*$R$5` }                                        // R = DOT
-      dataRow.getCell(21).value = { formula: `SUM(Q${r}:T${r})` }                                  // U = rij totaal
+      // ── Row 5: Main column headers ──
+      // Build header values: for columns using tarieven, put tariff value; otherwise put column name
+      const hdrValues = tplKolommen.map(k => {
+        if (k.formule?.includes('tarief_per_uur')) return Number(tariefPerUur.toFixed(2))
+        if (k.formule?.includes('tarief_per_km')) return Number(tariefPerKm.toFixed(2))
+        if (k.formule?.includes('tarief_dot')) return Number(tariefDot.toFixed(2))
+        return k.naam
+      })
+      const hdrRow = ws.addRow(hdrValues)
 
-      for (let col = 1; col <= 21; col++) {
-        const cell = dataRow.getCell(col)
+      // Identify which columns should have red styling
+      const redColSet = new Set<number>()
+      tplKolommen.forEach((k, idx) => {
+        if (k.styling?.tekstKleur && k.styling.tekstKleur.toLowerCase() !== '#374151') {
+          redColSet.add(idx + 1)
+        }
+      })
+
+      for (let col = 1; col <= numCols; col++) {
+        const cell = hdrRow.getCell(col)
         cell.border = thinBorder
-        if (redCols.has(col)) {
-          cell.font = redFont
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+        if (redColSet.has(col)) {
+          cell.font = redBoldFont
+          if (typeof hdrValues[col - 1] === 'number') cell.numFmt = '0.00'
+        } else {
+          cell.font = boldFont
         }
       }
-      // Currency format for money columns
-      for (const col of [15, 16, 17, 18, 19, 20, 21]) {
-        dataRow.getCell(col).numFmt = '#,##0.00'
-        dataRow.getCell(col).alignment = { horizontal: 'right' }
+
+      // Apply template header styling
+      if (activeTemplate?.styling) {
+        const s = activeTemplate.styling
+        for (let col = 1; col <= numCols; col++) {
+          const cell = hdrRow.getCell(col)
+          if (s.header_achtergrond) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + s.header_achtergrond.replace('#', '') } }
+          }
+          if (s.header_tekst_kleur) {
+            cell.font = { ...cell.font, color: { argb: 'FF' + s.header_tekst_kleur.replace('#', '') } }
+          }
+        }
       }
-    })
 
-    // ── Empty row ──
-    ws.addRow([])
+      // ── Row 6: Empty ──
+      ws.addRow([])
 
-    // ── Totals row with SUM formulas ──
-    const lastDataRow = dataStartRow + rijen.length - 1
-    const totalsRowNum = dataStartRow + rijen.length + 1
-    const totRow = ws.addRow([
-      'totaal', 'factuur', '€',
-    ])
+      // ── Build system variable Excel cell references ──
+      const tariefRow = 5 // Row where tariff values are in the header
+      const sysVarExcelMap = buildSysVarExcelMap(tplKolommen, tariefRow)
 
-    // Grand total in column D references column U total
-    totRow.getCell(4).value = { formula: `U${totalsRowNum}` }
-    totRow.getCell(4).numFmt = '#,##0.00'
+      // ── Data rows (row 7+) with template-based Excel formulas ──
+      const dataStartRow = 7
 
-    // SUM formulas for total columns O–U
-    for (const col of [15, 16, 17, 18, 19, 20, 21]) {
-      const colLetter = String.fromCharCode(64 + col)
-      totRow.getCell(col).value = { formula: `SUM(${colLetter}${dataStartRow}:${colLetter}${lastDataRow})` }
-    }
+      rijen.forEach((rij, idx) => {
+        const r = dataStartRow + idx
 
-    totRow.getCell(1).font = { bold: true, italic: true }
-    totRow.getCell(2).font = { bold: true, italic: true }
-    totRow.getCell(3).font = { bold: true, color: { argb: 'FFFF0000' } }
-    totRow.getCell(4).font = { bold: true, color: { argb: 'FFFF0000' } }
-    for (const col of [15, 16, 17, 18, 21]) {
-      totRow.getCell(col).font = { bold: true }
-      totRow.getCell(col).numFmt = '#,##0.00'
-      totRow.getCell(col).border = thinBorder
+        // Build row data array based on template columns
+        const rowData = tplKolommen.map(k => {
+          if (k.type === 'berekend') return null // Will be filled with formula
+
+          // Datum special handling
+          if (k.id === 'datum') {
+            const datumStr = rij.datum || ''
+            if (datumStr) {
+              const d = new Date(datumStr)
+              if (!isNaN(d.getTime())) return d
+            }
+            return datumStr || null
+          }
+
+          // Week
+          if (k.id === 'week') return weekNummer
+
+          // Data field
+          const field = dataFields[k.id]
+          if (field) {
+            const v = rij[field]
+            if (v === null || v === undefined) return null
+            if (typeof v === 'number') {
+              if (k.id === 'begin_km' || k.id === 'eind_km') return Math.round(v)
+              return v || null
+            }
+            return v || ''
+          }
+
+          return null
+        })
+
+        const dataRow = ws.addRow(rowData)
+
+        // Date format for datum columns
+        tplKolommen.forEach((k, colIdx) => {
+          if (k.id === 'datum') {
+            const val = rowData[colIdx]
+            if (val instanceof Date) {
+              dataRow.getCell(colIdx + 1).numFmt = 'DD-MM-YYYY'
+            }
+          }
+        })
+
+        // Set Excel formulas for berekend columns
+        tplKolommen.forEach((k, colIdx) => {
+          if (k.type === 'berekend' && k.formule) {
+            const excelFormula = translateFormulaToExcel(k.formule, colMap, r, sysVarExcelMap)
+            if (excelFormula) {
+              dataRow.getCell(colIdx + 1).value = { formula: excelFormula }
+            }
+          }
+        })
+
+        // Apply borders and styling
+        for (let col = 1; col <= numCols; col++) {
+          const cell = dataRow.getCell(col)
+          cell.border = thinBorder
+
+          const kolom = tplKolommen[col - 1]
+          if (kolom.styling?.tekstKleur) {
+            const argb = 'FF' + kolom.styling.tekstKleur.replace('#', '')
+            cell.font = { ...cell.font, color: { argb } }
+            if (kolom.styling.lettertype === 'bold') {
+              cell.font = { ...cell.font, bold: true }
+            } else if (kolom.styling.lettertype === 'italic') {
+              cell.font = { ...cell.font, italic: true }
+            }
+          }
+
+          // Currency format for valuta and berekend columns
+          if (kolom.type === 'valuta' || (kolom.type === 'berekend' && 
+              (kolom.id.includes('tarief') || kolom.id.includes('subtotaal') || 
+               kolom.id.includes('dot') || kolom.id.includes('totaal') ||
+               kolom.id.includes('kosten') || kolom.id.includes('overnachting')))) {
+            cell.numFmt = '#,##0.00'
+            cell.alignment = { horizontal: 'right' }
+          }
+        }
+
+        // Alternating row colors from template styling
+        if (activeTemplate?.styling && idx % 2 === 1 && activeTemplate.styling.rij_even_achtergrond) {
+          for (let col = 1; col <= numCols; col++) {
+            dataRow.getCell(col).fill = {
+              type: 'pattern', pattern: 'solid',
+              fgColor: { argb: 'FF' + activeTemplate.styling.rij_even_achtergrond.replace('#', '') },
+            }
+          }
+        }
+      })
+
+      // ── Empty row ──
+      ws.addRow([])
+
+      // ── Totals row with SUM formulas ──
+      const lastDataRow = dataStartRow + rijen.length - 1
+      const totalsRowNum = dataStartRow + rijen.length + 1
+      const totRowData = ['totaal', 'factuur', '€']
+      const totRow = ws.addRow(totRowData)
+
+      // Grand total references last column total
+      if (numCols >= 4 && lastColIdx) {
+        const lastLetter = colIndexToLetter(lastColIdx)
+        totRow.getCell(4).value = { formula: `${lastLetter}${totalsRowNum}` }
+        totRow.getCell(4).numFmt = '#,##0.00'
+      }
+
+      // Determine which columns should have SUM totals (footer config or valuta/berekend columns)
+      const sumCols: number[] = []
+      const footerTotaalKolommen = activeTemplate?.footer?.totaal_kolommen || []
+      
+      tplKolommen.forEach((k, idx) => {
+        const colIdx = idx + 1
+        if (footerTotaalKolommen.includes(k.id) ||
+            k.type === 'valuta' ||
+            (k.type === 'berekend' && (k.id.includes('tarief') || k.id.includes('subtotaal') ||
+             k.id.includes('dot') || k.id.includes('totaal') || k.id.includes('kosten')))) {
+          sumCols.push(colIdx)
+        }
+      })
+
+      for (const col of sumCols) {
+        const colLetter = colIndexToLetter(col)
+        totRow.getCell(col).value = { formula: `SUM(${colLetter}${dataStartRow}:${colLetter}${lastDataRow})` }
+        totRow.getCell(col).font = { bold: true }
+        totRow.getCell(col).numFmt = '#,##0.00'
+        totRow.getCell(col).border = thinBorder
+      }
+
+      totRow.getCell(1).font = { bold: true, italic: true }
+      totRow.getCell(2).font = { bold: true, italic: true }
+      totRow.getCell(3).font = { bold: true, color: { argb: 'FFFF0000' } }
+      if (numCols >= 4) {
+        totRow.getCell(4).font = { bold: true, color: { argb: 'FFFF0000' } }
+      }
+
+    } else {
+      // ═══════════════════════════════════════════
+      // ── LEGACY HARDCODED XLSX EXPORT ──
+      // ═══════════════════════════════════════════
+      const redCols = new Set([11, 14, 15, 16, 18])
+
+      ws.columns = [
+        { width: 8 },   // A - WEEK
+        { width: 12 },  // B - RITNR
+        { width: 12 },  // C - volgnummer
+        { width: 14 },  // D - CHAUFFEUR
+        { width: 12 },  // E - DATUM
+        { width: 9 },   // F - BEGIN
+        { width: 9 },   // G - EIND
+        { width: 9 },   // H - TOTAAL
+        { width: 9 },   // I - PAUZE
+        { width: 12 },  // J - CORRECTIE
+        { width: 14 },  // K - TOTAAL UREN
+        { width: 10 },  // L - BEGIN KM
+        { width: 10 },  // M - EIND KM
+        { width: 12 },  // N - TOTAAL KM
+        { width: 15 },  // O - tarief uur bedrag
+        { width: 15 },  // P - tarief km bedrag
+        { width: 12 },  // Q - subtotaal
+        { width: 10 },  // R - DOT
+        { width: 16 },  // S - OVERNACHTING
+        { width: 17 },  // T - OVERIGE KOSTEN
+        { width: 14 },  // U - totaal factuur
+      ]
+
+      ws.addRow([]); ws.addRow([])
+      ws.mergeCells('A1:D2')
+      ws.getCell('A1').value = companyName
+      ws.getCell('A1').font = { bold: true, size: 16 }
+      ws.getCell('A1').alignment = { vertical: 'middle' }
+      ws.mergeCells('E1:G1')
+      ws.getCell('E1').value = naam || ''
+      ws.getCell('E1').font = { size: 14, bold: true }
+      ws.getCell('E1').alignment = { vertical: 'middle' }
+      ws.getCell('H1').value = 'Week:'
+      ws.getCell('H1').font = { size: 12 }
+      ws.getCell('H1').alignment = { vertical: 'middle', horizontal: 'right' }
+      ws.getCell('I1').value = weekNummer
+      ws.getCell('I1').font = { size: 14, bold: true }
+      ws.getCell('I1').alignment = { vertical: 'middle' }
+      ws.getRow(1).height = 30
+
+      ws.addRow([])
+
+      const subRow = ws.addRow([])
+      subRow.getCell(15).value = 'TARIEF PER UUR'
+      subRow.getCell(15).font = redBoldFont
+      subRow.getCell(15).alignment = { horizontal: 'center' }
+      subRow.getCell(15).border = thinBorder
+      subRow.getCell(16).value = 'TARIEF PER KM'
+      subRow.getCell(16).font = redBoldFont
+      subRow.getCell(16).alignment = { horizontal: 'center' }
+      subRow.getCell(16).border = thinBorder
+      subRow.getCell(18).value = 'TARIEF DOT'
+      subRow.getCell(18).font = redBoldFont
+      subRow.getCell(18).alignment = { horizontal: 'center' }
+      subRow.getCell(18).border = thinBorder
+      subRow.getCell(21).value = 'totaal factuur'
+      subRow.getCell(21).font = boldFont
+      subRow.getCell(21).alignment = { horizontal: 'center' }
+      subRow.getCell(21).border = thinBorder
+
+      const hdrRow = ws.addRow([
+        'WEEK', 'RITNR', 'volgnummer', 'CHAUFFEUR', 'DATUM',
+        'BEGIN', 'EIND', 'TOTAAL', 'PAUZE', 'CORRECTIE', 'TOTAAL UREN',
+        'BEGIN KM', 'EIND KM', 'TOTAAL KM',
+        Number(tariefPerUur.toFixed(2)),
+        Number(tariefPerKm.toFixed(2)),
+        'totaal',
+        Number(tariefDot.toFixed(2)),
+        'OVERNACHTING', 'OVERIGE KOSTEN', '',
+      ])
+      for (let col = 1; col <= 21; col++) {
+        const cell = hdrRow.getCell(col)
+        cell.border = thinBorder
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+        if (redCols.has(col)) {
+          cell.font = redBoldFont
+          if (col === 15 || col === 16 || col === 18) cell.numFmt = '0.00'
+        } else {
+          cell.font = boldFont
+        }
+      }
+
+      ws.addRow([])
+
+      const dataStartRow = 7
+
+      rijen.forEach((rij, idx) => {
+        const r = dataStartRow + idx
+
+        let datumValue: Date | string | null = null
+        const datumStr = rij.datum || ''
+        if (datumStr) {
+          const d = new Date(datumStr)
+          if (!isNaN(d.getTime())) {
+            datumValue = d
+          } else {
+            datumValue = datumStr
+          }
+        }
+
+        const dataRow = ws.addRow([
+          weekNummer,
+          rij.ritnr || '',
+          rij.volgnummer || '',
+          rij.chauffeur || '',
+          datumValue,
+          num(rij.begin_tijd) || null,
+          num(rij.eind_tijd) || null,
+          null,
+          num(rij.pauze) || null,
+          num(rij.correctie) || null,
+          null,
+          rij.begin_km != null ? Math.round(num(rij.begin_km)) : null,
+          rij.eind_km != null ? Math.round(num(rij.eind_km)) : null,
+          null, null, null, null, null,
+          num(rij.overnachting) || null,
+          num(rij.overige_kosten) || null,
+          null,
+        ])
+
+        if (datumValue instanceof Date) {
+          dataRow.getCell(5).numFmt = 'DD-MM-YYYY'
+        }
+
+        dataRow.getCell(8).value  = { formula: `G${r}-F${r}` }
+        dataRow.getCell(11).value = { formula: `H${r}-I${r}-J${r}` }
+        dataRow.getCell(14).value = { formula: `M${r}-L${r}` }
+        dataRow.getCell(15).value = { formula: `(IF(WEEKDAY(E${r})=7,1.3,1)*K${r})*$O$5` }
+        dataRow.getCell(16).value = { formula: `N${r}*$P$5` }
+        dataRow.getCell(17).value = { formula: `SUM(O${r}:P${r})` }
+        dataRow.getCell(18).value = { formula: `N${r}*$R$5` }
+        dataRow.getCell(21).value = { formula: `SUM(Q${r}:T${r})` }
+
+        for (let col = 1; col <= 21; col++) {
+          const cell = dataRow.getCell(col)
+          cell.border = thinBorder
+          if (redCols.has(col)) {
+            cell.font = redFont
+          }
+        }
+        for (const col of [15, 16, 17, 18, 19, 20, 21]) {
+          dataRow.getCell(col).numFmt = '#,##0.00'
+          dataRow.getCell(col).alignment = { horizontal: 'right' }
+        }
+      })
+
+      ws.addRow([])
+
+      const lastDataRow = dataStartRow + rijen.length - 1
+      const totalsRowNum = dataStartRow + rijen.length + 1
+      const totRow = ws.addRow(['totaal', 'factuur', '€'])
+
+      totRow.getCell(4).value = { formula: `U${totalsRowNum}` }
+      totRow.getCell(4).numFmt = '#,##0.00'
+
+      for (const col of [15, 16, 17, 18, 19, 20, 21]) {
+        const colLetter = String.fromCharCode(64 + col)
+        totRow.getCell(col).value = { formula: `SUM(${colLetter}${dataStartRow}:${colLetter}${lastDataRow})` }
+      }
+
+      totRow.getCell(1).font = { bold: true, italic: true }
+      totRow.getCell(2).font = { bold: true, italic: true }
+      totRow.getCell(3).font = { bold: true, color: { argb: 'FFFF0000' } }
+      totRow.getCell(4).font = { bold: true, color: { argb: 'FFFF0000' } }
+      for (const col of [15, 16, 17, 18, 21]) {
+        totRow.getCell(col).font = { bold: true }
+        totRow.getCell(col).numFmt = '#,##0.00'
+        totRow.getCell(col).border = thinBorder
+      }
     }
 
     // ── Download ──
@@ -586,7 +916,7 @@ export default function SpreadsheetEditorPage() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-  }, [rijen, tariefPerUur, tariefPerKm, tariefDot, weekNummer, jaar, bedrijf, companies, naam])
+  }, [rijen, tariefPerUur, tariefPerKm, tariefDot, weekNummer, jaar, bedrijf, companies, naam, activeTemplate])
 
   // ── Email ──
   const openEmailModal = async () => {
@@ -621,13 +951,13 @@ export default function SpreadsheetEditorPage() {
   const totals = useMemo(() => {
     let uur = 0, km = 0, sub = 0, dot = 0, over = 0, overig = 0, totaal = 0
     rijen.forEach(rij => {
-      const c = calcRow(rij, tariefPerUur, tariefPerKm, tariefDot)
+      const c = calcRowSmart(rij)
       uur += c.bedragUur; km += c.bedragKm; sub += c.subtotaal
       dot += c.dot; over += num(rij.overnachting); overig += num(rij.overige_kosten)
       totaal += c.rijTotaal
     })
     return { uur, km, sub, dot, over, overig, totaal }
-  }, [rijen, tariefPerUur, tariefPerKm, tariefDot])
+  }, [rijen, calcRowSmart])
 
   // ── Render ──
   if (loading) {
@@ -755,7 +1085,14 @@ export default function SpreadsheetEditorPage() {
                 <input type="number" value={jaar} onChange={e => setJaar(Number(e.target.value))} className="input text-sm" />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Template</label>
+              <select value={selectedTemplate} onChange={e => handleTemplateChange(e.target.value)} className="input text-sm">
+                <option value="">Geen template</option>
+                {templates.map(t => <option key={t.id} value={t.id}>{t.naam}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-3 gap-2 lg:col-span-2">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">€/uur</label>
                 <input type="number" value={tariefPerUur} onChange={e => setTariefPerUur(Number(e.target.value))} step="0.01" className="input text-sm" />
@@ -827,7 +1164,7 @@ export default function SpreadsheetEditorPage() {
         {/* Rows */}
         <div className="divide-y">
           {rijen.map((rij, idx) => {
-            const c = calcRow(rij, tariefPerUur, tariefPerKm, tariefDot)
+            const c = calcRowSmart(rij)
             return (
               <div key={idx}>
                 {/* Desktop row */}
