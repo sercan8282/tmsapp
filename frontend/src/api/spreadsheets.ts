@@ -13,6 +13,7 @@ export interface SpreadsheetFilters {
   bedrijf?: string
   week_nummer?: number
   jaar?: number
+  status?: string
 }
 
 export interface SpreadsheetCreate {
@@ -70,6 +71,18 @@ export async function sendSpreadsheetEmail(
   emails: string[],
 ): Promise<{ message: string }> {
   const response = await api.post(`/spreadsheets/${id}/send_email/`, { emails })
+  return response.data
+}
+
+// Submit spreadsheet (mark as ingediend)
+export async function submitSpreadsheet(id: string): Promise<Spreadsheet> {
+  const response = await api.post(`/spreadsheets/${id}/submit/`)
+  return response.data
+}
+
+// Reopen spreadsheet (mark as concept)
+export async function reopenSpreadsheet(id: string): Promise<Spreadsheet> {
+  const response = await api.post(`/spreadsheets/${id}/reopen/`)
   return response.data
 }
 

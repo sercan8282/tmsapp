@@ -34,7 +34,7 @@ def safe_str(value):
 class SpreadsheetViewSet(viewsets.ModelViewSet):
     """ViewSet for spreadsheet CRUD and actions."""
     permission_classes = [IsAuthenticated, IsAdminOnly]
-    filterset_fields = ['bedrijf', 'week_nummer', 'jaar']
+    filterset_fields = ['bedrijf', 'week_nummer', 'jaar', 'status']
     search_fields = ['naam', 'bedrijf__naam']
     ordering_fields = ['naam', 'week_nummer', 'jaar', 'totaal_factuur', 'updated_at', 'created_at']
     ordering = ['-jaar', '-week_nummer']
@@ -49,6 +49,26 @@ class SpreadsheetViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def submit(self, request, pk=None):
+        """Markeer spreadsheet als ingediend."""
+        spreadsheet = self.get_object()
+        from .models import SpreadsheetStatus
+        spreadsheet.status = SpreadsheetStatus.INGEDIEND
+        spreadsheet.save()
+        serializer = SpreadsheetDetailSerializer(spreadsheet)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def reopen(self, request, pk=None):
+        """Zet spreadsheet terug naar concept."""
+        spreadsheet = self.get_object()
+        from .models import SpreadsheetStatus
+        spreadsheet.status = SpreadsheetStatus.CONCEPT
+        spreadsheet.save()
+        serializer = SpreadsheetDetailSerializer(spreadsheet)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None):

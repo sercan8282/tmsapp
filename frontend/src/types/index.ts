@@ -368,6 +368,7 @@ export interface Spreadsheet {
   rijen: SpreadsheetRij[]
   notities: string
   totaal_factuur: number
+  status: 'concept' | 'ingediend'
   created_by: string | null
   created_by_naam: string | null
   created_at: string

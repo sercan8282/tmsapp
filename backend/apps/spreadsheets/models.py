@@ -3,6 +3,11 @@ from django.db import models
 from django.conf import settings
 
 
+class SpreadsheetStatus(models.TextChoices):
+    CONCEPT = 'concept', 'Concept'
+    INGEDIEND = 'ingediend', 'Ingediend'
+
+
 class Spreadsheet(models.Model):
     """
     Transport ritregistratie spreadsheet.
@@ -64,6 +69,12 @@ class Spreadsheet(models.Model):
         decimal_places=2,
         default=0,
         verbose_name='Totaal factuur',
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=SpreadsheetStatus.choices,
+        default=SpreadsheetStatus.CONCEPT,
+        verbose_name='Status',
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
