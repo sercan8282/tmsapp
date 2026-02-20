@@ -428,32 +428,6 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
             'message': f'{type_labels.get(invoice_type, "Factuur")} {invoice.factuurnummer} aangemaakt'
         })
     
-    @action(detail=True, methods=['get'])
-    def page_image(self, request, pk=None):
-        """
-        Get the image URL for a specific page.
-        """
-        invoice_import = self.get_object()
-        page_num = int(request.query_params.get('page', 0))
-        
-        ocr_data = invoice_import.extracted_data.get('ocr_pages', [])
-        
-        if page_num >= len(ocr_data):
-            return Response(
-                {'error': 'Pagina niet gevonden'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        page = ocr_data[page_num]
-        
-        return Response({
-            'page': page_num,
-            'width': page.get('width'),
-            'height': page.get('height'),
-            'image_path': page.get('image_path'),
-            # Convert to URL if needed
-        })
-    
     @action(detail=True, methods=['patch'])
     def update_lines(self, request, pk=None):
         """
@@ -477,6 +451,69 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
                 )
                 serializer.is_valid(raise_exception=True)
                 serializer.save()
+        
+        return Response(
+            InvoiceImportDetailSerializer(
+                invoice_import,
+                context={'request': request}
+            ).data
+        )
+
+    @action(detail=True, methods=['post'])
+    def reextract_lines(self, request, pk=None):
+        """
+        Re-extract line items from the OCR text using improved extraction logic.
+        Optionally accepts custom text to parse lines from.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        invoice_import = self.get_object()
+        
+        # Use provided text or fall back to stored OCR text
+        custom_text = request.data.get('text', '').strip()
+        source_text = custom_text or invoice_import.ocr_text
+        
+        if not source_text:
+            return Response(
+                {'error': 'Geen OCR tekst beschikbaar'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Parse lines from text using the improved extractor
+        from .services import InvoiceDataExtractor
+        extractor = InvoiceDataExtractor()
+        
+        line_items = extractor._find_line_items_from_text(source_text)
+        
+        # If that didn't work, try even more aggressive parsing
+        if not line_items:
+            line_items = extractor._parse_lines_aggressive(source_text)
+        
+        logger.info(f"Re-extracted {len(line_items)} line items from import {invoice_import.id}")
+        
+        # Delete existing lines and create new ones
+        invoice_import.lines.all().delete()
+        
+        created_lines = []
+        for i, item in enumerate(line_items):
+            line = ImportedInvoiceLine.objects.create(
+                invoice_import=invoice_import,
+                raw_text=item.get('raw_text', ''),
+                omschrijving=item.get('omschrijving', ''),
+                aantal=item.get('aantal'),
+                prijs_per_eenheid=item.get('prijs_per_eenheid'),
+                totaal=item.get('totaal'),
+                position=item.get('position', {}),
+                volgorde=i
+            )
+            created_lines.append(line)
+        
+        # Update extracted_data with new line_items
+        extracted_data = invoice_import.extracted_data or {}
+        extracted_data['line_items'] = line_items
+        invoice_import.extracted_data = extracted_data
+        invoice_import.save(update_fields=['extracted_data'])
         
         return Response(
             InvoiceImportDetailSerializer(

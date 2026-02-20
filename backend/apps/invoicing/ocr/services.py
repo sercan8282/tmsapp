@@ -530,7 +530,7 @@ class InvoiceDataExtractor:
     def find_line_items(self, ocr_result: OCRResult) -> List[Dict]:
         """
         Attempt to find line items in the invoice.
-        This is a heuristic approach - patterns improve this.
+        Uses multiple strategies to handle different invoice formats.
         """
         line_items = []
         
@@ -585,8 +585,194 @@ class InvoiceDataExtractor:
                             if item:
                                 item['position'] = line.bbox.to_dict()
                                 line_items.append(item)
+            
+            # Strategy 3: Find tabular data - lines with 4+ numbers (transport invoices, no € symbol)
+            # Common pattern: reference date code hours rate factor total total
+            if not line_items:
+                # First find a potential header row (e.g., "Tarief Aantal")
+                table_start_idx = None
+                for i, line in enumerate(lines):
+                    lower = line.text.lower().strip()
+                    # Header row contains table-related keywords
+                    if any(kw in lower for kw in ['tarief', 'uren', 'aantal', 'rate', 'hours', 'km']):
+                        table_start_idx = i
+                        break
+                
+                search_start = (table_start_idx + 1) if table_start_idx is not None else 0
+                
+                for line in lines[search_start:]:
+                    text = line.text.strip()
+                    lower = text.lower()
+                    
+                    # Stop at totaal/subtotaal/btw lines
+                    if re.match(r'^(sub)?totaal\b', lower) or lower.startswith('btw'):
+                        break
+                    
+                    # Skip obvious non-data lines
+                    if any(kw in lower for kw in ['iban', 'kvk', 'telefoon', 'e-mail', 'www.', 'factuur', 'datum']):
+                        continue
+                    
+                    # Count numbers in the line
+                    numbers = re.findall(r'[\d]+[.,][\d]+|[\d]{2,}', text)
+                    
+                    # Lines with 4+ numbers are likely tabular data rows
+                    if len(numbers) >= 4:
+                        item = self._parse_tabular_line(text, numbers)
+                        if item:
+                            item['position'] = line.bbox.to_dict()
+                            line_items.append(item)
+        
+        # Strategy 4: If still nothing found, try to parse from full text
+        if not line_items:
+            line_items = self._find_line_items_from_text(ocr_result.full_text)
         
         return line_items
+    
+    def _parse_tabular_line(self, text: str, numbers: List[str]) -> Optional[Dict]:
+        """
+        Parse a tabular line with multiple numeric columns.
+        Common in transport invoices: ref date code hours rate factor total total
+        """
+        def parse_dutch_number(num_str: str) -> Optional[float]:
+            try:
+                clean = num_str.replace(',', '.')
+                return float(clean)
+            except ValueError:
+                return None
+        
+        parsed = [parse_dutch_number(n) for n in numbers]
+        parsed = [n for n in parsed if n is not None]
+        
+        if len(parsed) < 3:
+            return None
+        
+        # The last number is typically the total
+        totaal = parsed[-1]
+        
+        # Try to find description (non-numeric part at start)
+        # Look for text before first number pattern
+        first_num_match = re.search(r'[\d]+[.,][\d]+|[\d]{2,}', text)
+        description = text[:first_num_match.start()].strip() if first_num_match else ''
+        
+        # If description is just a reference number, include more context
+        if not description or (description.isdigit() and len(description) <= 10):
+            # Use reference + date as description
+            parts = text.split()
+            desc_parts = []
+            for p in parts[:3]:
+                desc_parts.append(p)
+                # Stop if we hit a decimal number (beyond ref/date)
+                if re.match(r'^\d+\.\d{2}$', p):
+                    break
+            description = ' '.join(desc_parts)
+        
+        # Extract amount values from the numbers
+        # In transport invoices: last = line total, second-to-last = also total (sometimes repeated)
+        # Look for hours/quantity: usually a small number (< 100)
+        # Look for rate: usually a medium number
+        aantal = 1.0
+        prijs = totaal
+        
+        # Try to identify quantity and rate
+        # Typically: ... hours rate ... total total
+        for i, n in enumerate(parsed[:-1]):
+            if 0.25 <= n <= 100 and i < len(parsed) - 2:
+                # This could be hours/quantity
+                # Check if next number times this number ≈ total
+                for j in range(i + 1, len(parsed) - 1):
+                    product = n * parsed[j]
+                    if 0.8 <= (product / totaal) <= 1.2 if totaal else False:
+                        aantal = n
+                        prijs = parsed[j]
+                        break
+                if aantal != 1.0:
+                    break
+        
+        return {
+            'raw_text': text,
+            'omschrijving': description or 'Regel',
+            'aantal': aantal,
+            'prijs_per_eenheid': prijs,
+            'totaal': totaal,
+            'numbers_found': numbers,
+        }
+    
+    def _find_line_items_from_text(self, full_text: str) -> List[Dict]:
+        """
+        Last resort: parse line items from the full OCR text.
+        Splits by newlines and looks for lines with multiple numbers.
+        """
+        line_items = []
+        in_table = False
+        
+        for raw_line in full_text.split('\n'):
+            text = raw_line.strip()
+            if not text:
+                continue
+            
+            lower = text.lower()
+            
+            # Detect start of table area
+            if any(kw in lower for kw in ['tarief', 'omschrijving', 'artikel', 'description']):
+                if any(kw in lower for kw in ['aantal', 'uren', 'prijs', 'totaal', 'bedrag', 'rate']):
+                    in_table = True
+                    continue
+            
+            # Detect end of table
+            if in_table and (lower.startswith('subtotaal') or lower.startswith('totaal') or lower.startswith('btw')):
+                in_table = False
+                continue
+            
+            if not in_table:
+                continue
+            
+            # Count numbers
+            numbers = re.findall(r'[\d]+[.,][\d]+|[\d]{2,}', text)
+            if len(numbers) >= 3:
+                item = self._parse_tabular_line(text, numbers)
+                if item:
+                    line_items.append(item)
+        
+        return line_items
+    
+    def _parse_lines_aggressive(self, full_text: str) -> List[Dict]:
+        """
+        Most aggressive line parsing - finds any line with 3+ numbers.
+        Used as last resort when other strategies fail.
+        Skips obvious header/footer/summary lines.
+        """
+        line_items = []
+        skip_keywords = [
+            'subtotaal', 'totaal', 'btw', 'iban', 'kvk', 'telefoon',
+            'e-mail', 'www.', 'factuur', '@', '.nl', '.com',
+            'datum', 'vervaldatum', 'betaaltermijn', 'rekeningnummer',
+            't.n.v', 'bank', 'bic', 'swift',
+        ]
+        
+        for raw_line in full_text.split('\n'):
+            text = raw_line.strip()
+            if not text or len(text) < 10:
+                continue
+            
+            lower = text.lower()
+            
+            # Skip obvious non-data lines
+            if any(kw in lower for kw in skip_keywords):
+                continue
+            
+            # Must have numbers with decimals (monetary amounts)
+            decimal_numbers = re.findall(r'[\d]+[.,][\d]{2}\b', text)
+            if len(decimal_numbers) < 1:
+                continue
+            
+            # Must have enough total numbers
+            all_numbers = re.findall(r'[\d]+[.,][\d]+|[\d]{2,}', text)
+            if len(all_numbers) < 3:
+                continue
+            
+            item = self._parse_tabular_line(text, all_numbers)
+            if item and item['totaal'] > 0:
+                line_items.append(item)
         
         return line_items
     

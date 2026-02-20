@@ -27,6 +27,7 @@ import {
   convertToInvoice,
   downloadImportFile,
   getImportPageImageUrl,
+  reextractLines,
   BoundingBox,
 } from '../../api/ocr';
 import { useAuthStore } from '../../stores/authStore';
@@ -208,32 +209,49 @@ const InvoiceImportDetailPage: React.FC = () => {
     },
   });
 
+  const reextractMutation = useMutation({
+    mutationFn: () => reextractLines(id!),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['invoiceImport', id] });
+      // Update editable lines from refreshed data
+      if (data?.lines) {
+        setEditableLines(data.lines.map((line: { id: string; omschrijving?: string; raw_text?: string; aantal?: number; prijs_per_eenheid?: number; totaal?: number; }) => ({
+          id: line.id,
+          omschrijving: line.omschrijving || line.raw_text || '',
+          aantal: line.aantal || 1,
+          prijs_per_eenheid: line.prijs_per_eenheid || 0,
+          totaal: line.totaal || 0,
+          raw_text: line.raw_text || '',
+        })));
+      }
+    },
+  });
+
   // Load PDF blob for iframe fallback
   useEffect(() => {
-    if (importData && id) {
-      loadPdfBlob();
-    }
-    return () => {
-      // Clean up blob URL on unmount
-      if (pdfBlobUrl) {
-        URL.revokeObjectURL(pdfBlobUrl);
+    let currentBlobUrl: string | null = null;
+
+    const loadBlob = async () => {
+      if (!id || !importData) return;
+      try {
+        const blob = await downloadImportFile(id);
+        const url = URL.createObjectURL(blob);
+        currentBlobUrl = url;
+        setPdfBlobUrl(url);
+      } catch (err) {
+        console.error('Could not load PDF blob:', err);
       }
     };
-  }, [importData?.id]);
 
-  const loadPdfBlob = async () => {
-    if (!id) return;
-    try {
-      if (pdfBlobUrl) {
-        URL.revokeObjectURL(pdfBlobUrl);
+    loadBlob();
+
+    return () => {
+      // Clean up blob URL on unmount using the correct reference
+      if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
       }
-      const blob = await downloadImportFile(id);
-      const url = URL.createObjectURL(blob);
-      setPdfBlobUrl(url);
-    } catch (err) {
-      console.error('Could not load PDF blob:', err);
-    }
-  };
+    };
+  }, [importData?.id, id]);
 
   // Draw image on canvas
   const drawCanvas = useCallback(() => {
@@ -288,6 +306,7 @@ const InvoiceImportDetailPage: React.FC = () => {
   useEffect(() => {
     // Reset error state when page changes
     setImageLoadError(false);
+    let imageBlobUrl: string | null = null;
     
     const page = importData?.extracted_data?.ocr_pages?.[currentPage];
     if (page?.image_path) {
@@ -334,6 +353,7 @@ const InvoiceImportDetailPage: React.FC = () => {
           })
           .then(blob => {
             const url = URL.createObjectURL(blob);
+            imageBlobUrl = url;
             img.src = url;
           })
           .catch(() => {
@@ -349,6 +369,13 @@ const InvoiceImportDetailPage: React.FC = () => {
       console.log('No image path, showing PDF fallback');
       setImageLoadError(true);
     }
+
+    return () => {
+      // Clean up image blob URL when page changes or component unmounts
+      if (imageBlobUrl) {
+        URL.revokeObjectURL(imageBlobUrl);
+      }
+    };
   }, [importData, currentPage, zoom, drawCanvas]);
 
   // Canvas event handlers
@@ -585,9 +612,10 @@ const InvoiceImportDetailPage: React.FC = () => {
                 title="PDF Preview"
               />
             ) : imageLoadError ? (
+              // Still loading PDF blob or no preview available
               <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                <FileText className="w-12 h-12 mb-2 text-gray-300" />
-                <p className="text-sm">{t('imports.noPreviewAvailable', 'Geen preview beschikbaar')}</p>
+                <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                <p className="text-sm">{t('imports.loadingPreview', 'Preview laden...')}</p>
               </div>
             ) : (
               <canvas
@@ -713,24 +741,39 @@ const InvoiceImportDetailPage: React.FC = () => {
           <div className="bg-white rounded-xl shadow-sm border p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-900">
-                {t('invoices.lines', 'Factuurregels')} ({importData.lines?.length || 0})
+                {t('invoices.lines', 'Factuurregels')} ({editableLines.length})
               </h3>
-              <button
-                onClick={() => {
-                  const newLine = {
-                    id: `new-${Date.now()}`,
-                    omschrijving: '',
-                    aantal: 1,
-                    prijs_per_eenheid: 0,
-                    totaal: 0,
-                    raw_text: '',
-                  };
-                  setEditableLines(prev => [...prev, newLine]);
-                }}
-                className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-              >
-                + {t('invoices.addLine', 'Regel toevoegen')}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => reextractMutation.mutate()}
+                  disabled={reextractMutation.isPending}
+                  className="text-xs px-2 py-1 bg-amber-50 text-amber-700 rounded hover:bg-amber-100 flex items-center gap-1 disabled:opacity-50"
+                  title="Factuurregels opnieuw uitlezen uit OCR tekst"
+                >
+                  {reextractMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <RotateCcw className="w-3 h-3" />
+                  )}
+                  {t('imports.reextractLines', 'Opnieuw uitlezen')}
+                </button>
+                <button
+                  onClick={() => {
+                    const newLine = {
+                      id: `new-${Date.now()}`,
+                      omschrijving: '',
+                      aantal: 1,
+                      prijs_per_eenheid: 0,
+                      totaal: 0,
+                      raw_text: '',
+                    };
+                    setEditableLines(prev => [...prev, newLine]);
+                  }}
+                  className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                >
+                  + {t('invoices.addLine', 'Regel toevoegen')}
+                </button>
+              </div>
             </div>
             
             {editableLines.length > 0 ? (

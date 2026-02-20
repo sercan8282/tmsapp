@@ -244,6 +244,19 @@ export const convertToInvoice = async (
 };
 
 /**
+ * Re-extract line items from OCR text using improved extraction logic
+ */
+export const reextractLines = async (
+  id: string,
+  text?: string
+): Promise<InvoiceImport> => {
+  const response = await api.post(`/invoicing/ocr/imports/${id}/reextract_lines/`, 
+    text ? { text } : {}
+  );
+  return response.data;
+};
+
+/**
  * Update imported lines
  */
 export const updateImportedLines = async (
