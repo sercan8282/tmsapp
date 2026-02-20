@@ -28,6 +28,23 @@ import {
 } from '@/api/leave'
 import { getUsers } from '@/api/users'
 
+const HOURS_PER_DAY = 8
+
+function calculateWorkDays(startDate: string, endDate: string): number {
+  if (!startDate || !endDate) return 0
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  if (start > end) return 0
+  let workDays = 0
+  const current = new Date(start)
+  while (current <= end) {
+    const day = current.getDay()
+    if (day !== 0 && day !== 6) workDays++
+    current.setDate(current.getDate() + 1)
+  }
+  return workDays
+}
+
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected'
 
 const getStatusBadges = (t: (key: string) => string) => ({
@@ -590,7 +607,9 @@ export default function LeaveRequestsAdminPage() {
                       value={createForm.start_date}
                       onChange={(e) => {
                         const start = e.target.value
-                        setCreateForm({ ...createForm, start_date: start, end_date: createForm.end_date || start })
+                        const end = createForm.end_date || start
+                        const hours = calculateWorkDays(start, end) * HOURS_PER_DAY
+                        setCreateForm({ ...createForm, start_date: start, end_date: end, hours_requested: hours || HOURS_PER_DAY })
                       }}
                       className="input w-full"
                     />
@@ -602,7 +621,11 @@ export default function LeaveRequestsAdminPage() {
                     <input
                       type="date"
                       value={createForm.end_date}
-                      onChange={(e) => setCreateForm({ ...createForm, end_date: e.target.value })}
+                      onChange={(e) => {
+                        const end = e.target.value
+                        const hours = calculateWorkDays(createForm.start_date, end) * HOURS_PER_DAY
+                        setCreateForm({ ...createForm, end_date: end, hours_requested: hours || HOURS_PER_DAY })
+                      }}
                       min={createForm.start_date}
                       className="input w-full"
                     />
