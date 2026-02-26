@@ -22,6 +22,10 @@ echo "Database is ready!"
 echo "Running migrations..."
 python manage.py migrate --noinput
 
+# Seed default maintenance data (idempotent - uses update_or_create)
+echo "Seeding maintenance data..."
+python manage.py seed_maintenance || echo "Warning: seed_maintenance failed, continuing..."
+
 # Collect static files
 echo "Collecting static files..."
 python manage.py collectstatic --noinput --clear
