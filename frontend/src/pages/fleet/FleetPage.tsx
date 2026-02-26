@@ -24,6 +24,7 @@ import {
 } from '@/api/fleet'
 import { getAllCompanies } from '@/api/companies'
 import Pagination, { PageSize } from '@/components/common/Pagination'
+import LicensePlate from '@/components/common/LicensePlate'
 
 // Modal component
 function Modal({ 
@@ -592,9 +593,7 @@ export default function FleetPage() {
                 vehicles.map(vehicle => (
                   <tr key={vehicle.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900 font-mono">
-                        {vehicle.kenteken}
-                      </div>
+                      <LicensePlate kenteken={vehicle.kenteken} size="sm" />
                     </td>
                     <td className="px-4 py-3 text-gray-600">{vehicle.type_wagen || '-'}</td>
                     <td className="px-4 py-3 text-gray-600">{vehicle.ritnummer || '-'}</td>
@@ -650,7 +649,7 @@ export default function FleetPage() {
                 {/* Card Header */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 font-mono truncate">{vehicle.kenteken}</h3>
+                    <LicensePlate kenteken={vehicle.kenteken} size="sm" />
                     {vehicle.type_wagen && (
                       <p className="text-sm text-gray-500">{vehicle.type_wagen}</p>
                     )}

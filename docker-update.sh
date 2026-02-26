@@ -2,7 +2,8 @@
 # ===========================================
 # TMS Docker Update Script
 # ===========================================
-# Simpel script om TMS te updaten.
+# Volledige update: backup → code pull → rebuild →
+# migraties → health check → opruiming.
 # Secrets blijven automatisch behouden.
 # ===========================================
 
@@ -13,6 +14,7 @@ TMS_DIR="/var/www/tmsapp"
 SECRETS_DIR="/opt/tms/secrets"
 ENV_FILE="$SECRETS_DIR/.env"
 BACKUP_DIR="/opt/tms/backups"
+KEEP_BACKUPS=10  # Bewaar laatste N backups
 
 # Kleuren
 RED='\033[0;31m'
@@ -23,6 +25,7 @@ NC='\033[0m'
 
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Check root
@@ -38,46 +41,178 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
+# Check of docker draait
+if ! docker info &>/dev/null; then
+    log_error "Docker is niet actief. Start Docker eerst: systemctl start docker"
+    exit 1
+fi
+
 echo ""
 echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║  TMS Update                                ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════╝${NC}"
 echo ""
 
-# Backup database
+cd "$TMS_DIR"
+
+# =========================================
+# 1. Database backup
+# =========================================
+BACKUP_FILE="$BACKUP_DIR/db-pre-update-$(date +%Y%m%d%H%M%S).sql"
 log_info "Database backup maken..."
 mkdir -p "$BACKUP_DIR"
-cd "$TMS_DIR"
-docker compose exec -T db pg_dump -U tms_user tms_db > "$BACKUP_DIR/db-pre-update-$(date +%Y%m%d%H%M%S).sql" 2>/dev/null || log_info "Geen database om te backuppen"
+if docker compose exec -T db pg_dump -U "${DB_USER:-tms_user}" "${DB_NAME:-tms_db}" > "$BACKUP_FILE" 2>/dev/null; then
+    BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+    log_success "Backup aangemaakt: $BACKUP_FILE ($BACKUP_SIZE)"
+else
+    log_warning "Geen draaiende database — backup overgeslagen"
+    rm -f "$BACKUP_FILE"
+fi
 
-# Pull latest code
-log_info "Laatste code ophalen..."
+# =========================================
+# 2. Latest code ophalen
+# =========================================
+log_info "Laatste code ophalen van Git..."
 git fetch origin
-git reset --hard origin/main
-git pull origin main
-log_success "Code bijgewerkt"
+LOCAL=$(git rev-parse HEAD)
+REMOTE=$(git rev-parse origin/main)
 
-# Ensure symlink exists
+if [ "$LOCAL" = "$REMOTE" ]; then
+    log_info "Code is al up-to-date ($LOCAL)"
+    echo ""
+    read -p "Toch herbouwen? (j/n) [n]: " FORCE_BUILD
+    if [[ ! "$FORCE_BUILD" =~ ^[jJyY]$ ]]; then
+        log_info "Update afgebroken — geen wijzigingen."
+        exit 0
+    fi
+fi
+
+git reset --hard origin/main
+log_success "Code bijgewerkt naar $(git rev-parse --short HEAD)"
+
+# =========================================
+# 3. Environment symlink herstellen
+# =========================================
 if [ ! -L "$TMS_DIR/.env" ]; then
     ln -sf "$ENV_FILE" "$TMS_DIR/.env"
     log_success "Environment symlink hersteld"
 fi
 
-# Rebuild en restart
-log_info "Containers herbouwen en herstarten..."
+# =========================================
+# 4. Docker images herbouwen en herstarten
+# =========================================
+log_info "Containers stoppen..."
 docker compose down --remove-orphans
-docker compose up -d --build
 
-# Wacht even
-log_info "Wachten tot services starten..."
-sleep 10
+log_info "Images herbouwen..."
+docker compose build --no-cache
 
-# Status
+log_info "Containers starten..."
+docker compose up -d
+
+# =========================================
+# 5. Wachten tot services healthy zijn
+# =========================================
+log_info "Wachten tot services gezond zijn..."
+MAX_WAIT=120
+ELAPSED=0
+while [ $ELAPSED -lt $MAX_WAIT ]; do
+    DB_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' tms_db 2>/dev/null || echo "starting")
+    REDIS_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' tms_redis 2>/dev/null || echo "starting")
+    
+    if [ "$DB_HEALTH" = "healthy" ] && [ "$REDIS_HEALTH" = "healthy" ]; then
+        log_success "Database en Redis zijn gezond"
+        break
+    fi
+    
+    sleep 2
+    ELAPSED=$((ELAPSED + 2))
+done
+
+if [ $ELAPSED -ge $MAX_WAIT ]; then
+    log_error "Services zijn niet healthy geworden binnen ${MAX_WAIT}s"
+    docker compose ps
+    docker compose logs --tail=20 db redis
+    exit 1
+fi
+
+# Wacht tot backend klaar is (entrypoint draait migrate + collectstatic)
+log_info "Wachten tot backend klaar is..."
+ELAPSED=0
+while [ $ELAPSED -lt 60 ]; do
+    if docker compose exec -T backend python -c "import django; django.setup()" 2>/dev/null; then
+        break
+    fi
+    sleep 3
+    ELAPSED=$((ELAPSED + 3))
+done
+
+# =========================================
+# 6. Verifieer migraties
+# =========================================
+log_info "Migratiestatus controleren..."
+PENDING=$(docker compose exec -T backend python manage.py showmigrations --plan 2>/dev/null | grep "\[ \]" | wc -l)
+if [ "$PENDING" -gt 0 ]; then
+    log_warning "$PENDING migraties nog niet toegepast — opnieuw uitvoeren..."
+    docker compose exec -T backend python manage.py migrate --noinput
+    log_success "Migraties alsnog uitgevoerd"
+else
+    log_success "Alle migraties zijn toegepast"
+fi
+
+# =========================================
+# 7. Health check applicatie
+# =========================================
+log_info "Applicatie health check..."
+sleep 5
+BACKEND_STATUS=$(docker compose exec -T backend curl -sf http://localhost:8000/api/ -o /dev/null -w "%{http_code}" 2>/dev/null || echo "000")
+FRONTEND_STATUS=$(docker compose exec -T frontend curl -sf http://localhost:80/ -o /dev/null -w "%{http_code}" 2>/dev/null || echo "000")
+
+if [[ "$BACKEND_STATUS" =~ ^(200|301|302|401)$ ]]; then
+    log_success "Backend bereikbaar (HTTP $BACKEND_STATUS)"
+else
+    log_warning "Backend geeft HTTP $BACKEND_STATUS — controleer logs: docker compose logs backend"
+fi
+
+if [[ "$FRONTEND_STATUS" =~ ^(200|301|304)$ ]]; then
+    log_success "Frontend bereikbaar (HTTP $FRONTEND_STATUS)"
+else
+    log_warning "Frontend geeft HTTP $FRONTEND_STATUS — controleer logs: docker compose logs frontend"
+fi
+
+# =========================================
+# 8. Oude Docker images opruimen
+# =========================================
+log_info "Ongebruikte Docker images opruimen..."
+docker image prune -f --filter "until=24h" >/dev/null 2>&1 || true
+
+# =========================================
+# 9. Oude backups opruimen (bewaar laatste N)
+# =========================================
+BACKUP_COUNT=$(ls -1 "$BACKUP_DIR"/db-pre-update-*.sql 2>/dev/null | wc -l)
+if [ "$BACKUP_COUNT" -gt "$KEEP_BACKUPS" ]; then
+    REMOVE_COUNT=$((BACKUP_COUNT - KEEP_BACKUPS))
+    log_info "Oude backups opruimen ($REMOVE_COUNT verwijderen, $KEEP_BACKUPS bewaren)..."
+    ls -1t "$BACKUP_DIR"/db-pre-update-*.sql | tail -n "$REMOVE_COUNT" | xargs rm -f
+fi
+
+# =========================================
+# Status overzicht
+# =========================================
 echo ""
+echo -e "${BLUE}═══════════════════════════════════════════════${NC}"
+echo -e "${BLUE}  Container Status${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════${NC}"
 docker compose ps
 echo ""
+echo -e "${BLUE}═══════════════════════════════════════════════${NC}"
+echo -e "${BLUE}  Disk Usage${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════${NC}"
+docker system df 2>/dev/null || true
+echo ""
 
-log_success "Update voltooid!"
+log_success "Update voltooid! ($(git rev-parse --short HEAD))"
 echo ""
 echo "Controleer de applicatie op je domein."
+echo "Logs bekijken:  docker compose logs -f --tail=50"
 echo ""

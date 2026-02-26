@@ -83,6 +83,13 @@ import SpreadsheetEditorPage from '@/pages/spreadsheets/SpreadsheetEditorPage'
 import SpreadsheetTemplateListPage from '@/pages/spreadsheets/SpreadsheetTemplateListPage'
 import SpreadsheetTemplateEditorPage from '@/pages/spreadsheets/SpreadsheetTemplateEditorPage'
 
+// Maintenance
+import MaintenanceOverviewPage from '@/pages/maintenance/MaintenanceOverviewPage'
+import APKPage from '@/pages/maintenance/APKPage'
+import MaintenanceTasksPage from '@/pages/maintenance/MaintenanceTasksPage'
+import TiresPage from '@/pages/maintenance/TiresPage'
+import MaintenanceSettingsPage from '@/pages/maintenance/MaintenanceSettingsPage'
+
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, pendingMfaSetup } = useAuthStore()
@@ -214,6 +221,13 @@ function App() {
         <Route path="/companies" element={<CompaniesPage />} />
         <Route path="/drivers" element={<DriversPage />} />
         <Route path="/fleet" element={<FleetPage />} />
+        
+        {/* Maintenance */}
+        <Route path="/maintenance" element={<MaintenanceOverviewPage />} />
+        <Route path="/maintenance/apk" element={<APKPage />} />
+        <Route path="/maintenance/tasks" element={<MaintenanceTasksPage />} />
+        <Route path="/maintenance/tires" element={<TiresPage />} />
+        <Route path="/maintenance/settings" element={<AdminRoute><MaintenanceSettingsPage /></AdminRoute>} />
         
         {/* Time tracking */}
         <Route path="/time-entries" element={<TimeEntriesPage />} />

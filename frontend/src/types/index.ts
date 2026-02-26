@@ -445,3 +445,349 @@ export interface ApiError {
   message?: string
   [key: string]: unknown
 }
+
+// =============================================================================
+// MAINTENANCE TYPES
+// =============================================================================
+
+export type MaintenanceVehicleType = 'all' | 'truck' | 'motorwagen' | 'car' | 'trailer' | 'van'
+export type APKStatus = 'scheduled' | 'passed' | 'failed' | 'expired' | 'exempted'
+export type MaintenanceStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'deferred'
+export type MaintenancePriority = 'low' | 'medium' | 'high' | 'urgent'
+export type AlertSeverity = 'info' | 'warning' | 'critical' | 'urgent'
+export type DashboardWidgetType =
+  | 'apk_countdown' | 'fleet_health' | 'upcoming_tasks' | 'overdue_tasks'
+  | 'cost_overview' | 'cost_by_type' | 'cost_by_vehicle' | 'cost_trend'
+  | 'tire_status' | 'active_alerts' | 'recent_tasks' | 'maintenance_calendar'
+  | 'vehicle_status' | 'obd_live' | 'obd_alerts' | 'custom_query' | 'statistics'
+export type DashboardWidgetSize = 'small' | 'medium' | 'large' | 'full'
+
+export interface MaintenanceCategory {
+  id: string
+  name: string
+  name_en: string
+  description: string
+  icon: string
+  color: string
+  sort_order: number
+  is_active: boolean
+  type_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface MaintenanceType {
+  id: string
+  category: string
+  category_name: string
+  name: string
+  name_en: string
+  description: string
+  default_interval_km: number | null
+  default_interval_days: number | null
+  vehicle_type: MaintenanceVehicleType
+  is_mandatory: boolean
+  estimated_cost: string | null
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface VehicleMaintenanceProfile {
+  id: string
+  vehicle: string
+  vehicle_kenteken: string
+  maintenance_type: string
+  maintenance_type_name: string
+  category_name: string
+  custom_interval_km: number | null
+  custom_interval_days: number | null
+  last_performed_date: string | null
+  last_performed_km: number | null
+  next_due_date: string | null
+  next_due_km: number | null
+  is_active: boolean
+  notes: string
+  days_until_due: number | null
+  is_overdue: boolean
+  status: string
+  interval_km: number | null
+  interval_days: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface APKRecord {
+  id: string
+  vehicle: string
+  vehicle_kenteken: string
+  vehicle_type: string
+  inspection_date: string
+  expiry_date: string
+  status: APKStatus
+  passed: boolean
+  inspection_station: string
+  inspector_name: string
+  mileage_at_inspection: number | null
+  cost: string | null
+  remarks: string
+  defects: string
+  certificate_file: string | null
+  is_current: boolean
+  days_until_expiry: number
+  is_expired: boolean
+  countdown_status: string
+  created_by: string | null
+  created_by_name: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface APKCountdown {
+  id: string
+  vehicle: string
+  vehicle_kenteken: string
+  vehicle_type: string
+  bedrijf_naam: string | null
+  expiry_date: string
+  days_until_expiry: number
+  countdown_status: string
+  status: APKStatus
+}
+
+export interface MaintenanceTask {
+  id: string
+  vehicle: string
+  vehicle_kenteken: string
+  vehicle_type: string
+  bedrijf_naam: string | null
+  maintenance_type: string
+  maintenance_type_name: string
+  category_name: string
+  category_color: string
+  status: MaintenanceStatus
+  priority: MaintenancePriority
+  title: string
+  description: string
+  scheduled_date: string | null
+  completed_date: string | null
+  mileage_at_service: number | null
+  service_provider: string
+  service_provider_contact: string
+  labor_cost: string
+  parts_cost: string
+  total_cost: string
+  invoice_number: string
+  invoice_file: string | null
+  work_performed: string
+  parts_replaced: string
+  technician_notes: string
+  assigned_to: string | null
+  assigned_to_name: string | null
+  created_by: string | null
+  created_by_name: string | null
+  completed_by: string | null
+  completed_by_name: string | null
+  is_overdue: boolean
+  parts: MaintenancePart[]
+  created_at: string
+  updated_at: string
+}
+
+export interface MaintenanceTaskList {
+  id: string
+  vehicle: string
+  vehicle_kenteken: string
+  maintenance_type_name: string
+  category_name: string
+  category_color: string
+  status: MaintenanceStatus
+  priority: MaintenancePriority
+  title: string
+  scheduled_date: string | null
+  completed_date: string | null
+  total_cost: string
+  is_overdue: boolean
+  created_at: string
+}
+
+export interface MaintenancePart {
+  id: string
+  task: string
+  name: string
+  part_number: string
+  quantity: number
+  unit_price: string
+  total_price: string
+  supplier: string
+  warranty_months: number | null
+  created_at: string
+}
+
+export interface TireRecord {
+  id: string
+  vehicle: string
+  vehicle_kenteken: string
+  position: string
+  position_display: string
+  brand: string
+  model: string
+  size: string
+  tire_type: string
+  tire_type_display: string
+  dot_code: string
+  serial_number: string
+  tread_depth_mm: string | null
+  minimum_tread_depth: string
+  mounted_date: string | null
+  mounted_km: number | null
+  expected_replacement_date: string | null
+  days_until_replacement: number | null
+  removed_date: string | null
+  removed_km: number | null
+  removal_reason: string
+  km_driven: number | null
+  purchase_cost: string | null
+  is_current: boolean
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MaintenanceThreshold {
+  id: string
+  name: string
+  description: string
+  maintenance_type: string | null
+  maintenance_type_name: string | null
+  is_apk_threshold: boolean
+  warning_days: number
+  critical_days: number
+  urgent_days: number
+  warning_km: number | null
+  critical_km: number | null
+  send_email: boolean
+  send_push: boolean
+  send_to_admin: boolean
+  extra_email_recipients: string
+  is_active: boolean
+  active_alerts_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface MaintenanceAlert {
+  id: string
+  vehicle: string
+  vehicle_kenteken: string
+  threshold: string | null
+  threshold_name: string | null
+  maintenance_task: string | null
+  apk_record: string | null
+  severity: AlertSeverity
+  title: string
+  message: string
+  is_read: boolean
+  is_dismissed: boolean
+  is_resolved: boolean
+  email_sent: boolean
+  email_sent_at: string | null
+  push_sent: boolean
+  resolved_at: string | null
+  resolved_by: string | null
+  resolved_by_name: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MaintenanceDashboard {
+  id: string
+  user: string
+  user_name: string
+  name: string
+  description: string
+  is_default: boolean
+  is_shared: boolean
+  layout: Record<string, unknown>
+  widgets: DashboardWidget[]
+  created_at: string
+  updated_at: string
+}
+
+export interface DashboardWidget {
+  id: string
+  dashboard: string
+  widget_type: DashboardWidgetType
+  widget_type_display: string
+  title: string
+  size: DashboardWidgetSize
+  size_display: string
+  position_x: number
+  position_y: number
+  sort_order: number
+  config: Record<string, unknown>
+  custom_query: string | null
+  custom_query_name: string | null
+  is_visible: boolean
+  refresh_interval_seconds: number
+  created_at: string
+  updated_at: string
+}
+
+export interface MaintenanceQuery {
+  id: string
+  name: string
+  description: string
+  query_definition: Record<string, unknown>
+  result_type: string
+  created_by: string | null
+  created_by_name: string | null
+  is_sample: boolean
+  is_public: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface MaintenanceStats {
+  total_tasks: number
+  completed_tasks: number
+  scheduled_tasks: number
+  overdue_tasks: number
+  total_cost_ytd: string
+  total_cost_month: string
+  avg_cost_per_vehicle: string
+  most_expensive_vehicle: {
+    vehicle_id: string
+    vehicle_kenteken: string
+    total_cost: string
+  } | null
+  cost_trend: Array<{
+    month: string
+    total: string
+  }>
+}
+
+export interface FleetHealth {
+  total_vehicles: number
+  vehicles_ok: number
+  vehicles_warning: number
+  vehicles_critical: number
+  vehicles_overdue: number
+  apk_expired: number
+  upcoming_tasks_7days: number
+  upcoming_tasks_30days: number
+  total_active_alerts: number
+}
+
+export interface VehicleCostSummary {
+  vehicle_id: string
+  vehicle_kenteken: string
+  vehicle_type: string
+  total_cost: string
+  labor_cost: string
+  parts_cost: string
+  task_count: number
+  apk_cost: string
+  tire_cost: string
+}

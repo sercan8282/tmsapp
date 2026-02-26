@@ -26,6 +26,7 @@ import {
   PencilSquareIcon,
   TableCellsIcon,
   SwatchIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
@@ -64,6 +65,7 @@ const navigation: NavItem[] = [
   { name: 'nav.revenue', href: '/revenue', icon: CurrencyEuroIcon, roles: ['admin', 'gebruiker'] },
   { name: 'nav.spreadsheets', href: '/spreadsheets', icon: TableCellsIcon, roles: ['admin'] },
   { name: 'nav.spreadsheetTemplates', href: '/spreadsheets/templates', icon: SwatchIcon, roles: ['admin'] },
+  { name: 'nav.maintenance', href: '/maintenance', icon: WrenchScrewdriverIcon, roles: ['admin', 'gebruiker'] },
 ]
 
 const adminNavigation: NavItem[] = [

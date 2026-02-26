@@ -123,7 +123,7 @@ function AdminDashboard({ user }: { user: any }) {
   const loadActivities = async () => {
     try {
       const data = await settingsApi.getRecentActivity(8)
-      setActivities(data.activities)
+      setActivities(Array.isArray(data.activities) ? data.activities : [])
     } catch (err) {
       console.error('Failed to load recent activity:', err)
     } finally {
@@ -294,7 +294,7 @@ function AdminDashboard({ user }: { user: any }) {
           ) : (
             <>
               <ul className="divide-y divide-gray-100">
-                {activities.slice(0, 10).map((activity, idx) => {
+                {(activities || []).slice(0, 10).map((activity, idx) => {
                   const Icon = getActivityIcon(activity.type)
                   const colorClass = getActivityColor(activity.type)
                   const isClickable = activity.link && activity.link !== '/'
