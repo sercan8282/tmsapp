@@ -35,6 +35,7 @@ import { AppSettings } from '@/types'
 import clsx from '@/utils/clsx'
 import NotificationBell from '@/components/notifications/NotificationBell'
 import PushNotificationPrompt from '@/components/pwa/PushNotificationPrompt'
+import LicenseExpiryBanner from '@/components/licensing/LicenseExpiryBanner'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher'
 import { useTranslation } from 'react-i18next'
 
@@ -236,6 +237,9 @@ export default function DashboardLayout() {
             </div>
           </div>
         </div>
+
+        {/* License expiry warning */}
+        <LicenseExpiryBanner />
 
         {/* Page content */}
         <main className="flex-1 overflow-auto">

@@ -32,7 +32,8 @@ import { useAppStore } from '@/stores/appStore'
 import { useServerConfigStore } from '@/stores/serverConfigStore'
 import ThemeSelector from '@/components/settings/ThemeSelector'
 import type { AppSettingsAdmin } from '@/types'
-import { CalendarDaysIcon } from '@heroicons/react/24/outline'
+import { CalendarDaysIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import LicenseStatusCard from '@/components/licensing/LicenseStatusCard'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -50,6 +51,7 @@ export default function SettingsPage() {
     { id: 'ai', name: t('settings.aiExtraction', 'AI Extractie'), icon: SparklesIcon },
     { id: 'server', name: t('settings.server', 'Server'), icon: ServerIcon },
     { id: 'leave', name: t('settings.leaveSettings', 'Verlof'), icon: CalendarDaysIcon, link: '/settings/leave' },
+    { id: 'license', name: t('settings.license', 'Licentie'), icon: ShieldCheckIcon },
   ]
   
   // State
@@ -1186,6 +1188,19 @@ export default function SettingsPage() {
                   {t('settings.serverSetup')}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* License Tab */}
+          {activeTab === 'license' && (
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {t('settings.license', 'Licentie')}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {t('settings.licenseDescription', 'Informatie over de actieve licentie van deze installatie.')}
+              </p>
+              <LicenseStatusCard />
             </div>
           )}
         </div>

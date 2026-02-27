@@ -63,6 +63,7 @@ backend/
 │   ├── notifications/            # Push notificaties (VAPID/Firebase) + Inbox + Schedules
 │   ├── documents/                # PDF upload + digitaal ondertekenen
 │   ├── spreadsheets/             # Ritregistratie templates + data
+│   ├── licensing/                # Licentie systeem (Ed25519 signed keys, eenmalig gebruik)
 │   └── core/                     # AppSettings, ActivityLog, Permissions, CustomFont, Encryption
 ├── requirements/
 │   ├── base.txt                  # Productie dependencies
@@ -95,6 +96,7 @@ backend/
 | `/api/notifications/` | notifications |
 | `/api/documents/` | documents |
 | `/api/spreadsheets/` | spreadsheets |
+| `/api/licensing/` | licensing |
 
 ---
 

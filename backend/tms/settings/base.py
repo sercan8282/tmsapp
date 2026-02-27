@@ -48,6 +48,7 @@ LOCAL_APPS = [
     'apps.documents',
     'apps.spreadsheets',
     'apps.maintenance',
+    'apps.licensing',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -61,6 +62,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apps.licensing.middleware.LicenseMiddleware',
 ]
 
 # Allow embedding in iframes from same origin (needed for PDF preview)

@@ -791,3 +791,38 @@ export interface VehicleCostSummary {
   apk_cost: string
   tire_cost: string
 }
+
+// License types
+export interface LicenseInfo {
+  id: string
+  customer_name: string
+  status: 'pending' | 'active' | 'expired' | 'revoked'
+  issued_at: string
+  expires_at: string
+  max_users: number
+  features: string[]
+  activated_at: string | null
+  days_remaining: number
+  is_valid: boolean
+  is_expiring_soon: boolean
+}
+
+export interface LicenseStatusResponse {
+  licensed: boolean
+  message?: string
+  license?: LicenseInfo
+}
+
+export interface LicenseActivateResponse {
+  success: boolean
+  error?: string
+  message: string
+  license?: {
+    id: string
+    customer: string
+    expires_at: string
+    max_users: number
+    features: string[]
+    days_remaining: number
+  }
+}

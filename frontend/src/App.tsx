@@ -1,3 +1,4 @@
+import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useServerConfigStore } from '@/stores/serverConfigStore'
@@ -90,12 +91,17 @@ import MaintenanceTasksPage from '@/pages/maintenance/MaintenanceTasksPage'
 import TiresPage from '@/pages/maintenance/TiresPage'
 import MaintenanceSettingsPage from '@/pages/maintenance/MaintenanceSettingsPage'
 
+// Licensing
+import LicenseActivationPage from '@/pages/licensing/LicenseActivationPage'
+import { useLicenseStore } from '@/stores/licenseStore'
+
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, pendingMfaSetup } = useAuthStore()
   const { isConfigured } = useServerConfigStore()
+  const { isLicensed, isLoading: licenseLoading } = useLicenseStore()
   
-  if (isLoading) {
+  if (isLoading || licenseLoading) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -106,6 +112,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // Redirect to server setup if not configured
   if (!isConfigured) {
     return <Navigate to="/setup" replace />
+  }
+  
+  // Redirect to license activation if not licensed
+  if (!isLicensed) {
+    return <Navigate to="/license" replace />
   }
   
   if (!isAuthenticated) {
@@ -165,6 +176,14 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 function App() {
   const { isAuthenticated } = useAuthStore()
   const { isConfigured } = useServerConfigStore()
+  const { checkLicense } = useLicenseStore()
+  
+  // Check license status on app load when server is configured
+  React.useEffect(() => {
+    if (isConfigured) {
+      checkLicense()
+    }
+  }, [isConfigured, checkLicense])
   
   return (
     <>
@@ -200,6 +219,9 @@ function App() {
       
       {/* MFA Setup route - outside of protected route since it has its own protection */}
       <Route path="/setup-mfa" element={<MfaSetupPage />} />
+      
+      {/* License activation route */}
+      <Route path="/license" element={<LicenseActivationPage />} />
       
       {/* Protected dashboard routes */}
       <Route

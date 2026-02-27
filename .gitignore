@@ -149,3 +149,8 @@ frontend/nginx.local.conf
 # Local scripts
 start-local.ps1
 start-local.bat
+
+# License private key (NEVER commit!)
+license_private_key.pem
+*.pem
+!requirements/*.pem

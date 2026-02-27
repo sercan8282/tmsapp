@@ -192,6 +192,15 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
     
     def post(self, request):
+        # Check license user limit
+        from apps.licensing.services import check_user_limit
+        limit_check = check_user_limit()
+        if not limit_check['allowed']:
+            return Response(
+                {'error': limit_check['message']},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
@@ -425,6 +434,17 @@ class UserViewSet(viewsets.ModelViewSet):
         elif self.action in ['update', 'partial_update']:
             return UserUpdateSerializer
         return UserSerializer
+    
+    def create(self, request, *args, **kwargs):
+        """Create user with license user limit check."""
+        from apps.licensing.services import check_user_limit
+        limit_check = check_user_limit()
+        if not limit_check['allowed']:
+            return Response(
+                {'error': limit_check['message']},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().create(request, *args, **kwargs)
     
     def get_queryset(self):
         queryset = User.objects.all()
