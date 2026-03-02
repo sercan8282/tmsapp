@@ -186,7 +186,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         'bedrijf', 'template', 'created_by'
     ).prefetch_related('lines').all()
     permission_classes = [IsAuthenticated, IsAdminOrManager]
-    filterset_fields = ['type', 'status', 'bedrijf']
+    filterset_fields = ['type', 'status', 'bedrijf', 'week_number', 'week_year', 'chauffeur']
     search_fields = ['factuurnummer', 'bedrijf__naam']
     ordering_fields = ['factuurdatum', 'factuurnummer', 'totaal', 'bedrijf__naam']
     

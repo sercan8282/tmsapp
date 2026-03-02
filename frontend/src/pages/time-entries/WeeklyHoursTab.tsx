@@ -12,14 +12,10 @@ import {
   ExclamationTriangleIcon,
   DocumentPlusIcon,
   XMarkIcon,
-  PencilIcon,
-  CheckIcon,
 } from '@heroicons/react/24/outline'
 import {
   WeeklyHoursOverview,
   getWeeklyHoursOverview,
-  setMinimumHours,
-  setMinimumHoursBulk,
   addMissedHoursToInvoice,
   getCurrentYear,
 } from '@/api/timetracking'
@@ -41,26 +37,24 @@ export default function WeeklyHoursTab() {
   const [selectedYear, setSelectedYear] = useState(getCurrentYear())
   const [showOnlyMissed, setShowOnlyMissed] = useState(false)
   
-  // Edit minimum hours state
-  const [editingRow, setEditingRow] = useState<string | null>(null)
-  const [editMinValue, setEditMinValue] = useState('')
-  
-  // Bulk set minimum hours state
-  const [showBulkModal, setShowBulkModal] = useState(false)
-  const [bulkUser, setBulkUser] = useState<{ id: string; naam: string } | null>(null)
-  const [bulkMinHours, setBulkMinHours] = useState('40')
-  const [bulkSaving, setBulkSaving] = useState(false)
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 20
   
   // Invoice modal state
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [invoiceRow, setInvoiceRow] = useState<WeeklyHoursOverview | null>(null)
   const [companies, setCompanies] = useState<Company[]>([])
-  const [invoices, setInvoices] = useState<Invoice[]>([])
-  const [invoiceMode, setInvoiceMode] = useState<'new' | 'existing'>('new')
+  const [linkedInvoices, setLinkedInvoices] = useState<Invoice[]>([])
+  const [allInvoices, setAllInvoices] = useState<Invoice[]>([])
+  const [allInvoicesCount, setAllInvoicesCount] = useState(0)
+  const [allInvoicesPage, setAllInvoicesPage] = useState(1)
+  const [invoiceTab, setInvoiceTab] = useState<'linked' | 'all' | 'new'>('linked')
   const [selectedCompany, setSelectedCompany] = useState('')
   const [selectedInvoice, setSelectedInvoice] = useState('')
   const [pricePerHour, setPricePerHour] = useState('0')
   const [invoiceSaving, setInvoiceSaving] = useState(false)
+  const [invoicesLoading, setInvoicesLoading] = useState(false)
 
   // Available years
   const years = Array.from({ length: 5 }, (_, i) => getCurrentYear() - i)
@@ -88,6 +82,7 @@ export default function WeeklyHoursTab() {
     }
     
     setFilteredData(filtered)
+    setCurrentPage(1)
   }, [searchTerm, data, showOnlyMissed])
 
   const loadData = async () => {
@@ -104,86 +99,65 @@ export default function WeeklyHoursTab() {
     }
   }
 
-  // Edit minimum hours inline
-  const startEdit = (row: WeeklyHoursOverview) => {
-    const key = `${row.user_id}-${row.jaar}-${row.weeknummer}`
-    setEditingRow(key)
-    setEditMinValue(row.minimum_uren?.toString() || '40')
-  }
-
-  const saveMinHours = async (row: WeeklyHoursOverview) => {
-    const value = parseFloat(editMinValue)
-    if (isNaN(value) || value < 0) {
-      toast.error(t('weeklyHours.invalidMinHours'))
-      return
-    }
-    
-    try {
-      await setMinimumHours({
-        user_id: row.user_id,
-        jaar: row.jaar,
-        weeknummer: row.weeknummer,
-        minimum_uren: value,
-      })
-      setEditingRow(null)
-      toast.success(t('weeklyHours.minHoursUpdated'))
-      await loadData()
-    } catch (err) {
-      console.error('Failed to set minimum hours:', err)
-      toast.error(t('weeklyHours.minHoursError'))
-    }
-  }
-
-  const cancelEdit = () => {
-    setEditingRow(null)
-    setEditMinValue('')
-  }
-
-  const handleBulkSave = async () => {
-    if (!bulkUser) return
-    const value = parseFloat(bulkMinHours)
-    if (isNaN(value) || value < 0) {
-      toast.error(t('weeklyHours.invalidMinHours'))
-      return
-    }
-    
-    try {
-      setBulkSaving(true)
-      const result = await setMinimumHoursBulk({
-        user_id: bulkUser.id,
-        jaar: selectedYear,
-        minimum_uren: value,
-      })
-      toast.success(t('weeklyHours.bulkMinHoursUpdated', { count: result.total_weeks }))
-      setShowBulkModal(false)
-      await loadData()
-    } catch (err) {
-      console.error('Failed to bulk set minimum hours:', err)
-      toast.error(t('weeklyHours.minHoursError'))
-    } finally {
-      setBulkSaving(false)
-    }
-  }
+  // Pagination
+  const totalPages = Math.ceil(filteredData.length / pageSize)
+  const paginatedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   // Invoice missed hours
   const openInvoiceModal = async (row: WeeklyHoursOverview) => {
     setInvoiceRow(row)
-    setInvoiceMode('existing')
     setSelectedCompany('')
     setSelectedInvoice('')
     setPricePerHour('0')
+    setInvoiceTab('linked')
+    setAllInvoicesPage(1)
     setShowInvoiceModal(true)
+    setInvoicesLoading(true)
     
-    // Load companies and concept invoices
     try {
-      const [companiesData, invoicesData] = await Promise.all([
+      // Load linked invoices (matching user+week) and all concept invoices + companies in parallel
+      const [companiesData, linkedData, allData] = await Promise.all([
         getAllCompanies(),
-        getInvoices({ status: 'concept', page_size: 100 }),
+        getInvoices({
+          status: 'concept',
+          chauffeur: row.user_id,
+          week_number: row.weeknummer,
+          week_year: row.jaar,
+          page_size: 10,
+        }),
+        getInvoices({ status: 'concept', page_size: 10, page: 1 }),
       ])
       setCompanies(companiesData)
-      setInvoices(invoicesData.results)
+      setLinkedInvoices(linkedData.results)
+      setAllInvoices(allData.results)
+      setAllInvoicesCount(allData.count)
+      
+      // Auto-select if exactly one linked invoice found
+      if (linkedData.results.length === 1) {
+        setSelectedInvoice(linkedData.results[0].id)
+      } else if (linkedData.results.length === 0) {
+        // No linked invoices, switch to all tab
+        setInvoiceTab('all')
+      }
     } catch (err) {
-      console.error('Failed to load companies/invoices:', err)
+      console.error('Failed to load invoices:', err)
+    } finally {
+      setInvoicesLoading(false)
+    }
+  }
+
+  // Load more all-invoices for pagination
+  const loadAllInvoicesPage = async (page: number) => {
+    setAllInvoicesPage(page)
+    try {
+      setInvoicesLoading(true)
+      const data = await getInvoices({ status: 'concept', page_size: 10, page })
+      setAllInvoices(data.results)
+      setAllInvoicesCount(data.count)
+    } catch (err) {
+      console.error('Failed to load invoices page:', err)
+    } finally {
+      setInvoicesLoading(false)
     }
   }
 
@@ -213,12 +187,12 @@ export default function WeeklyHoursTab() {
         prijs_per_uur: price,
       }
       
-      if (invoiceMode === 'existing' && selectedInvoice) {
-        payload.invoice_id = selectedInvoice
-      } else if (invoiceMode === 'new' && selectedCompany) {
+      if (invoiceTab === 'new' && selectedCompany) {
         payload.bedrijf_id = selectedCompany
+      } else if (selectedInvoice) {
+        payload.invoice_id = selectedInvoice
       } else {
-        toast.error(invoiceMode === 'new' 
+        toast.error(invoiceTab === 'new' 
           ? t('weeklyHours.selectCompany')
           : t('weeklyHours.selectInvoice')
         )
@@ -241,9 +215,6 @@ export default function WeeklyHoursTab() {
       setInvoiceSaving(false)
     }
   }
-
-  // Group by user for summary
-  const uniqueUsers = [...new Map(data.map(r => [r.user_id, { id: r.user_id, naam: r.user_naam }])).values()]
 
   return (
     <div>
@@ -280,26 +251,6 @@ export default function WeeklyHoursTab() {
               {t('weeklyHours.showOnlyMissed')}
             </label>
           </div>
-          
-          {/* Bulk set buttons per user */}
-          {uniqueUsers.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="text-xs text-gray-500 self-center">{t('weeklyHours.bulkSetFor')}:</span>
-              {uniqueUsers.map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => {
-                    setBulkUser(u)
-                    setBulkMinHours('40')
-                    setShowBulkModal(true)
-                  }}
-                  className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors"
-                >
-                  {u.naam}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -345,9 +296,8 @@ export default function WeeklyHoursTab() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredData.map((row) => {
+                  {paginatedData.map((row) => {
                     const key = `${row.user_id}-${row.jaar}-${row.weeknummer}`
-                    const isEditing = editingRow === key
                     const hasMissed = row.gemiste_uren !== null && row.gemiste_uren > 0
                     const belowMinimum = row.minimum_uren !== null && row.gewerkte_uren < row.minimum_uren
                     
@@ -363,50 +313,9 @@ export default function WeeklyHoursTab() {
                           <div className="text-xs text-gray-500">{row.user_bedrijf}</div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-right">
-                          {isEditing ? (
-                            <div className="flex items-center justify-end gap-1">
-                              <input
-                                type="number"
-                                value={editMinValue}
-                                onChange={(e) => setEditMinValue(e.target.value)}
-                                className="form-input w-20 text-sm text-right py-1"
-                                step="0.5"
-                                min="0"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') saveMinHours(row)
-                                  if (e.key === 'Escape') cancelEdit()
-                                }}
-                              />
-                              <button
-                                onClick={() => saveMinHours(row)}
-                                className="p-1 text-green-600 hover:text-green-800"
-                                title={t('common.save')}
-                              >
-                                <CheckIcon className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={cancelEdit}
-                                className="p-1 text-gray-400 hover:text-gray-600"
-                                title={t('common.cancel')}
-                              >
-                                <XMarkIcon className="h-4 w-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-end gap-1">
-                              <span className={`text-sm font-medium ${row.minimum_uren !== null ? '' : 'text-gray-400 italic'}`}>
-                                {row.minimum_uren !== null ? `${row.minimum_uren}u` : t('weeklyHours.notSet')}
-                              </span>
-                              <button
-                                onClick={() => startEdit(row)}
-                                className="p-1 text-gray-400 hover:text-primary-600"
-                                title={t('weeklyHours.editMinHours')}
-                              >
-                                <PencilIcon className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          )}
+                          <span className={`text-sm font-medium ${row.minimum_uren !== null ? '' : 'text-gray-400 italic'}`}>
+                            {row.minimum_uren !== null ? `${row.minimum_uren}u` : t('weeklyHours.notSet')}
+                          </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
                           <span className={`font-semibold ${belowMinimum ? 'text-red-600' : 'text-gray-900'}`}>
@@ -449,7 +358,7 @@ export default function WeeklyHoursTab() {
 
             {/* Mobile Card View */}
             <div className="md:hidden divide-y divide-gray-200">
-              {filteredData.map((row) => {
+              {paginatedData.map((row) => {
                 const key = `${row.user_id}-${row.jaar}-${row.weeknummer}`
                 const hasMissed = row.gemiste_uren !== null && row.gemiste_uren > 0
                 const belowMinimum = row.minimum_uren !== null && row.gewerkte_uren < row.minimum_uren
@@ -472,12 +381,6 @@ export default function WeeklyHoursTab() {
                         <span className="font-medium">
                           {row.minimum_uren !== null ? `${row.minimum_uren}u` : '-'}
                         </span>
-                        <button
-                          onClick={() => startEdit(row)}
-                          className="ml-1 text-gray-400 hover:text-primary-600"
-                        >
-                          <PencilIcon className="h-3 w-3 inline" />
-                        </button>
                       </div>
                       <div>
                         <span className="text-gray-500 block">{t('weeklyHours.workedShort')}</span>
@@ -508,58 +411,37 @@ export default function WeeklyHoursTab() {
                 )
               })}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                <span className="text-sm text-gray-500">
+                  {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredData.length)} {t('common.of')} {filteredData.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {t('common.previous')}
+                  </button>
+                  <span className="px-3 py-1.5 text-sm text-gray-600">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {t('common.next')}
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
-
-      {/* Bulk Set Minimum Hours Modal */}
-      <Transition appear show={showBulkModal} as={Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={() => setShowBulkModal(false)}>
-          <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
-            <div className="fixed inset-0 bg-black bg-opacity-25" />
-          </Transition.Child>
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4">
-              <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white shadow-xl transition-all">
-                  <div className="flex items-center justify-between p-4 border-b">
-                    <Dialog.Title className="text-lg font-semibold">
-                      {t('weeklyHours.bulkSetTitle')}
-                    </Dialog.Title>
-                    <button onClick={() => setShowBulkModal(false)} className="text-gray-400 hover:text-gray-500">
-                      <XMarkIcon className="h-6 w-6" />
-                    </button>
-                  </div>
-                  <div className="p-4 space-y-4">
-                    <p className="text-sm text-gray-600">
-                      {t('weeklyHours.bulkSetDescription', { name: bulkUser?.naam, year: selectedYear })}
-                    </p>
-                    <div>
-                      <label className="form-label">{t('weeklyHours.minimumHoursPerWeek')}</label>
-                      <input
-                        type="number"
-                        value={bulkMinHours}
-                        onChange={(e) => setBulkMinHours(e.target.value)}
-                        className="form-input"
-                        step="0.5"
-                        min="0"
-                      />
-                    </div>
-                  </div>
-                  <div className="px-4 py-3 border-t flex justify-end gap-3">
-                    <button onClick={() => setShowBulkModal(false)} className="btn-secondary">
-                      {t('common.cancel')}
-                    </button>
-                    <button onClick={handleBulkSave} className="btn-primary" disabled={bulkSaving}>
-                      {bulkSaving ? t('common.saving') : t('common.save')}
-                    </button>
-                  </div>
-                </Dialog.Panel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
 
       {/* Add to Invoice Modal */}
       <Transition appear show={showInvoiceModal} as={Fragment}>
@@ -598,37 +480,195 @@ export default function WeeklyHoursTab() {
                       </div>
                     )}
 
-                    {/* Mode selection */}
-                    <div>
-                      <label className="form-label">{t('weeklyHours.invoiceTarget')}</label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input
-                            type="radio"
-                            name="invoiceMode"
-                            value="new"
-                            checked={invoiceMode === 'new'}
-                            onChange={() => setInvoiceMode('new')}
-                            className="text-primary-600 focus:ring-primary-500"
-                          />
+                    {/* Tab navigation */}
+                    <div className="border-b border-gray-200">
+                      <nav className="-mb-px flex gap-4" aria-label="Invoice tabs">
+                        <button
+                          onClick={() => setInvoiceTab('linked')}
+                          className={`py-2 px-1 border-b-2 text-sm font-medium transition-colors ${
+                            invoiceTab === 'linked'
+                              ? 'border-primary-600 text-primary-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          {t('weeklyHours.linkedInvoices')}
+                          {linkedInvoices.length > 0 && (
+                            <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs bg-primary-100 text-primary-700">
+                              {linkedInvoices.length}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setInvoiceTab('all')}
+                          className={`py-2 px-1 border-b-2 text-sm font-medium transition-colors ${
+                            invoiceTab === 'all'
+                              ? 'border-primary-600 text-primary-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          {t('weeklyHours.allInvoices')}
+                          {allInvoicesCount > 0 && (
+                            <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
+                              {allInvoicesCount}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setInvoiceTab('new')}
+                          className={`py-2 px-1 border-b-2 text-sm font-medium transition-colors ${
+                            invoiceTab === 'new'
+                              ? 'border-primary-600 text-primary-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
                           {t('weeklyHours.newInvoice')}
-                        </label>
-                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input
-                            type="radio"
-                            name="invoiceMode"
-                            value="existing"
-                            checked={invoiceMode === 'existing'}
-                            onChange={() => setInvoiceMode('existing')}
-                            className="text-primary-600 focus:ring-primary-500"
-                          />
-                          {t('weeklyHours.existingInvoice')}
-                        </label>
-                      </div>
+                        </button>
+                      </nav>
                     </div>
 
-                    {/* New invoice: company selector */}
-                    {invoiceMode === 'new' && (
+                    {/* Loading state */}
+                    {invoicesLoading && (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto"></div>
+                      </div>
+                    )}
+
+                    {/* Linked invoices tab */}
+                    {invoiceTab === 'linked' && !invoicesLoading && (
+                      <div className="space-y-2">
+                        {linkedInvoices.length === 0 ? (
+                          <div className="text-center py-4 text-sm text-gray-500">
+                            <p>{t('weeklyHours.noLinkedInvoices')}</p>
+                            <button
+                              onClick={() => setInvoiceTab('all')}
+                              className="text-primary-600 hover:text-primary-700 mt-1 text-sm font-medium"
+                            >
+                              {t('weeklyHours.viewAllInvoices')}
+                            </button>
+                          </div>
+                        ) : (
+                          linkedInvoices.map(inv => (
+                            <label
+                              key={inv.id}
+                              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                                selectedInvoice === inv.id
+                                  ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
+                                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="selectedInvoice"
+                                value={inv.id}
+                                checked={selectedInvoice === inv.id}
+                                onChange={() => setSelectedInvoice(inv.id)}
+                                className="text-primary-600 focus:ring-primary-500"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{inv.factuurnummer}</span>
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                    {t('weeklyHours.linked')}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  {inv.bedrijf_naam}
+                                  {inv.chauffeur_naam && ` • ${inv.chauffeur_naam}`}
+                                  {inv.week_number && ` • ${t('common.week')} ${inv.week_number}`}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-0.5">
+                                  €{Number(inv.totaal).toFixed(2)} • {inv.lines?.length || 0} {t('weeklyHours.lines')}
+                                </div>
+                              </div>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {/* All invoices tab */}
+                    {invoiceTab === 'all' && !invoicesLoading && (
+                      <div className="space-y-2">
+                        {allInvoices.length === 0 ? (
+                          <div className="text-center py-4 text-sm text-gray-500">
+                            <p>{t('weeklyHours.noConceptInvoices')}</p>
+                            <button
+                              onClick={() => setInvoiceTab('new')}
+                              className="text-primary-600 hover:text-primary-700 mt-1 text-sm font-medium"
+                            >
+                              {t('weeklyHours.createNewInvoice')}
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            {allInvoices.map(inv => (
+                              <label
+                                key={inv.id}
+                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                                  selectedInvoice === inv.id
+                                    ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
+                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="selectedInvoice"
+                                  value={inv.id}
+                                  checked={selectedInvoice === inv.id}
+                                  onChange={() => setSelectedInvoice(inv.id)}
+                                  className="text-primary-600 focus:ring-primary-500"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm">{inv.factuurnummer}</span>
+                                    {inv.chauffeur === invoiceRow?.user_id && inv.week_number === invoiceRow?.weeknummer && (
+                                      <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                        {t('weeklyHours.linked')}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-0.5">
+                                    {inv.bedrijf_naam}
+                                    {inv.chauffeur_naam && ` • ${inv.chauffeur_naam}`}
+                                    {inv.week_number && ` • ${t('common.week')} ${inv.week_number}`}
+                                  </div>
+                                  <div className="text-xs text-gray-400 mt-0.5">
+                                    €{Number(inv.totaal).toFixed(2)} • {inv.lines?.length || 0} {t('weeklyHours.lines')}
+                                  </div>
+                                </div>
+                              </label>
+                            ))}
+                            {/* Pagination */}
+                            {allInvoicesCount > 10 && (
+                              <div className="flex items-center justify-between pt-2 text-sm">
+                                <span className="text-gray-500">
+                                  {t('common.page')} {allInvoicesPage} / {Math.ceil(allInvoicesCount / 10)}
+                                </span>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => loadAllInvoicesPage(allInvoicesPage - 1)}
+                                    disabled={allInvoicesPage <= 1}
+                                    className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {t('common.previous')}
+                                  </button>
+                                  <button
+                                    onClick={() => loadAllInvoicesPage(allInvoicesPage + 1)}
+                                    disabled={allInvoicesPage >= Math.ceil(allInvoicesCount / 10)}
+                                    className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {t('common.next')}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* New invoice tab */}
+                    {invoiceTab === 'new' && (
                       <div>
                         <label className="form-label">{t('invoices.company')}</label>
                         <select
@@ -639,25 +679,6 @@ export default function WeeklyHoursTab() {
                           <option value="">{t('weeklyHours.selectCompanyPlaceholder')}</option>
                           {companies.map(c => (
                             <option key={c.id} value={c.id}>{c.naam}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {/* Existing invoice selector */}
-                    {invoiceMode === 'existing' && (
-                      <div>
-                        <label className="form-label">{t('weeklyHours.selectInvoiceLabel')}</label>
-                        <select
-                          value={selectedInvoice}
-                          onChange={(e) => setSelectedInvoice(e.target.value)}
-                          className="form-select w-full"
-                        >
-                          <option value="">{t('weeklyHours.selectInvoicePlaceholder')}</option>
-                          {invoices.map(inv => (
-                            <option key={inv.id} value={inv.id}>
-                              {inv.factuurnummer} - {inv.bedrijf_naam}
-                            </option>
                           ))}
                         </select>
                       </div>
@@ -699,7 +720,11 @@ export default function WeeklyHoursTab() {
                     <button onClick={() => setShowInvoiceModal(false)} className="btn-secondary">
                       {t('common.cancel')}
                     </button>
-                    <button onClick={handleInvoiceSave} className="btn-primary" disabled={invoiceSaving}>
+                    <button 
+                      onClick={handleInvoiceSave} 
+                      className="btn-primary" 
+                      disabled={invoiceSaving || (invoiceTab !== 'new' && !selectedInvoice) || (invoiceTab === 'new' && !selectedCompany)}
+                    >
                       {invoiceSaving ? t('common.saving') : t('weeklyHours.addToInvoice')}
                     </button>
                   </div>

@@ -182,4 +182,81 @@ for d in drivers_data:
 
 print(f"\n  Totaal: {Driver.objects.count()} chauffeurs")
 
+# === URENREGISTRATIE ===
+print("\n=== URENREGISTRATIE ===")
+
+from datetime import date, time, timedelta as td
+from apps.timetracking.models import TimeEntry
+
+# Mapping: driver email -> (kenteken, ritnummer)
+driver_vehicle_map = {
+    'marco@test.nl': ('BX-123-D', 'R001'),
+    'dennis@test.nl': ('BX-456-F', 'R002'),
+    'yusuf@test.nl': ('KL-012-M', 'R010'),
+    'emma@test.nl': ('ST-901-V', 'R020'),
+}
+
+# Weekschema's per dag (ma-vr) met variatie in tijden
+dag_schema = [
+    # (aanvang, eind, pauze_min, km_rit)
+    (time(6, 0), time(14, 30), 30, 180),   # Maandag - vroege shift
+    (time(7, 0), time(15, 30), 30, 210),   # Dinsdag
+    (time(6, 30), time(15, 0), 45, 195),   # Woensdag
+    (time(5, 30), time(14, 0), 30, 225),   # Donderdag - extra vroeg
+    (time(7, 30), time(15, 0), 30, 165),   # Vrijdag - korter
+]
+
+# 5 weken: week 5 t/m 9 van 2026 (jan/feb)
+weken = [5, 6, 7, 8, 9]
+jaar = 2026
+entries_created = 0
+entries_existed = 0
+
+for email, (kenteken, ritnummer) in driver_vehicle_map.items():
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        print(f"  SKIP {email} - gebruiker niet gevonden")
+        continue
+
+    for weeknr in weken:
+        # Bereken maandag van deze week
+        # 4 jan 2026 is een zondag, week 1 start 29 dec 2025
+        jan4 = date(jaar, 1, 4)  # altijd in week 1
+        maandag_week1 = jan4 - td(days=jan4.weekday())
+        maandag = maandag_week1 + td(weeks=weeknr - 1)
+
+        for dag_idx in range(5):  # ma t/m vr
+            dag_datum = maandag + td(days=dag_idx)
+            aanvang, eind, pauze_min, km_rit = dag_schema[dag_idx]
+
+            # Variatie per chauffeur: km offset
+            km_base = 50000 + (list(driver_vehicle_map.keys()).index(email) * 10000) + (weeknr * 500)
+            km_start = km_base + (dag_idx * km_rit)
+            km_eind = km_start + km_rit
+
+            obj, created = TimeEntry.objects.get_or_create(
+                user=user,
+                datum=dag_datum,
+                ritnummer=ritnummer,
+                defaults={
+                    'kenteken': kenteken,
+                    'km_start': km_start,
+                    'km_eind': km_eind,
+                    'aanvang': aanvang,
+                    'eind': eind,
+                    'pauze': td(minutes=pauze_min),
+                    'status': 'ingediend',
+                }
+            )
+            if created:
+                entries_created += 1
+            else:
+                entries_existed += 1
+
+    print(f"  {email}: 5 weken x 5 dagen ingediend")
+
+print(f"\n  Nieuw: {entries_created} | Bestond al: {entries_existed}")
+print(f"  Totaal urenregistraties: {TimeEntry.objects.count()}")
+
 print("\n=== DEMO DATA COMPLEET ===\n")

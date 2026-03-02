@@ -359,6 +359,16 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
             key = f"{mh.user_id}-{mh.jaar}-{mh.weeknummer}"
             min_hours_lookup[key] = float(mh.minimum_uren)
         
+        # Build driver default minimum hours lookup (via gekoppelde_gebruiker)
+        from apps.drivers.models import Driver
+        driver_defaults = {}
+        driver_qs = Driver.objects.filter(
+            minimum_uren_per_week__isnull=False,
+            gekoppelde_gebruiker__isnull=False,
+        ).values_list('gekoppelde_gebruiker_id', 'minimum_uren_per_week')
+        for user_id, min_uren in driver_qs:
+            driver_defaults[str(user_id)] = float(min_uren)
+        
         results = []
         for row in weekly_data:
             # Calculate worked hours from duration
@@ -374,6 +384,10 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
             
             key = f"{row['user_id']}-{row['jaar']}-{row['weeknummer']}"
             minimum_hours = min_hours_lookup.get(key, None)
+            
+            # Fallback to driver's default minimum hours
+            if minimum_hours is None:
+                minimum_hours = driver_defaults.get(str(row['user_id']), None)
             
             missed_hours = None
             if minimum_hours is not None:
@@ -550,10 +564,19 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
             )
             minimum_hours = float(min_hours_obj.minimum_uren)
         except WeeklyMinimumHours.DoesNotExist:
-            return Response(
-                {'error': 'Geen minimale uren ingesteld voor deze week.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            # Fallback to driver's default minimum hours
+            from apps.drivers.models import Driver
+            try:
+                driver = Driver.objects.get(
+                    gekoppelde_gebruiker_id=target_user_id,
+                    minimum_uren_per_week__isnull=False,
+                )
+                minimum_hours = float(driver.minimum_uren_per_week)
+            except Driver.DoesNotExist:
+                return Response(
+                    {'error': 'Geen minimale uren ingesteld voor deze week.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         
         missed = round(minimum_hours - worked_hours, 2)
         if missed <= 0:

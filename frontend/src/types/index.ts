@@ -134,6 +134,7 @@ export interface Driver {
   gekoppelde_gebruiker: string | null
   gekoppelde_gebruiker_naam: string | null
   adr: boolean
+  minimum_uren_per_week: number | null
   created_at: string
   updated_at: string
 }

@@ -26,6 +26,12 @@ class Driver(models.Model):
         verbose_name='Gekoppelde Gebruiker'
     )
     adr = models.BooleanField(default=False, verbose_name='ADR Gecertificeerd')
+    minimum_uren_per_week = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        null=True, blank=True,
+        verbose_name='Minimum uren per week',
+        help_text='Standaard minimum uren per week voor deze chauffeur. Wordt gebruikt als er geen specifieke weekinstelling is.'
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

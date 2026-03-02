@@ -27,6 +27,8 @@ export default function VehicleWeeksTab() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedYear, setSelectedYear] = useState(getCurrentYear())
   const [showOnlyBehind, setShowOnlyBehind] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 20
   
   const years = Array.from({ length: 5 }, (_, i) => getCurrentYear() - i)
 
@@ -52,6 +54,7 @@ export default function VehicleWeeksTab() {
     }
     
     setFilteredData(filtered)
+    setCurrentPage(1)
   }, [searchTerm, data, showOnlyBehind])
 
   const loadData = async () => {
@@ -80,6 +83,9 @@ export default function VehicleWeeksTab() {
     if (percentage >= 75) return 'text-yellow-700'
     return 'text-red-600'
   }
+
+  const totalPages = Math.ceil(filteredData.length / pageSize)
+  const paginatedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   return (
     <div>
@@ -162,7 +168,7 @@ export default function VehicleWeeksTab() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredData.map((row) => {
+                  {paginatedData.map((row) => {
                     const isBehind = row.percentage < 100
                     
                     return (
@@ -222,7 +228,7 @@ export default function VehicleWeeksTab() {
 
             {/* Mobile Card View */}
             <div className="md:hidden divide-y divide-gray-200">
-              {filteredData.map((row) => {
+              {paginatedData.map((row) => {
                 const isBehind = row.percentage < 100
                 
                 return (
@@ -276,6 +282,34 @@ export default function VehicleWeeksTab() {
                 )
               })}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                <span className="text-sm text-gray-500">
+                  {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredData.length)} {t('common.of')} {filteredData.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {t('common.previous')}
+                  </button>
+                  <span className="px-3 py-1.5 text-sm text-gray-600">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {t('common.next')}
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

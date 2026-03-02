@@ -11,6 +11,7 @@ export interface DriverCreate {
   bedrijf?: string | null
   gekoppelde_gebruiker?: string | null
   adr?: boolean
+  minimum_uren_per_week?: number | null
 }
 
 export interface DriverUpdate extends Partial<DriverCreate> {}

@@ -279,7 +279,10 @@
     "allYears": "Alle jaren",
     "adrCertified": "ADR gecertificeerd",
     "noAdr": "Geen ADR",
-    "adrDescription": "voor transport van gevaarlijke stoffen"
+    "adrDescription": "voor transport van gevaarlijke stoffen",
+    "minimumHoursPerWeek": "Minimum uren per week",
+    "minimumHoursHelp": "Standaard minimum uren per week. Wordt automatisch gebruikt in het weekoverzicht als er geen specifieke waarde is ingesteld.",
+    "minimumHoursPlaceholder": "Bijv. 40"
   },
   "fleet": {
     "title": "Vloot",
@@ -449,6 +452,14 @@
     "linePreview": "Voorbeeld factuurregel",
     "invoiceCreated": "{{hours}} gemiste uren toegevoegd aan factuur {{invoice}}",
     "invoiceError": "Fout bij aanmaken factuurregel",
+    "linkedInvoices": "Gekoppelde facturen",
+    "allInvoices": "Alle facturen",
+    "noLinkedInvoices": "Geen gekoppelde facturen gevonden voor deze chauffeur en week.",
+    "viewAllInvoices": "Bekijk alle concept facturen",
+    "linked": "Gekoppeld",
+    "lines": "regels",
+    "noConceptInvoices": "Geen concept facturen gevonden.",
+    "createNewInvoice": "Maak een nieuwe factuur aan",
     "noData": "Geen uren gevonden voor dit jaar",
     "loadError": "Kon weekoverzicht niet laden"
   },

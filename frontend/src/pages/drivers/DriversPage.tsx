@@ -141,6 +141,7 @@ function DriverForm({
     bedrijf: driver?.bedrijf?.toString() || '',
     gekoppelde_gebruiker: driver?.gekoppelde_gebruiker?.toString() || '',
     adr: driver?.adr || false,
+    minimum_uren_per_week: driver?.minimum_uren_per_week?.toString() || '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -171,6 +172,7 @@ function DriverForm({
       bedrijf: formData.bedrijf || undefined,
       gekoppelde_gebruiker: formData.gekoppelde_gebruiker || undefined,
       adr: formData.adr,
+      minimum_uren_per_week: formData.minimum_uren_per_week ? parseFloat(formData.minimum_uren_per_week) : null,
     }
     onSave(saveData)
   }
@@ -262,6 +264,25 @@ function DriverForm({
         <span className="ml-2 text-xs text-gray-500">
           ({t('drivers.adrDescription')})
         </span>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {t('drivers.minimumHoursPerWeek')}
+        </label>
+        <input
+          type="number"
+          name="minimum_uren_per_week"
+          value={formData.minimum_uren_per_week}
+          onChange={handleChange}
+          className="input"
+          step="0.5"
+          min="0"
+          placeholder={t('drivers.minimumHoursPlaceholder')}
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          {t('drivers.minimumHoursHelp')}
+        </p>
       </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t">

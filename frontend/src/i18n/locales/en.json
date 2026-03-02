@@ -279,7 +279,10 @@
     "allYears": "All years",
     "adrCertified": "ADR certified",
     "noAdr": "No ADR",
-    "adrDescription": "for transport of hazardous materials"
+    "adrDescription": "for transport of hazardous materials",
+    "minimumHoursPerWeek": "Minimum hours per week",
+    "minimumHoursHelp": "Default minimum hours per week. Automatically used in the weekly overview when no specific value is set.",
+    "minimumHoursPlaceholder": "E.g. 40"
   },
   "fleet": {
     "title": "Fleet",
@@ -449,6 +452,14 @@
     "linePreview": "Invoice line preview",
     "invoiceCreated": "{{hours}} missed hours added to invoice {{invoice}}",
     "invoiceError": "Failed to create invoice line",
+    "linkedInvoices": "Linked invoices",
+    "allInvoices": "All invoices",
+    "noLinkedInvoices": "No linked invoices found for this driver and week.",
+    "viewAllInvoices": "View all draft invoices",
+    "linked": "Linked",
+    "lines": "lines",
+    "noConceptInvoices": "No draft invoices found.",
+    "createNewInvoice": "Create a new invoice",
     "noData": "No hours found for this year",
     "loadError": "Failed to load weekly overview"
   },
