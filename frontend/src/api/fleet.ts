@@ -23,8 +23,10 @@ export interface VehicleWeeksOverview {
   ritnummer: string
   bedrijf_naam: string
   minimum_weken: number
-  gewerkte_weken: number
-  gemiste_weken: number
+  minimum_dagen: number
+  gewerkte_dagen: number
+  gemiste_dagen: number
+  gewerkte_weken_decimal: number
   percentage: number
 }
 

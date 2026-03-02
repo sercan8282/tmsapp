@@ -154,13 +154,16 @@ export default function VehicleWeeksTab() {
                       {t('fleet.routeNumber')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('vehicleWeeks.minimumWeeks')}
+                      {t('vehicleWeeks.minimumDays')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('vehicleWeeks.workedWeeks')}
+                      {t('vehicleWeeks.workedDays')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('vehicleWeeks.totalMissed')}
+                      {t('vehicleWeeks.missedDays')}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t('vehicleWeeks.workedWeeksCalc')}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ minWidth: '180px' }}>
                       {t('vehicleWeeks.progress')}
@@ -172,7 +175,7 @@ export default function VehicleWeeksTab() {
                     const isBehind = row.percentage < 100
                     
                     return (
-                      <tr key={row.vehicle_id} className={`hover:bg-gray-50 ${isBehind && row.gemiste_weken > 0 ? 'bg-red-50/30' : ''}`}>
+                      <tr key={row.vehicle_id} className={`hover:bg-gray-50 ${isBehind && row.gemiste_dagen > 0 ? 'bg-red-50/30' : ''}`}>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{row.type_wagen || '-'}</div>
                           <div className="text-xs text-gray-500">{row.bedrijf_naam}</div>
@@ -186,18 +189,19 @@ export default function VehicleWeeksTab() {
                           {row.ritnummer || '-'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-700">
-                          {row.minimum_weken}
+                          {row.minimum_dagen}
+                          <span className="text-xs text-gray-400 ml-1">({row.minimum_weken}w)</span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
                           <span className={`font-semibold ${isBehind ? 'text-red-600' : 'text-green-600'}`}>
-                            {row.gewerkte_weken}
+                            {row.gewerkte_dagen}
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
-                          {row.gemiste_weken > 0 ? (
+                          {row.gemiste_dagen > 0 ? (
                             <span className="inline-flex items-center gap-1 text-red-600 font-semibold">
                               <ExclamationTriangleIcon className="h-4 w-4" />
-                              {row.gemiste_weken}
+                              {row.gemiste_dagen}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-green-600">
@@ -205,6 +209,12 @@ export default function VehicleWeeksTab() {
                               0
                             </span>
                           )}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
+                          <span className={`font-semibold ${isBehind ? 'text-red-600' : 'text-green-600'}`}>
+                            {row.gewerkte_weken_decimal}
+                          </span>
+                          <span className="text-xs text-gray-400 ml-1">/ {row.minimum_weken}</span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
@@ -232,7 +242,7 @@ export default function VehicleWeeksTab() {
                 const isBehind = row.percentage < 100
                 
                 return (
-                  <div key={row.vehicle_id} className={`p-3 ${isBehind && row.gemiste_weken > 0 ? 'bg-red-50/30' : ''}`}>
+                  <div key={row.vehicle_id} className={`p-3 ${isBehind && row.gemiste_dagen > 0 ? 'bg-red-50/30' : ''}`}>
                     <div className="flex items-center gap-3 mb-2">
                       <TruckIcon className="h-8 w-8 text-gray-400" />
                       <div className="flex-1 min-w-0">
@@ -248,21 +258,27 @@ export default function VehicleWeeksTab() {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                    <div className="grid grid-cols-4 gap-2 text-xs mb-2">
                       <div>
-                        <span className="text-gray-500 block">{t('vehicleWeeks.minShort')}</span>
-                        <span className="font-medium">{row.minimum_weken}</span>
+                        <span className="text-gray-500 block">{t('vehicleWeeks.minDaysShort')}</span>
+                        <span className="font-medium">{row.minimum_dagen}</span>
                       </div>
                       <div>
-                        <span className="text-gray-500 block">{t('vehicleWeeks.workedShort')}</span>
+                        <span className="text-gray-500 block">{t('vehicleWeeks.workedDaysShort')}</span>
                         <span className={`font-semibold ${isBehind ? 'text-red-600' : 'text-green-600'}`}>
-                          {row.gewerkte_weken}
+                          {row.gewerkte_dagen}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-500 block">{t('vehicleWeeks.missedShort')}</span>
-                        <span className={row.gemiste_weken > 0 ? 'text-red-600 font-semibold' : 'text-gray-400'}>
-                          {row.gemiste_weken}
+                        <span className="text-gray-500 block">{t('vehicleWeeks.missedDaysShort')}</span>
+                        <span className={row.gemiste_dagen > 0 ? 'text-red-600 font-semibold' : 'text-gray-400'}>
+                          {row.gemiste_dagen}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 block">{t('vehicleWeeks.weeksShort')}</span>
+                        <span className={`font-semibold ${isBehind ? 'text-red-600' : 'text-green-600'}`}>
+                          {row.gewerkte_weken_decimal}/{row.minimum_weken}
                         </span>
                       </div>
                     </div>

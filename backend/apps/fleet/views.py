@@ -47,7 +47,8 @@ class VehicleViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='vehicle_weeks_overview')
     def vehicle_weeks_overview(self, request):
         """
-        Overview of worked weeks per vehicle vs minimum weeks.
+        Overview of worked days per vehicle vs minimum days.
+        Minimum days = minimum_weken_per_jaar * 5 (working days per week).
         Only vehicles with minimum_weken_per_jaar set are included.
         """
         from apps.timetracking.models import TimeEntry, TimeEntryStatus
@@ -61,16 +62,18 @@ class VehicleViewSet(viewsets.ModelViewSet):
         
         results = []
         for vehicle in vehicles:
-            # Count distinct weeks where this vehicle's kenteken has time entries
-            worked_weeks = TimeEntry.objects.filter(
+            # Count distinct days where this vehicle's kenteken has time entries
+            worked_days = TimeEntry.objects.filter(
                 kenteken__iexact=vehicle.kenteken,
                 datum__year=jaar,
                 status=TimeEntryStatus.INGEDIEND,
-            ).values('weeknummer').distinct().count()
+            ).values('datum').distinct().count()
             
-            minimum = vehicle.minimum_weken_per_jaar
-            gemist = max(0, minimum - worked_weeks)
-            percentage = round((worked_weeks / minimum) * 100, 1) if minimum > 0 else 100
+            minimum_weken = vehicle.minimum_weken_per_jaar
+            minimum_dagen = minimum_weken * 5
+            gemiste_dagen = max(0, minimum_dagen - worked_days)
+            gewerkte_weken_decimal = round(worked_days / 5, 1)
+            percentage = round((worked_days / minimum_dagen) * 100, 1) if minimum_dagen > 0 else 100
             
             results.append({
                 'vehicle_id': str(vehicle.id),
@@ -78,9 +81,11 @@ class VehicleViewSet(viewsets.ModelViewSet):
                 'type_wagen': vehicle.type_wagen,
                 'ritnummer': vehicle.ritnummer,
                 'bedrijf_naam': vehicle.bedrijf.naam if vehicle.bedrijf else '',
-                'minimum_weken': minimum,
-                'gewerkte_weken': worked_weeks,
-                'gemiste_weken': gemist,
+                'minimum_weken': minimum_weken,
+                'minimum_dagen': minimum_dagen,
+                'gewerkte_dagen': worked_days,
+                'gemiste_dagen': gemiste_dagen,
+                'gewerkte_weken_decimal': gewerkte_weken_decimal,
                 'percentage': min(percentage, 100),
             })
         
