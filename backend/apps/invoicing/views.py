@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
 from apps.core.permissions import IsAdminOrManager
+from apps.core.security import sanitize_filename
 from .models import InvoiceTemplate, Invoice, InvoiceLine, InvoiceStatus, InvoiceType, Expense, ExpenseCategory
 from .serializers import (
     InvoiceTemplateSerializer,
@@ -122,7 +123,8 @@ class InvoiceTemplateViewSet(viewsets.ModelViewSet):
         }
         
         response = JsonResponse(export_data, json_dumps_params={'indent': 2, 'ensure_ascii': False})
-        response['Content-Disposition'] = f'attachment; filename="{template.naam}.json"'
+        safe_name = sanitize_filename(template.naam) or 'template'
+        response['Content-Disposition'] = f'attachment; filename="{safe_name}.json"'
         
         logger.info(
             f"InvoiceTemplate exported: '{template.naam}' by user {request.user.email}"
@@ -565,8 +567,9 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         # Create response with PDF
         response = HttpResponse(pdf_content, content_type='application/pdf')
         
-        # Set filename based on invoice number
-        filename = f"factuur_{invoice.factuurnummer.replace('/', '-')}.pdf"
+        # Set filename based on invoice number (sanitized)
+        raw_name = f"factuur_{invoice.factuurnummer.replace('/', '-')}.pdf"
+        filename = sanitize_filename(raw_name) or 'factuur.pdf'
         
         # Check if download or view in browser
         if request.query_params.get('download', 'false').lower() == 'true':

@@ -20,6 +20,22 @@ class LoginRateThrottle(SimpleRateThrottle):
         }
 
 
+class RegistrationRateThrottle(SimpleRateThrottle):
+    """
+    Rate limit for user registration.
+    Prevents mass account creation (3 per hour per IP).
+    """
+    scope = 'registration'
+    rate = '3/hour'
+    
+    def get_cache_key(self, request, view):
+        ident = self.get_ident(request)
+        return self.cache_format % {
+            'scope': self.scope,
+            'ident': ident
+        }
+
+
 class PasswordResetRateThrottle(SimpleRateThrottle):
     """
     Rate limit for password reset requests.

@@ -42,6 +42,38 @@ def escape_html(value: str) -> str:
     return html.escape(value)
 
 
+def sanitize_svg(svg_content: bytes) -> bytes:
+    """
+    Sanitize SVG content to remove potential XSS vectors.
+    Removes <script> tags, event handlers (onload, onclick, etc.),
+    javascript: URIs, and other dangerous patterns.
+    """
+    import re as _re
+    text = svg_content.decode('utf-8', errors='replace')
+    
+    # Remove <script> tags and content
+    text = _re.sub(r'<script[^>]*>.*?</script>', '', text, flags=_re.DOTALL | _re.IGNORECASE)
+    text = _re.sub(r'<script[^>]*/>', '', text, flags=_re.IGNORECASE)
+    
+    # Remove event handler attributes (on*)
+    text = _re.sub(r'\s+on\w+\s*=\s*["\'][^"\']*["\']', '', text, flags=_re.IGNORECASE)
+    text = _re.sub(r'\s+on\w+\s*=\s*\S+', '', text, flags=_re.IGNORECASE)
+    
+    # Remove javascript: URIs
+    text = _re.sub(r'javascript\s*:', '', text, flags=_re.IGNORECASE)
+    
+    # Remove data: URIs in xlink:href and href (can contain scripts)
+    text = _re.sub(r'(xlink:)?href\s*=\s*["\']data:[^"\']*["\']', '', text, flags=_re.IGNORECASE)
+    
+    # Remove <foreignObject> (can contain arbitrary HTML)
+    text = _re.sub(r'<foreignObject[^>]*>.*?</foreignObject>', '', text, flags=_re.DOTALL | _re.IGNORECASE)
+    
+    # Remove <use> with external references (SSRF risk)
+    text = _re.sub(r'<use[^>]*href\s*=\s*["\']https?://[^"\']*["\'][^>]*/>', '', text, flags=_re.IGNORECASE)
+    
+    return text.encode('utf-8')
+
+
 def sanitize_filename(filename: str) -> str:
     """
     Sanitize a filename to prevent path traversal and other attacks.

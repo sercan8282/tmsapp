@@ -26,17 +26,21 @@ python manage.py migrate --noinput
 echo "Seeding maintenance data..."
 python manage.py seed_maintenance || echo "Warning: seed_maintenance failed, continuing..."
 
-# Collect static files
+# Collect static files (without --clear to avoid permission issues with non-root user)
 echo "Collecting static files..."
-python manage.py collectstatic --noinput --clear
+python manage.py collectstatic --noinput
 
 echo "Starting Gunicorn..."
 exec gunicorn \
     --bind 0.0.0.0:8000 \
-    --workers 4 \
+    --workers ${GUNICORN_WORKERS:-4} \
     --threads 2 \
     --worker-class gthread \
+    --worker-tmp-dir /dev/shm \
     --access-logfile - \
     --error-logfile - \
     --capture-output \
+    --limit-request-line 8190 \
+    --limit-request-fields 100 \
+    --limit-request-field_size 8190 \
     tms.wsgi:application

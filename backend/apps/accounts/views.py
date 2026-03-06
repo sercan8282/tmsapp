@@ -18,6 +18,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
+from apps.core.throttling import RegistrationRateThrottle
 
 from .serializers import (
     UserSerializer,
@@ -190,6 +191,7 @@ class MFAVerifyView(APIView):
 class RegisterView(APIView):
     """User self-registration."""
     permission_classes = [AllowAny]
+    throttle_classes = [RegistrationRateThrottle]
     
     def post(self, request):
         # Check license user limit
@@ -309,6 +311,9 @@ class MFASetupView(APIView):
             'secret': user.mfa_secret,
             'qr_code': f'data:image/png;base64,{qr_base64}',
             'uri': uri,
+        }, headers={
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
+            'Pragma': 'no-cache',
         })
     
     def post(self, request):

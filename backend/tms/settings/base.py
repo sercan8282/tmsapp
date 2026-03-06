@@ -11,7 +11,8 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-production')
+# No default value - app will crash if SECRET_KEY is not set in environment
+SECRET_KEY = config('SECRET_KEY')
 
 # Application definition
 DJANGO_APPS = [
@@ -142,6 +143,7 @@ REST_FRAMEWORK = {
         'anon': '500/hour',          # Anonymous users: 500 requests per hour
         'user': '10000/hour',        # Authenticated users: 10000 requests per hour
         'login': '10/minute',        # Login attempts: 10 per minute
+        'registration': '3/hour',    # Registration: 3 per hour per IP
         'password_reset': '5/hour',  # Password reset: 5 per hour
         'mfa_verify': '20/minute',   # MFA verification: 20 per minute
         'burst': '120/minute',       # Burst protection: 120 per minute
@@ -153,8 +155,8 @@ REST_FRAMEWORK = {
 
 # Simple JWT Settings
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
@@ -202,19 +204,25 @@ LOGGING = {
             'formatter': 'simple',
         },
         'file': {
-            'class': 'logging.FileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': BASE_DIR / 'logs' / 'django.log',
             'formatter': 'verbose',
+            'maxBytes': 10 * 1024 * 1024,  # 10MB
+            'backupCount': 5,
         },
         'security_file': {
-            'class': 'logging.FileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': BASE_DIR / 'logs' / 'security.log',
             'formatter': 'security',
+            'maxBytes': 10 * 1024 * 1024,
+            'backupCount': 5,
         },
         'audit_file': {
-            'class': 'logging.FileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': BASE_DIR / 'logs' / 'audit.log',
             'formatter': 'audit',
+            'maxBytes': 10 * 1024 * 1024,
+            'backupCount': 5,
         },
     },
     'root': {

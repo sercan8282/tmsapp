@@ -64,8 +64,11 @@ class HealthCheckView(APIView):
                 cursor.execute('SELECT 1')
             health['checks']['database'] = 'ok'
         except Exception as e:
-            health['checks']['database'] = f'error: {str(e)}'
+            health['checks']['database'] = 'error'
             health['status'] = 'unhealthy'
+            # Log full error server-side only
+            import logging
+            logging.getLogger(__name__).error(f'Health check database error: {e}')
         
         # Check cache (Redis)
         try:
@@ -73,11 +76,13 @@ class HealthCheckView(APIView):
             if cache.get('health_check') == 'ok':
                 health['checks']['cache'] = 'ok'
             else:
-                health['checks']['cache'] = 'error: cache read failed'
+                health['checks']['cache'] = 'error'
                 health['status'] = 'degraded'
         except Exception as e:
-            health['checks']['cache'] = f'error: {str(e)}'
+            health['checks']['cache'] = 'error'
             health['status'] = 'degraded'
+            import logging
+            logging.getLogger(__name__).error(f'Health check cache error: {e}')
         
         status_code = status.HTTP_200_OK if health['status'] == 'healthy' else status.HTTP_503_SERVICE_UNAVAILABLE
         return Response(health, status=status_code)
@@ -171,6 +176,15 @@ class AdminSettingsViewSet(ViewSet):
                     {'error': 'Bestandsinhoud komt niet overeen met bestandstype.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+        
+        # Sanitize SVG files to prevent stored XSS
+        if uploaded_file.content_type == 'image/svg+xml':
+            from .security import sanitize_svg
+            from django.core.files.base import ContentFile
+            uploaded_file.seek(0)
+            raw = uploaded_file.read()
+            sanitized = sanitize_svg(raw)
+            uploaded_file = ContentFile(sanitized, name=uploaded_file.name)
         
         settings.logo = uploaded_file
         settings.save()
@@ -298,17 +312,19 @@ class AdminSettingsViewSet(ViewSet):
             })
         except smtplib.SMTPAuthenticationError as e:
             return Response(
-                {'error': f'Authenticatie mislukt. Controleer gebruikersnaam en wachtwoord. ({str(e)})'},
+                {'error': 'Authenticatie mislukt. Controleer gebruikersnaam en wachtwoord.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         except smtplib.SMTPConnectError as e:
             return Response(
-                {'error': f'Kan geen verbinding maken met {settings.smtp_host}:{settings.smtp_port}. ({str(e)})'},
+                {'error': f'Kan geen verbinding maken met de SMTP server.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f'Email test failed: {e}')
             return Response(
-                {'error': f'E-mail verzenden mislukt: {str(e)}'}, 
+                {'error': 'E-mail verzenden mislukt. Controleer de instellingen.'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -317,8 +333,18 @@ class ImageUploadView(APIView):
     """
     General image upload endpoint for templates and other purposes.
     Uploads images to media/uploads/ folder and returns the URL.
+    SVG is excluded to prevent stored XSS.
     """
     permission_classes = [IsAuthenticated]
+    
+    # Magic byte signatures for image validation
+    IMAGE_SIGNATURES = [
+        (b'\xff\xd8\xff', 'image/jpeg'),       # JPEG
+        (b'\x89PNG\r\n\x1a\n', 'image/png'),   # PNG
+        (b'GIF87a', 'image/gif'),               # GIF87a
+        (b'GIF89a', 'image/gif'),               # GIF89a
+        (b'RIFF', 'image/webp'),                # WEBP
+    ]
     
     def post(self, request):
         import os
@@ -334,11 +360,11 @@ class ImageUploadView(APIView):
         
         uploaded_file = request.FILES['image']
         
-        # Validate file type
-        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+        # Validate file type (SVG excluded to prevent stored XSS)
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
         if uploaded_file.content_type not in allowed_types:
             return Response(
-                {'error': 'Ongeldig bestandstype. Alleen JPEG, PNG, GIF, WEBP en SVG zijn toegestaan.'}, 
+                {'error': 'Ongeldig bestandstype. Alleen JPEG, PNG, GIF en WEBP zijn toegestaan.'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -350,8 +376,23 @@ class ImageUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Generate unique filename
+        # Validate magic bytes to prevent content-type spoofing
+        uploaded_file.seek(0)
+        header = uploaded_file.read(16)
+        uploaded_file.seek(0)
+        
+        if not any(header.startswith(sig) for sig, _ in self.IMAGE_SIGNATURES):
+            return Response(
+                {'error': 'Bestandsinhoud komt niet overeen met bestandstype.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Generate unique filename (prevents name-based attacks)
         ext = os.path.splitext(uploaded_file.name)[1].lower()
+        # Only allow safe extensions
+        safe_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+        if ext not in safe_extensions:
+            ext = '.png'  # default to png
         filename = f"{uuid.uuid4().hex}{ext}"
         filepath = f"uploads/{filename}"
         

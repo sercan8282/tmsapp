@@ -1,12 +1,15 @@
 """
 Invoice OCR Views - API endpoints for invoice import and OCR processing
 """
+import os
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.conf import settings as django_settings
+from apps.core.security import sanitize_filename
 
 from .models import InvoiceImport, InvoicePattern, FieldMapping, ImportedInvoiceLine
 from .serializers import (
@@ -22,6 +25,35 @@ from .serializers import (
     ImportedInvoiceLineSerializer,
 )
 from .services import InvoiceImportService, BoundingBox
+
+
+def _resolve_media_path(relative_path):
+    """
+    Safely resolve a relative media path to an absolute path.
+    Prevents path traversal attacks (e.g. ../../etc/passwd).
+    Returns the resolved path or None if the path escapes MEDIA_ROOT.
+    """
+    if not relative_path:
+        return None
+    media_root = os.path.realpath(str(django_settings.MEDIA_ROOT))
+    if os.path.isabs(relative_path):
+        resolved = os.path.realpath(relative_path)
+    else:
+        resolved = os.path.realpath(os.path.join(media_root, relative_path))
+    if not resolved.startswith(media_root):
+        return None
+    return resolved
+
+
+def _safe_content_disposition(disposition_type, filename):
+    """
+    Build a safe Content-Disposition header value.
+    Prevents header injection via filename.
+    """
+    safe_name = sanitize_filename(filename) if filename else 'download'
+    # Remove any newlines/carriage returns
+    safe_name = safe_name.replace('\r', '').replace('\n', '').replace('"', "'")
+    return f'{disposition_type}; filename="{safe_name}"'
 
 
 class InvoiceImportViewSet(viewsets.ModelViewSet):
@@ -163,14 +195,16 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
         
         # Extract from region
         from .services import OCREngine
-        from django.conf import settings
-        import os
         
         engine = OCREngine()
         
-        # Convert relative path to absolute path for processing
-        if not os.path.isabs(image_path):
-            image_path = os.path.join(settings.MEDIA_ROOT, image_path)
+        # Safely resolve image path (prevents path traversal)
+        resolved_path = _resolve_media_path(image_path)
+        if not resolved_path or not os.path.exists(resolved_path):
+            return Response(
+                {'error': 'Afbeelding niet gevonden'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         bbox = BoundingBox(
             x=serializer.validated_data['x'],
@@ -180,7 +214,7 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
             page=page_num
         )
         
-        text = engine.extract_text_from_region(image_path, bbox)
+        text = engine.extract_text_from_region(resolved_path, bbox)
         
         return Response({
             'text': text,
@@ -201,11 +235,12 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        import os
         from django.http import FileResponse
         
         file_path = invoice_import.original_file.path
-        if not os.path.exists(file_path):
+        # Validate path stays within MEDIA_ROOT
+        resolved = _resolve_media_path(file_path)
+        if not resolved or not os.path.exists(resolved):
             return Response(
                 {'error': 'Bestand niet gevonden'},
                 status=status.HTTP_404_NOT_FOUND
@@ -219,13 +254,13 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
             content_type = 'image/png'
         
         response = FileResponse(
-            open(file_path, 'rb'),
+            open(resolved, 'rb'),
             content_type=content_type,
         )
-        response['Content-Disposition'] = f'inline; filename="{invoice_import.file_name}"'
-        # Allow iframe embedding
-        if 'X-Frame-Options' in response:
-            del response['X-Frame-Options']
+        # Sanitize filename to prevent header injection
+        response['Content-Disposition'] = _safe_content_disposition('inline', invoice_import.file_name)
+        # Allow iframe embedding with SAMEORIGIN (not completely removed)
+        response['X-Frame-Options'] = 'SAMEORIGIN'
         return response
 
     @action(detail=True, methods=['get'])
@@ -251,22 +286,18 @@ class InvoiceImportViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        import os
         from django.http import FileResponse
-        from django.conf import settings as django_settings
         
-        # Resolve absolute path
-        if not os.path.isabs(image_path):
-            image_path = os.path.join(django_settings.MEDIA_ROOT, image_path)
-        
-        if not os.path.exists(image_path):
+        # Safely resolve path (prevents path traversal)
+        resolved_path = _resolve_media_path(image_path)
+        if not resolved_path or not os.path.exists(resolved_path):
             return Response(
                 {'error': 'Afbeelding niet gevonden op schijf'},
                 status=status.HTTP_404_NOT_FOUND
             )
         
         response = FileResponse(
-            open(image_path, 'rb'),
+            open(resolved_path, 'rb'),
             content_type='image/png',
         )
         return response
