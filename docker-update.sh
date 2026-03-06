@@ -41,6 +41,11 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
+# Laad environment variabelen (nodig voor DB_USER, DB_NAME, etc.)
+set -a
+source "$ENV_FILE"
+set +a
+
 # Check of docker draait
 if ! docker info &>/dev/null; then
     log_error "Docker is niet actief. Start Docker eerst: systemctl start docker"
