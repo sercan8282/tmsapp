@@ -75,6 +75,9 @@ BACKUP_FILE="$BACKUP_DIR/db-pre-update-$(date +%Y%m%d%H%M%S).sql"
 log_info "Database backup maken..."
 mkdir -p "$BACKUP_DIR"
 
+# Tijdelijk set -e uitschakelen — backup mag nooit de update afbreken
+set +e
+
 # Controleer of de db container draait (gebruik docker ps i.p.v. docker compose om .env problemen te vermijden)
 DB_RUNNING=$(docker ps --filter "name=tms_db" --filter "status=running" -q 2>/dev/null)
 if [ -z "$DB_RUNNING" ]; then
@@ -88,6 +91,9 @@ else
     [ -n "$BACKUP_ERR" ] && log_warning "Reden: $BACKUP_ERR"
     rm -f "$BACKUP_FILE"
 fi
+
+# Weer strict mode inschakelen
+set -e
 
 # =========================================
 # 2. Latest code ophalen
