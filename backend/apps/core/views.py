@@ -875,15 +875,35 @@ class ServerContainersView(APIView):
         
         containers = docker_client.list_containers()
         
-        # Optionally include resource stats per container
+        # Optionally include resource stats per container (parallel via threads)
         include_stats = request.query_params.get('stats', 'false').lower() == 'true'
         if include_stats:
-            for container in containers:
-                if container['state'] == 'running':
-                    stats = docker_client.get_container_stats(container['id'])
-                    container['stats'] = stats
-                else:
-                    container['stats'] = None
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+            
+            running = [c for c in containers if c['state'] == 'running']
+            
+            def fetch_stats(container):
+                try:
+                    return docker_client.get_container_stats(container['id'])
+                except Exception:
+                    return None
+            
+            # Fetch stats in parallel with a total timeout of 10 seconds
+            try:
+                with ThreadPoolExecutor(max_workers=min(4, len(running) or 1)) as executor:
+                    futures = {executor.submit(fetch_stats, c): c for c in running}
+                    for future in futures:
+                        try:
+                            stats = future.result(timeout=10)
+                            futures[future]['stats'] = stats
+                        except (FuturesTimeoutError, Exception):
+                            futures[future]['stats'] = None
+            except Exception:
+                pass
+            
+            for c in containers:
+                if 'stats' not in c:
+                    c['stats'] = None
         
         return Response({
             'available': True,

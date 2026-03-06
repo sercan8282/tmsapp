@@ -211,9 +211,9 @@ export default function ServerMonitoringPanel() {
     }
   }, [])
 
-  const fetchContainers = useCallback(async () => {
+  const fetchContainers = useCallback(async (includeStats = false) => {
     try {
-      const data = await settingsApi.getServerContainers(true)
+      const data = await settingsApi.getServerContainers(includeStats)
       setDockerAvailable(data.available)
       setContainers(data.containers || [])
     } catch {
@@ -233,11 +233,11 @@ export default function ServerMonitoringPanel() {
     }
   }, [])
 
-  // Initial load
+  // Initial load - fetch containers WITHOUT stats for speed
   useEffect(() => {
     const loadInitial = async () => {
       setLoading(true)
-      await Promise.all([fetchStats(), fetchContainers()])
+      await Promise.all([fetchStats(), fetchContainers(false)])
       setLoading(false)
     }
     loadInitial()
@@ -248,7 +248,9 @@ export default function ServerMonitoringPanel() {
     if (activeTab === 'overview') {
       refreshInterval.current = setInterval(fetchStats, 10000)
     } else if (activeTab === 'containers') {
-      refreshInterval.current = setInterval(fetchContainers, 15000)
+      // Fetch with stats on containers tab, and refresh periodically
+      fetchContainers(true)
+      refreshInterval.current = setInterval(() => fetchContainers(true), 15000)
     }
     return () => {
       if (refreshInterval.current) clearInterval(refreshInterval.current)

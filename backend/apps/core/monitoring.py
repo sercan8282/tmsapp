@@ -344,44 +344,42 @@ class DockerClient:
             self._available = os.path.exists(self.socket_path)
         return self._available
     
-    def _request(self, method, path, decode_json=True):
+    def _request(self, method, path, decode_json=True, timeout=10):
         """Make HTTP request to Docker daemon via Unix socket."""
         if not self.available:
             return None
         
         try:
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            sock.settimeout(5)
+            sock.settimeout(timeout)
             sock.connect(self.socket_path)
             
-            request = f"{method} {path} HTTP/1.1\r\nHost: localhost\r\nAccept: application/json\r\n\r\n"
+            request = f"{method} {path} HTTP/1.1\r\nHost: localhost\r\nAccept: application/json\r\nConnection: close\r\n\r\n"
             sock.sendall(request.encode())
             
-            # Read response
+            # Read full response until connection closes
             response = b''
             while True:
                 try:
-                    chunk = sock.recv(65536)
+                    chunk = sock.recv(131072)
                     if not chunk:
                         break
                     response += chunk
-                    # Check if we've received the full response
-                    if b'\r\n0\r\n\r\n' in response or (b'\r\n\r\n' in response and b'Transfer-Encoding: chunked' not in response):
-                        break
                 except socket.timeout:
                     break
             
             sock.close()
             
             # Parse HTTP response
-            parts = response.split(b'\r\n\r\n', 1)
-            if len(parts) < 2:
+            header_end = response.find(b'\r\n\r\n')
+            if header_end == -1:
                 return None
             
-            body = parts[1]
+            headers = response[:header_end]
+            body = response[header_end + 4:]
             
             # Handle chunked transfer encoding
-            if b'Transfer-Encoding: chunked' in parts[0]:
+            if b'Transfer-Encoding: chunked' in headers:
                 body = self._decode_chunked(body)
             
             if decode_json:
@@ -389,7 +387,7 @@ class DockerClient:
             return body
             
         except Exception as e:
-            logger.warning(f"Docker API request failed: {e}")
+            logger.warning(f"Docker API request failed ({path}): {e}")
             return None
     
     def _decode_chunked(self, data):
@@ -484,8 +482,8 @@ class DockerClient:
         return lines[-tail:]  # Ensure we don't return more than requested
     
     def get_container_stats(self, container_id):
-        """Get container resource stats (one-shot)."""
-        data = self._request('GET', f'/containers/{container_id}/stats?stream=false')
+        """Get container resource stats (one-shot). Uses longer timeout as stats can be slow."""
+        data = self._request('GET', f'/containers/{container_id}/stats?stream=false', timeout=15)
         if not data:
             return None
         
