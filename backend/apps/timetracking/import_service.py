@@ -94,13 +94,18 @@ def _build_kenteken_mapping():
     
     Uses Driver.voertuig FK and Driver.gekoppelde_gebruiker FK
     to resolve Excel kentekens to users.
+    
+    Only includes drivers with an active (is_active=True) linked user,
+    so inactive chauffeurs are skipped during import.
     """
     mapping = {}
 
     drivers = Driver.objects.select_related(
         'voertuig', 'gekoppelde_gebruiker'
     ).filter(
-        voertuig__isnull=False
+        voertuig__isnull=False,
+        gekoppelde_gebruiker__isnull=False,
+        gekoppelde_gebruiker__is_active=True,
     )
 
     for driver in drivers:
