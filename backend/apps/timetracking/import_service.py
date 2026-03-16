@@ -138,7 +138,59 @@ def _normalize_kenteken(excel_kenteken):
     return str(excel_kenteken).lower().replace('&', '').replace(' ', '').replace('-', '')
 
 
-def import_excel(file_obj, filename, uploaded_by):
+def check_duplicates_excel(file_obj):
+    """
+    Quick check: how many rows in this Excel already exist in the DB?
+    A duplicate is defined as same datum + kenteken_import (normalized).
+    Returns (duplicate_count, total_rows).
+    """
+    import openpyxl
+
+    wb = openpyxl.load_workbook(file_obj, data_only=True, read_only=True)
+    ws = wb.active
+    rows = list(ws.iter_rows(min_row=3, values_only=True))
+    wb.close()
+
+    # Collect (datum, kenteken) pairs from Excel
+    excel_pairs = set()
+    total = 0
+    for row in rows:
+        if not row or len(row) < 5:
+            continue
+        datum_val = row[2]
+        kenteken_raw = str(row[4]) if row[4] else ''
+        if not kenteken_raw.strip():
+            continue
+        if datum_val is None:
+            continue
+        if isinstance(datum_val, datetime):
+            datum = datum_val.date()
+        elif isinstance(datum_val, date):
+            datum = datum_val
+        elif isinstance(datum_val, str):
+            try:
+                datum = datetime.strptime(datum_val, '%Y-%m-%d').date()
+            except ValueError:
+                continue
+        else:
+            continue
+        total += 1
+        excel_pairs.add((datum, _normalize_kenteken(kenteken_raw)))
+
+    if not excel_pairs:
+        return 0, total
+
+    # Check which pairs already exist
+    existing = ImportedTimeEntry.objects.values_list('datum', 'kenteken_import')
+    existing_pairs = set()
+    for d, k in existing:
+        existing_pairs.add((d, _normalize_kenteken(k)))
+
+    duplicates = excel_pairs & existing_pairs
+    return len(duplicates), total
+
+
+def import_excel(file_obj, filename, uploaded_by, overwrite=False, skip_duplicates=False):
     """
     Import uren from an Excel file.
     
@@ -236,18 +288,60 @@ def import_excel(file_obj, filename, uploaded_by):
             factuur_bedrag=_parse_decimal(row[16] if len(row) > 16 else None),
             gekoppeld_voertuig=vehicle,
         )
-        entries_to_create.append(entry)
+        entries_to_create.append((entry, norm_key))
+
+    # Handle duplicates: build lookup of existing entries by (datum, normalized kenteken)
+    skipped = 0
+    if overwrite or skip_duplicates:
+        # Collect all (datum, kenteken) pairs from the new entries
+        new_dates = set(e.datum for e, _ in entries_to_create)
+        existing_entries = ImportedTimeEntry.objects.filter(
+            datum__in=new_dates
+        ).exclude(batch=batch)
+
+        existing_lookup = {}
+        for ex in existing_entries:
+            key = (ex.datum, _normalize_kenteken(ex.kenteken_import))
+            if key not in existing_lookup:
+                existing_lookup[key] = []
+            existing_lookup[key].append(ex)
+
+        if overwrite:
+            # Delete existing duplicates, then create all new entries
+            ids_to_delete = []
+            for entry, norm_key in entries_to_create:
+                key = (entry.datum, norm_key)
+                if key in existing_lookup:
+                    ids_to_delete.extend([e.id for e in existing_lookup[key]])
+            if ids_to_delete:
+                ImportedTimeEntry.objects.filter(id__in=ids_to_delete).delete()
+                logger.info(f"Overwrite mode: deleted {len(ids_to_delete)} existing duplicate entries")
+
+        elif skip_duplicates:
+            # Filter out entries that already exist
+            filtered = []
+            for entry, norm_key in entries_to_create:
+                key = (entry.datum, norm_key)
+                if key in existing_lookup:
+                    skipped += 1
+                else:
+                    filtered.append((entry, norm_key))
+            entries_to_create = filtered
+            logger.info(f"Skip mode: skipped {skipped} duplicate entries")
+
+    # Extract just the entry objects for bulk_create
+    final_entries = [entry for entry, _ in entries_to_create]
 
     # Bulk create in a transaction
     with transaction.atomic():
-        ImportedTimeEntry.objects.bulk_create(entries_to_create, batch_size=500)
-        batch.totaal_rijen = total
-        batch.gekoppeld = matched
+        ImportedTimeEntry.objects.bulk_create(final_entries, batch_size=500)
+        batch.totaal_rijen = total - skipped
+        batch.gekoppeld = matched - skipped if skip_duplicates else matched
         batch.niet_gekoppeld = unmatched
         batch.save()
 
     logger.info(
-        f"Import batch {batch.id}: {total} rows, {matched} matched, {unmatched} unmatched"
+        f"Import batch {batch.id}: {total} rows, {matched} matched, {unmatched} unmatched, {skipped} skipped"
     )
 
     return batch

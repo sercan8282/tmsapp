@@ -1287,7 +1287,7 @@ class ImportBatchViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['post'], url_path='upload')
     def upload(self, request):
         """Upload and import an Excel file."""
-        from .import_service import import_excel
+        from .import_service import import_excel, check_duplicates_excel
 
         user = request.user
         if not (user.is_superuser or user.rol in ['admin', 'gebruiker']):
@@ -1303,8 +1303,30 @@ class ImportBatchViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        overwrite = request.data.get('overwrite', '').lower() in ('true', '1', 'yes')
+        skip_duplicates = request.data.get('skip_duplicates', '').lower() in ('true', '1', 'yes')
+
+        # Check for duplicates (unless user already chose to overwrite or skip)
+        if not overwrite and not skip_duplicates:
+            try:
+                dup_count, total_rows = check_duplicates_excel(file_obj)
+                # Reset file position after reading
+                file_obj.seek(0)
+                if dup_count > 0:
+                    return Response(
+                        {
+                            'error': 'Dubbele regels gevonden',
+                            'duplicates': dup_count,
+                            'total': total_rows,
+                        },
+                        status=status.HTTP_409_CONFLICT
+                    )
+            except Exception as e:
+                logger.error(f"Duplicate check failed: {e}", exc_info=True)
+                file_obj.seek(0)
+
         try:
-            batch = import_excel(file_obj, file_obj.name, user)
+            batch = import_excel(file_obj, file_obj.name, user, overwrite=overwrite, skip_duplicates=skip_duplicates)
         except Exception as e:
             logger.error(f"Import failed: {e}", exc_info=True)
             return Response(

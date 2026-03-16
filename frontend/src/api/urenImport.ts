@@ -85,9 +85,11 @@ export async function deleteImportBatch(id: string): Promise<void> {
   await api.delete(`/time-entries/imports/${id}/`)
 }
 
-export async function uploadImportFile(file: File): Promise<ImportBatch> {
+export async function uploadImportFile(file: File, overwrite: boolean = false, skipDuplicates: boolean = false): Promise<ImportBatch> {
   const formData = new FormData()
   formData.append('file', file)
+  if (overwrite) formData.append('overwrite', 'true')
+  if (skipDuplicates) formData.append('skip_duplicates', 'true')
   const response = await api.post('/time-entries/imports/upload/', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })

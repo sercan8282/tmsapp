@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowUpTrayIcon,
@@ -10,6 +10,7 @@ import {
   ExclamationTriangleIcon,
   ArrowPathIcon,
   TableCellsIcon,
+  DocumentDuplicateIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import {
@@ -86,6 +87,7 @@ export default function UrenImportPage() {
   const [batches, setBatches] = useState<ImportBatch[]>([])
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Batch detail
   const [selectedBatch, setSelectedBatch] = useState<ImportBatch | null>(null)
@@ -105,6 +107,9 @@ export default function UrenImportPage() {
   const [deleteTarget, setDeleteTarget] = useState<ImportBatch | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Duplicate detection
+  const [duplicateInfo, setDuplicateInfo] = useState<{ file: File; duplicates: number; total: number } | null>(null)
+
   const loadBatches = useCallback(async () => {
     try {
       setLoading(true)
@@ -121,13 +126,10 @@ export default function UrenImportPage() {
     loadBatches()
   }, [loadBatches])
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
+  const doUpload = async (file: File, overwrite: boolean = false) => {
     try {
       setUploading(true)
-      const batch = await uploadImportFile(file)
+      const batch = await uploadImportFile(file, overwrite)
       toast.success(
         t('urenImport.uploadSuccess', '{{count}} rijen geïmporteerd, {{matched}} gekoppeld', {
           count: batch.totaal_rijen,
@@ -136,13 +138,59 @@ export default function UrenImportPage() {
       )
       await loadBatches()
       setActiveTab('batches')
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Upload mislukt'
+    } catch (err: any) {
+      // Check if it's a duplicate error from the backend
+      if (err?.response?.data?.duplicates) {
+        setDuplicateInfo({
+          file,
+          duplicates: err.response.data.duplicates,
+          total: err.response.data.total,
+        })
+        return
+      }
+      const message = err?.response?.data?.error || err?.message || 'Upload mislukt'
       toast.error(message)
     } finally {
       setUploading(false)
-      // Reset file input
-      e.target.value = ''
+    }
+  }
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    await doUpload(file)
+  }
+
+  const handleDuplicateOverwrite = async () => {
+    if (!duplicateInfo) return
+    const file = duplicateInfo.file
+    setDuplicateInfo(null)
+    await doUpload(file, true)
+  }
+
+  const handleDuplicateSkip = async () => {
+    if (!duplicateInfo) return
+    const file = duplicateInfo.file
+    setDuplicateInfo(null)
+    // Upload with skip_duplicates mode
+    try {
+      setUploading(true)
+      const batch = await uploadImportFile(file, false, true)
+      toast.success(
+        t('urenImport.uploadSuccess', '{{count}} rijen geïmporteerd, {{matched}} gekoppeld', {
+          count: batch.totaal_rijen,
+          matched: batch.gekoppeld,
+        })
+      )
+      await loadBatches()
+      setActiveTab('batches')
+    } catch (err: any) {
+      const message = err?.response?.data?.error || err?.message || 'Upload mislukt'
+      toast.error(message)
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -218,13 +266,13 @@ export default function UrenImportPage() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={clsx(
-                'py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2',
+                'py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 whitespace-nowrap',
                 activeTab === tab.key
                   ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -267,6 +315,7 @@ export default function UrenImportPage() {
                   </>
                 )}
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept=".xlsx,.xls"
                   onChange={handleUpload}
@@ -303,100 +352,148 @@ export default function UrenImportPage() {
               {t('urenImport.noBatches', 'Nog geen imports gevonden. Upload een Excel bestand om te beginnen.')}
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      {t('urenImport.filename', 'Bestand')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      {t('urenImport.importedBy', 'Door')}
-                    </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                      {t('urenImport.totalRows', 'Rijen')}
-                    </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                      {t('urenImport.matched', 'Gekoppeld')}
-                    </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                      {t('urenImport.unmatched', 'Niet gekoppeld')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      {t('urenImport.importDate', 'Datum')}
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                      {t('common.actions', 'Acties')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {batches.map((batch) => (
-                    <tr
-                      key={batch.id}
-                      className={clsx(
-                        'hover:bg-gray-50 cursor-pointer',
-                        selectedBatch?.id === batch.id && 'bg-primary-50'
-                      )}
-                      onClick={() => handleViewBatch(batch)}
-                    >
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        {batch.bestandsnaam}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{batch.geimporteerd_door_naam}</td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-600">{batch.totaal_rijen}</td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <span className="text-green-600 font-medium">{batch.gekoppeld}</span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        {batch.niet_gekoppeld > 0 ? (
-                          <span className="text-red-600 font-medium">{batch.niet_gekoppeld}</span>
-                        ) : (
-                          <span className="text-gray-400">0</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {new Date(batch.created_at).toLocaleString('nl-NL', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setDeleteTarget(batch)
-                          }}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                          title="Verwijderen"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </td>
+            <>
+              {/* Desktop table */}
+              <div className="hidden md:block bg-white rounded-xl shadow-sm border overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {t('urenImport.filename', 'Bestand')}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {t('urenImport.importedBy', 'Door')}
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                        {t('urenImport.totalRows', 'Rijen')}
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                        {t('urenImport.matched', 'Gekoppeld')}
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                        {t('urenImport.unmatched', 'Niet gekoppeld')}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {t('urenImport.importDate', 'Datum')}
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        {t('common.actions', 'Acties')}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {batches.map((batch) => (
+                      <tr
+                        key={batch.id}
+                        className={clsx(
+                          'hover:bg-gray-50 cursor-pointer',
+                          selectedBatch?.id === batch.id && 'bg-primary-50'
+                        )}
+                        onClick={() => handleViewBatch(batch)}
+                      >
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                          {batch.bestandsnaam}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{batch.geimporteerd_door_naam}</td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-600">{batch.totaal_rijen}</td>
+                        <td className="px-4 py-3 text-sm text-center">
+                          <span className="text-green-600 font-medium">{batch.gekoppeld}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center">
+                          {batch.niet_gekoppeld > 0 ? (
+                            <span className="text-red-600 font-medium">{batch.niet_gekoppeld}</span>
+                          ) : (
+                            <span className="text-gray-400">0</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {new Date(batch.created_at).toLocaleString('nl-NL', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteTarget(batch)
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                            title="Verwijderen"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-3">
+                {batches.map((batch) => (
+                  <div
+                    key={batch.id}
+                    className={clsx(
+                      'bg-white rounded-xl shadow-sm border p-4 cursor-pointer active:bg-gray-50',
+                      selectedBatch?.id === batch.id && 'ring-2 ring-primary-500'
+                    )}
+                    onClick={() => handleViewBatch(batch)}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">{batch.bestandsnaam}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {batch.geimporteerd_door_naam} &middot;{' '}
+                          {new Date(batch.created_at).toLocaleString('nl-NL', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeleteTarget(batch)
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg flex-shrink-0 ml-2"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="text-gray-500">{batch.totaal_rijen} rijen</span>
+                      <span className="text-green-600 font-medium">{batch.gekoppeld} gekoppeld</span>
+                      {batch.niet_gekoppeld > 0 && (
+                        <span className="text-red-600 font-medium">{batch.niet_gekoppeld} niet gekoppeld</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
 
           {/* Batch detail entries */}
           {selectedBatch && (
             <div className="bg-white rounded-xl shadow-sm border">
               <div className="flex items-center justify-between p-4 border-b">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-sm sm:text-lg font-semibold text-gray-900 min-w-0">
                   {t('urenImport.entriesFor', 'Regels voor')}{' '}
-                  <span className="text-primary-600">{selectedBatch.bestandsnaam}</span>
+                  <span className="text-primary-600 break-all">{selectedBatch.bestandsnaam}</span>
                 </h3>
                 <button
                   onClick={() => {
                     setSelectedBatch(null)
                     setBatchEntries([])
                   }}
-                  className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                  className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 flex-shrink-0 ml-2"
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
@@ -409,55 +506,86 @@ export default function UrenImportPage() {
               ) : batchEntries.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">Geen regels gevonden</div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Week</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Kenteken</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Chauffeur</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ritlijst</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">KM</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Begin</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Eind</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Pauze</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Uren</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Netto</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Factuur</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {batchEntries.map((entry) => (
-                        <tr key={entry.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-gray-900 whitespace-nowrap">
-                            {new Date(entry.datum).toLocaleDateString('nl-NL', {
-                              day: 'numeric',
-                              month: 'short',
-                            })}
-                          </td>
-                          <td className="px-3 py-2 text-gray-600">{entry.weeknummer}</td>
-                          <td className="px-3 py-2 text-gray-900 font-medium">{entry.kenteken_import}</td>
-                          <td className="px-3 py-2">
-                            {entry.user_naam ? (
-                              <span className="text-green-700">{entry.user_naam}</span>
-                            ) : (
-                              <span className="text-red-500 text-xs italic">Niet gekoppeld</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-gray-600">{entry.ritlijst}</td>
-                          <td className="px-3 py-2 text-right text-gray-600">{entry.km}</td>
-                          <td className="px-3 py-2 text-gray-600">{entry.begintijd_rit || '-'}</td>
-                          <td className="px-3 py-2 text-gray-600">{entry.eindtijd_rit || '-'}</td>
-                          <td className="px-3 py-2 text-gray-600">{entry.pauze_display}</td>
-                          <td className="px-3 py-2 text-right text-gray-600">{entry.uren}</td>
-                          <td className="px-3 py-2 text-right text-gray-600">{entry.netto_uren}</td>
-                          <td className="px-3 py-2 text-right font-medium text-gray-900">{entry.uren_factuur}</td>
+                <>
+                  {/* Desktop table */}
+                  <div className="hidden lg:block overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Week</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Kenteken</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Chauffeur</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ritlijst</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">KM</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Begin</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Eind</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Pauze</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Uren</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Netto</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Factuur</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {batchEntries.map((entry) => (
+                          <tr key={entry.id} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 text-gray-900 whitespace-nowrap">
+                              {new Date(entry.datum).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                            </td>
+                            <td className="px-3 py-2 text-gray-600">{entry.weeknummer}</td>
+                            <td className="px-3 py-2 text-gray-900 font-medium">{entry.kenteken_import}</td>
+                            <td className="px-3 py-2">
+                              {entry.user_naam ? (
+                                <span className="text-green-700">{entry.user_naam}</span>
+                              ) : (
+                                <span className="text-red-500 text-xs italic">Niet gekoppeld</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-gray-600">{entry.ritlijst}</td>
+                            <td className="px-3 py-2 text-right text-gray-600">{entry.km}</td>
+                            <td className="px-3 py-2 text-gray-600">{entry.begintijd_rit || '-'}</td>
+                            <td className="px-3 py-2 text-gray-600">{entry.eindtijd_rit || '-'}</td>
+                            <td className="px-3 py-2 text-gray-600">{entry.pauze_display}</td>
+                            <td className="px-3 py-2 text-right text-gray-600">{entry.uren}</td>
+                            <td className="px-3 py-2 text-right text-gray-600">{entry.netto_uren}</td>
+                            <td className="px-3 py-2 text-right font-medium text-gray-900">{entry.uren_factuur}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile cards */}
+                  <div className="lg:hidden divide-y divide-gray-200">
+                    {batchEntries.map((entry) => (
+                      <div key={entry.id} className="p-3 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-900">
+                              {new Date(entry.datum).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                            </span>
+                            <span className="text-xs text-gray-500">W{entry.weeknummer}</span>
+                          </div>
+                          <span className="text-sm font-bold text-gray-900">{entry.uren_factuur}u</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="font-medium text-gray-900">{entry.kenteken_import}</span>
+                          <span className="text-gray-400">&middot;</span>
+                          {entry.user_naam ? (
+                            <span className="text-green-700">{entry.user_naam}</span>
+                          ) : (
+                            <span className="text-red-500 italic">Niet gekoppeld</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <span>{entry.km} km</span>
+                          <span>{entry.begintijd_rit || '-'} — {entry.eindtijd_rit || '-'}</span>
+                          <span>Netto: {entry.netto_uren}u</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -468,7 +596,7 @@ export default function UrenImportPage() {
       {activeTab === 'comparison' && (
         <div className="space-y-4">
           {/* Filters */}
-          <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700">{t('urenImport.year', 'Jaar')}:</label>
               <select
@@ -543,23 +671,27 @@ export default function UrenImportPage() {
                       {/* Week header - clickable */}
                       <button
                         onClick={() => setExpandedCompWeek(isExpanded ? null : weekNr)}
-                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                        className="w-full px-3 sm:px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors gap-2"
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary-100 text-primary-700 font-bold text-sm">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                          <span className="inline-flex items-center justify-center h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-primary-100 text-primary-700 font-bold text-xs sm:text-sm flex-shrink-0">
                             {weekNr}
                           </span>
-                          <span className="font-semibold text-gray-900">Week {weekNr}</span>
-                          <span className="text-sm text-gray-500">({rows.length} chauffeurs)</span>
+                          <span className="font-semibold text-gray-900 text-sm sm:text-base">W{weekNr}</span>
+                          <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">({rows.length} chauffeurs)</span>
                         </div>
-                        <div className="flex items-center gap-6 text-sm">
-                          <div>
+                        <div className="flex items-center gap-2 sm:gap-6 text-xs sm:text-sm flex-shrink-0">
+                          <div className="hidden sm:block">
                             <span className="text-gray-500">Import:</span>{' '}
                             <span className="font-medium">{totImport.toFixed(1)}u</span>
                           </div>
-                          <div>
+                          <div className="hidden sm:block">
                             <span className="text-gray-500">Chauffeur:</span>{' '}
                             <span className="font-medium">{totChauffeur.toFixed(1)}u</span>
+                          </div>
+                          {/* Mobile: compact summary */}
+                          <div className="sm:hidden text-right">
+                            <div className="text-gray-600">{totImport.toFixed(1)}u / {totChauffeur.toFixed(1)}u</div>
                           </div>
                           <div>
                             <span className={clsx(
@@ -570,9 +702,9 @@ export default function UrenImportPage() {
                             </span>
                           </div>
                           {isExpanded ? (
-                            <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+                            <ChevronUpIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                           ) : (
-                            <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                            <ChevronDownIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                           )}
                         </div>
                       </button>
@@ -580,63 +712,107 @@ export default function UrenImportPage() {
                       {/* Expanded detail */}
                       {isExpanded && (
                         <div className="border-t">
-                          <table className="min-w-full divide-y divide-gray-200 text-sm">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                  {t('urenImport.driver', 'Chauffeur')}
-                                </th>
-                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                  {t('urenImport.importHours', 'Import uren')}
-                                </th>
-                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                  {t('urenImport.driverHours', 'Chauffeur uren')}
-                                </th>
-                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                  {t('urenImport.difference', 'Verschil')}
-                                </th>
-                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                  {t('urenImport.importKm', 'Import KM')}
-                                </th>
-                                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                  {t('urenImport.driverKm', 'Chauffeur KM')}
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                              {rows.map((row, idx) => (
-                                <tr key={`${row.user_id}-${idx}`} className="hover:bg-gray-50">
-                                  <td className="px-4 py-2 font-medium text-gray-900">{row.user_naam}</td>
-                                  <td className="px-4 py-2 text-right text-gray-900">{Number(row.import_uren || 0).toFixed(1)}</td>
-                                  <td className="px-4 py-2 text-right text-gray-900">{Number(row.chauffeur_uren || 0).toFixed(1)}</td>
-                                  <td className="px-4 py-2 text-right font-semibold">
+                          {/* Desktop table */}
+                          <div className="hidden sm:block overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                    {t('urenImport.driver', 'Chauffeur')}
+                                  </th>
+                                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                    {t('urenImport.importHours', 'Import uren')}
+                                  </th>
+                                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                    {t('urenImport.driverHours', 'Chauffeur uren')}
+                                  </th>
+                                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                    {t('urenImport.difference', 'Verschil')}
+                                  </th>
+                                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                    {t('urenImport.importKm', 'Import KM')}
+                                  </th>
+                                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                    {t('urenImport.driverKm', 'Chauffeur KM')}
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200">
+                                {rows.map((row, idx) => (
+                                  <tr key={`${row.user_id}-${idx}`} className="hover:bg-gray-50">
+                                    <td className="px-4 py-2 font-medium text-gray-900">{row.user_naam}</td>
+                                    <td className="px-4 py-2 text-right text-gray-900">{Number(row.import_uren || 0).toFixed(1)}</td>
+                                    <td className="px-4 py-2 text-right text-gray-900">{Number(row.chauffeur_uren || 0).toFixed(1)}</td>
+                                    <td className="px-4 py-2 text-right font-semibold">
+                                      <span className={clsx(
+                                        Number(row.verschil) > 0.5 ? 'text-green-600' : Number(row.verschil) < -0.5 ? 'text-red-600' : 'text-gray-500'
+                                      )}>
+                                        {Number(row.verschil) > 0 ? '+' : ''}{Number(row.verschil || 0).toFixed(1)}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-2 text-right text-gray-600">{Number(row.import_km || 0).toFixed(0)}</td>
+                                    <td className="px-4 py-2 text-right text-gray-600">{Number(row.chauffeur_km || 0)}</td>
+                                  </tr>
+                                ))}
+                                {/* Totals row */}
+                                <tr className="bg-gray-50 font-semibold">
+                                  <td className="px-4 py-2 text-gray-900">Totaal</td>
+                                  <td className="px-4 py-2 text-right">{totImport.toFixed(1)}</td>
+                                  <td className="px-4 py-2 text-right">{totChauffeur.toFixed(1)}</td>
+                                  <td className="px-4 py-2 text-right">
                                     <span className={clsx(
-                                      Number(row.verschil) > 0.5 ? 'text-green-600' : Number(row.verschil) < -0.5 ? 'text-red-600' : 'text-gray-500'
+                                      totVerschil > 0.5 ? 'text-green-600' : totVerschil < -0.5 ? 'text-red-600' : 'text-gray-500'
                                     )}>
-                                      {Number(row.verschil) > 0 ? '+' : ''}{Number(row.verschil || 0).toFixed(1)}
+                                      {totVerschil > 0 ? '+' : ''}{totVerschil.toFixed(1)}
                                     </span>
                                   </td>
-                                  <td className="px-4 py-2 text-right text-gray-600">{Number(row.import_km || 0).toFixed(0)}</td>
-                                  <td className="px-4 py-2 text-right text-gray-600">{Number(row.chauffeur_km || 0)}</td>
+                                  <td className="px-4 py-2 text-right">{totImportKm.toFixed(0)}</td>
+                                  <td className="px-4 py-2 text-right">{totChauffeurKm}</td>
                                 </tr>
-                              ))}
-                              {/* Totals row */}
-                              <tr className="bg-gray-50 font-semibold">
-                                <td className="px-4 py-2 text-gray-900">Totaal</td>
-                                <td className="px-4 py-2 text-right">{totImport.toFixed(1)}</td>
-                                <td className="px-4 py-2 text-right">{totChauffeur.toFixed(1)}</td>
-                                <td className="px-4 py-2 text-right">
-                                  <span className={clsx(
-                                    totVerschil > 0.5 ? 'text-green-600' : totVerschil < -0.5 ? 'text-red-600' : 'text-gray-500'
-                                  )}>
-                                    {totVerschil > 0 ? '+' : ''}{totVerschil.toFixed(1)}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2 text-right">{totImportKm.toFixed(0)}</td>
-                                <td className="px-4 py-2 text-right">{totChauffeurKm}</td>
-                              </tr>
-                            </tbody>
-                          </table>
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Mobile cards */}
+                          <div className="sm:hidden divide-y divide-gray-200">
+                            {rows.map((row, idx) => {
+                              const verschil = Number(row.verschil || 0)
+                              return (
+                                <div key={`${row.user_id}-${idx}`} className="p-3 space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-gray-900">{row.user_naam}</span>
+                                    <span className={clsx(
+                                      'text-sm font-bold',
+                                      verschil > 0.5 ? 'text-green-600' : verschil < -0.5 ? 'text-red-600' : 'text-gray-500'
+                                    )}>
+                                      {verschil > 0 ? '+' : ''}{verschil.toFixed(1)}u
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-xs text-gray-600">
+                                    <span>Import: {Number(row.import_uren || 0).toFixed(1)}u</span>
+                                    <span>Chauffeur: {Number(row.chauffeur_uren || 0).toFixed(1)}u</span>
+                                    <span>{Number(row.import_km || 0).toFixed(0)} km</span>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                            {/* Mobile totals */}
+                            <div className="p-3 bg-gray-50">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-semibold text-gray-900">Totaal</span>
+                                <span className={clsx(
+                                  'text-sm font-bold',
+                                  totVerschil > 0.5 ? 'text-green-600' : totVerschil < -0.5 ? 'text-red-600' : 'text-gray-500'
+                                )}>
+                                  {totVerschil > 0 ? '+' : ''}{totVerschil.toFixed(1)}u
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-gray-600 mt-0.5">
+                                <span>Import: {totImport.toFixed(1)}u</span>
+                                <span>Chauffeur: {totChauffeur.toFixed(1)}u</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -682,6 +858,52 @@ export default function UrenImportPage() {
         message={t('urenImport.deleteMessage', 'Weet je zeker dat je deze import en alle bijbehorende regels wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')}
         isLoading={deleting}
       />
+
+      {/* Duplicate detection dialog */}
+      {duplicateInfo && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/50" onClick={() => setDuplicateInfo(null)} />
+            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                    <DocumentDuplicateIcon className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Dubbele regels gevonden</h3>
+                </div>
+                <p className="text-gray-600 mb-2">
+                  Er zijn <span className="font-bold text-amber-600">{duplicateInfo.duplicates}</span> dubbele regels gevonden
+                  van de {duplicateInfo.total} regels in dit bestand.
+                </p>
+                <p className="text-gray-600 mb-6">
+                  Wil je de bestaande regels overschrijven met de nieuwe data, of de dubbele regels overslaan?
+                </p>
+                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+                  <button
+                    onClick={() => setDuplicateInfo(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 order-3 sm:order-1"
+                  >
+                    Annuleren
+                  </button>
+                  <button
+                    onClick={handleDuplicateSkip}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 order-2"
+                  >
+                    Dubbele overslaan
+                  </button>
+                  <button
+                    onClick={handleDuplicateOverwrite}
+                    className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 order-1 sm:order-3"
+                  >
+                    Overschrijven
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
