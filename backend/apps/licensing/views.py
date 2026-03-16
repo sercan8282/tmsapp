@@ -29,6 +29,7 @@ class LicenseActivateView(APIView):
     before any users can log in.
     """
     permission_classes = [AllowAny]
+    authentication_classes = []  # Skip JWT validation for public endpoint
     
     # Rate limit: prevent brute-force license guessing
     throttle_scope = 'login'
@@ -59,6 +60,7 @@ class LicenseStatusView(APIView):
     to show the activation screen.
     """
     permission_classes = [AllowAny]
+    authentication_classes = []  # Skip JWT validation for public endpoint
     
     def get(self, request):
         license_obj = get_active_license()
