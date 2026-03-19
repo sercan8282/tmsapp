@@ -3,7 +3,7 @@
  * Shows worked hours vs minimum hours per user per week.
  * Allows setting minimum hours and importing missed hours to invoices.
  */
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Dialog, Transition } from '@headlessui/react'
 import {
@@ -13,6 +13,8 @@ import {
   DocumentPlusIcon,
   XMarkIcon,
   EyeIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline'
 import HoursDetailModal from './HoursDetailModal'
 import {
@@ -39,9 +41,8 @@ export default function WeeklyHoursTab() {
   const [selectedYear, setSelectedYear] = useState(getCurrentYear())
   const [showOnlyMissed, setShowOnlyMissed] = useState(false)
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 20
+  // Collapsible period groups
+  const [expandedPeriods, setExpandedPeriods] = useState<Set<number>>(new Set())
   
   // Hours detail modal state
   const [showDetailModal, setShowDetailModal] = useState(false)
@@ -89,7 +90,6 @@ export default function WeeklyHoursTab() {
     }
     
     setFilteredData(filtered)
-    setCurrentPage(1)
   }, [searchTerm, data, showOnlyMissed])
 
   const loadData = async () => {
@@ -106,9 +106,26 @@ export default function WeeklyHoursTab() {
     }
   }
 
-  // Pagination
-  const totalPages = Math.ceil(filteredData.length / pageSize)
-  const paginatedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  // Group data by period
+  const groupedData = useMemo(() => {
+    const groups = new Map<number, { periode: number; week_start: number; week_eind: number; rows: WeeklyHoursOverview[] }>()
+    filteredData.forEach(row => {
+      if (!groups.has(row.periode)) {
+        groups.set(row.periode, { periode: row.periode, week_start: row.week_start, week_eind: row.week_eind, rows: [] })
+      }
+      groups.get(row.periode)!.rows.push(row)
+    })
+    return Array.from(groups.values()).sort((a, b) => a.periode - b.periode)
+  }, [filteredData])
+
+  const togglePeriod = (periode: number) => {
+    setExpandedPeriods(prev => {
+      const next = new Set(prev)
+      if (next.has(periode)) next.delete(periode)
+      else next.add(periode)
+      return next
+    })
+  }
 
   // Invoice missed hours
   const openInvoiceModal = async (row: WeeklyHoursOverview) => {
@@ -308,7 +325,29 @@ export default function WeeklyHoursTab() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedData.map((row) => {
+                  {groupedData.map((group) => {
+                    const isExpanded = expandedPeriods.has(group.periode)
+                    const grpWorked = group.rows.reduce((s, r) => s + r.gewerkte_uren, 0)
+                    const grpMissed = group.rows.reduce((s, r) => s + (r.gemiste_uren || 0), 0)
+                    const grpKm = group.rows.reduce((s, r) => s + r.totaal_km, 0)
+                    return (
+                      <Fragment key={`period-${group.periode}`}>
+                        <tr className="bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => togglePeriod(group.periode)}>
+                          <td colSpan={9} className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              {isExpanded ? <ChevronDownIcon className="h-4 w-4 text-gray-500" /> : <ChevronRightIcon className="h-4 w-4 text-gray-500" />}
+                              <span className="inline-flex items-center justify-center h-7 min-w-[2rem] px-2 rounded-full bg-primary-100 text-primary-700 font-bold text-sm">P{group.periode}</span>
+                              <span className="text-sm text-gray-500">wk {group.week_start}-{group.week_eind}</span>
+                              <div className="ml-auto flex items-center gap-4 text-xs text-gray-500">
+                                <span>{group.rows.length} chauffeurs</span>
+                                <span className="font-medium text-gray-700">{grpWorked}u</span>
+                                {grpMissed > 0 && <span className="font-medium text-red-600">{grpMissed}u gemist</span>}
+                                <span>{grpKm} km</span>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && group.rows.map((row) => {
                     const key = `${row.user_id}-${row.jaar}-${row.periode}`
                     const hasMissed = row.gemiste_uren !== null && row.gemiste_uren > 0
                     const belowMinimum = row.minimum_uren !== null && row.gewerkte_uren < row.minimum_uren
@@ -386,6 +425,9 @@ export default function WeeklyHoursTab() {
                         </td>
                       </tr>
                     )
+                        })}
+                      </Fragment>
+                    )
                   })}
                 </tbody>
               </table>
@@ -393,7 +435,19 @@ export default function WeeklyHoursTab() {
 
             {/* Mobile Card View */}
             <div className="md:hidden divide-y divide-gray-200">
-              {paginatedData.map((row) => {
+              {groupedData.map((group) => {
+                const isExpanded = expandedPeriods.has(group.periode)
+                const grpWorked = group.rows.reduce((s, r) => s + r.gewerkte_uren, 0)
+                const grpMissed = group.rows.reduce((s, r) => s + (r.gemiste_uren || 0), 0)
+                return (
+                  <div key={`mgroup-${group.periode}`}>
+                    <div className="px-3 py-2.5 bg-gray-50 flex items-center gap-2 cursor-pointer active:bg-gray-100" onClick={() => togglePeriod(group.periode)}>
+                      {isExpanded ? <ChevronDownIcon className="h-4 w-4 text-gray-500" /> : <ChevronRightIcon className="h-4 w-4 text-gray-500" />}
+                      <span className="inline-flex items-center justify-center h-6 px-2 rounded-full bg-primary-100 text-primary-700 font-bold text-xs">P{group.periode}</span>
+                      <span className="text-xs text-gray-500">wk {group.week_start}-{group.week_eind}</span>
+                      <span className="ml-auto text-xs text-gray-400">{group.rows.length} • {grpWorked}u{grpMissed > 0 ? ` • ${grpMissed}u gemist` : ''}</span>
+                    </div>
+                    {isExpanded && group.rows.map((row) => {
                 const key = `${row.user_id}-${row.jaar}-${row.periode}`
                 const hasMissed = row.gemiste_uren !== null && row.gemiste_uren > 0
                 const belowMinimum = row.minimum_uren !== null && row.gewerkte_uren < row.minimum_uren
@@ -462,36 +516,11 @@ export default function WeeklyHoursTab() {
                     )}
                   </div>
                 )
+                    })}
+                  </div>
+                )
               })}
             </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-                <span className="text-sm text-gray-500">
-                  {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredData.length)} {t('common.of')} {filteredData.length}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {t('common.previous')}
-                  </button>
-                  <span className="px-3 py-1.5 text-sm text-gray-600">
-                    {currentPage} / {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1.5 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {t('common.next')}
-                  </button>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
