@@ -115,7 +115,7 @@ export default function WeeklyHoursTab() {
       }
       groups.get(row.periode)!.rows.push(row)
     })
-    return Array.from(groups.values()).sort((a, b) => a.periode - b.periode)
+    return Array.from(groups.values()).sort((a, b) => b.periode - a.periode)
   }, [filteredData])
 
   const togglePeriod = (periode: number) => {

@@ -110,7 +110,7 @@ export default function MonthlyHoursTab() {
       }
       groups.get(row.maand)!.rows.push(row)
     })
-    return Array.from(groups.values()).sort((a, b) => a.maand - b.maand)
+    return Array.from(groups.values()).sort((a, b) => b.maand - a.maand)
   }, [filteredData])
 
   const toggleMonth = (maand: number) => {
