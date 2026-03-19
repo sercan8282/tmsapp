@@ -452,28 +452,28 @@ export default function InvoicesPage() {
           {/* Filter row */}
           <div className="space-y-3">
             {/* Year filter */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-medium text-gray-500 uppercase mr-1">{t('common.year')}:</span>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-xs font-medium text-gray-500 uppercase mr-0.5">{t('common.year')}:</span>
               {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).filter(y => y >= 2026).map(y => (
                 <button
                   key={y}
                   onClick={() => setFilters(prev => ({ ...prev, jaar: y, page: 1 }))}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filters.jaar === y ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                  className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${filters.jaar === y ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                 >
                   {y}
                 </button>
               ))}
               <button
                 onClick={() => setFilters(prev => ({ ...prev, jaar: undefined, page: 1 }))}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${!filters.jaar ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${!filters.jaar ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               >
                 {t('common.all')}
               </button>
             </div>
 
             {/* Type filter */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-medium text-gray-500 uppercase mr-1">{t('invoices.type')}:</span>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-xs font-medium text-gray-500 uppercase mr-0.5">{t('invoices.type')}:</span>
               {([
                 { value: '', label: t('common.allTypes') },
                 { value: 'verkoop', label: t('invoices.sales') },
@@ -483,7 +483,7 @@ export default function InvoicesPage() {
                 <button
                   key={opt.value}
                   onClick={() => handleFilterChange('type', opt.value)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${(filters.type || '') === opt.value ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                  className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${(filters.type || '') === opt.value ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                 >
                   {opt.label}
                 </button>
@@ -491,8 +491,8 @@ export default function InvoicesPage() {
             </div>
             
             {/* Status filter */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-medium text-gray-500 uppercase mr-1">{t('common.status')}:</span>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-xs font-medium text-gray-500 uppercase mr-0.5">{t('common.status')}:</span>
               {([
                 { value: '', label: t('invoices.allStatuses') },
                 { value: 'concept', label: t('invoices.draft') },
@@ -503,7 +503,7 @@ export default function InvoicesPage() {
                 <button
                   key={opt.value}
                   onClick={() => handleFilterChange('status', opt.value)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${(filters.status || '') === opt.value ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                  className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${(filters.status || '') === opt.value ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                 >
                   {opt.label}
                 </button>
@@ -511,11 +511,11 @@ export default function InvoicesPage() {
             </div>
             
             {/* Company filter */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-medium text-gray-500 uppercase mr-1">{t('invoices.company')}:</span>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-xs font-medium text-gray-500 uppercase mr-0.5">{t('invoices.company')}:</span>
               <button
                 onClick={() => handleFilterChange('bedrijf', '')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${!filters.bedrijf ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${!filters.bedrijf ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               >
                 {t('invoices.allCompanies')}
               </button>
@@ -523,7 +523,7 @@ export default function InvoicesPage() {
                 <button
                   key={company.id}
                   onClick={() => handleFilterChange('bedrijf', company.id.toString())}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filters.bedrijf === company.id.toString() ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                  className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${filters.bedrijf === company.id.toString() ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                 >
                   {company.naam}
                 </button>
@@ -531,7 +531,7 @@ export default function InvoicesPage() {
               {companies.length > 3 && (
                 <button
                   onClick={() => setShowMoreCompanies(!showMoreCompanies)}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors"
+                  className="px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors"
                 >
                   {showMoreCompanies ? t('common.showLess') : t('common.showMore')}
                 </button>
@@ -804,7 +804,7 @@ export default function InvoicesPage() {
         <div className="md:hidden divide-y divide-gray-200">
           {/* Mobile Select All */}
           {!isReadOnly && invoices.length > 0 && !loading && (
-            <div className="px-4 py-3 bg-gray-50 flex items-center gap-3">
+            <div className="px-3 py-2 bg-gray-50 flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={invoices.length > 0 && selectedIds.size === invoices.length}
@@ -827,130 +827,123 @@ export default function InvoicesPage() {
           ) : (
             invoices.map((invoice) => (
               <div key={invoice.id} className={clsx(
-                "p-4 hover:bg-gray-50",
+                "px-3 py-2 hover:bg-gray-50",
                 selectedIds.has(invoice.id) && "bg-primary-50"
               )}>
-                {/* Card Header */}
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  {!isReadOnly && (
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(invoice.id)}
-                      onChange={() => toggleSelect(invoice.id)}
-                      className="h-4 w-4 mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500 shrink-0"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <DocumentTextIcon className={clsx('h-5 w-5 shrink-0', TYPE_COLORS[invoice.type] || 'text-gray-400')} />
-                      <span className={clsx('font-semibold truncate', TYPE_COLORS[invoice.type] || 'text-gray-900')}>{invoice.factuurnummer}</span>
-                      <span className={clsx(
-                        'px-2 py-0.5 text-xs font-medium rounded-full capitalize shrink-0',
-                        STATUS_COLORS[invoice.status] || 'bg-gray-100 text-gray-800'
-                      )}>
-                        {invoice.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 truncate">{invoice.bedrijf_naam}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className={clsx('font-semibold', TYPE_COLORS[invoice.type] || 'text-gray-900')}>
-                      {formatCurrency(invoice.totaal)}
-                    </div>
-                    <div className="text-xs text-gray-500">{new Date(invoice.factuurdatum).toLocaleDateString('nl-NL')}</div>
-                  </div>
-                </div>
-                
-                {/* Card Meta */}
-                <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mb-3">
-                  <span className="capitalize">{invoice.type}</span>
-                  {invoice.week_number && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                      W{invoice.week_number}
-                      {invoice.week_year && <span className="text-gray-400 ml-1">'{String(invoice.week_year).slice(-2)}</span>}
+                {/* Row 1: invoice number, status badge, amount */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {!isReadOnly && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(invoice.id)}
+                        onChange={() => toggleSelect(invoice.id)}
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 shrink-0"
+                      />
+                    )}
+                    <DocumentTextIcon className={clsx('h-4 w-4 shrink-0', TYPE_COLORS[invoice.type] || 'text-gray-400')} />
+                    <span className={clsx('text-sm font-semibold truncate', TYPE_COLORS[invoice.type] || 'text-gray-900')}>{invoice.factuurnummer}</span>
+                    <span className={clsx(
+                      'px-1.5 py-0.5 text-[10px] font-medium rounded-full capitalize shrink-0',
+                      STATUS_COLORS[invoice.status] || 'bg-gray-100 text-gray-800'
+                    )}>
+                      {invoice.status}
                     </span>
-                  )}
-                  {invoice.chauffeur_naam && (
-                    <span>{invoice.chauffeur_naam}</span>
-                  )}
+                  </div>
+                  <span className={clsx('text-sm font-semibold shrink-0', TYPE_COLORS[invoice.type] || 'text-gray-900')}>
+                    {formatCurrency(invoice.totaal)}
+                  </span>
                 </div>
                 
-                {/* Action Buttons */}
-                <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
+                {/* Row 2: company, meta, date */}
+                <div className="flex items-center justify-between gap-2 mt-0.5">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500 min-w-0 truncate">
+                    <span className="truncate">{invoice.bedrijf_naam}</span>
+                    {invoice.week_number && (
+                      <>
+                        <span className="text-gray-300">·</span>
+                        <span className="shrink-0">W{invoice.week_number}</span>
+                      </>
+                    )}
+                    {invoice.chauffeur_naam && (
+                      <>
+                        <span className="text-gray-300">·</span>
+                        <span className="truncate">{invoice.chauffeur_naam}</span>
+                      </>
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-400 shrink-0">{new Date(invoice.factuurdatum).toLocaleDateString('nl-NL')}</span>
+                </div>
+                
+                {/* Row 3: icon-only action buttons */}
+                <div className="flex items-center gap-0.5 mt-1 pt-1 border-t border-gray-100">
                   <button
                     onClick={() => { setSelectedInvoice(invoice); setShowDetailModal(true) }}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg min-h-[44px]"
+                    className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded"
+                    title={t('common.view')}
                   >
                     <EyeIcon className="h-4 w-4" />
-                    <span>{t('common.view')}</span>
                   </button>
-                  
                   <button
                     onClick={() => handleDownloadPdf(invoice)}
                     disabled={saving}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg min-h-[44px] disabled:opacity-50"
+                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded disabled:opacity-50"
+                    title="PDF"
                   >
                     <ArrowDownTrayIcon className="h-4 w-4" />
-                    <span>PDF</span>
                   </button>
-                  
                   {!isReadOnly && (
                     <button
                       onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg min-h-[44px]"
+                      className="p-1.5 text-orange-600 hover:bg-orange-50 rounded"
+                      title={t('common.edit')}
                     >
                       <PencilSquareIcon className="h-4 w-4" />
-                      <span>{t('common.edit')}</span>
                     </button>
                   )}
-                  
                   {!isReadOnly && (invoice.status === 'definitief' || invoice.status === 'verzonden') && (
                     <button
                       onClick={() => openEmailModal(invoice)}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg min-h-[44px]"
+                      className="p-1.5 text-purple-600 hover:bg-purple-50 rounded"
+                      title={t('common.email')}
                     >
                       <EnvelopeIcon className="h-4 w-4" />
-                      <span>{t('common.email')}</span>
                     </button>
                   )}
-                  
                   {!isReadOnly && invoice.status === 'concept' && (
                     <button
                       onClick={() => handleStatusAction(invoice, 'definitief')}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg min-h-[44px]"
+                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                      title={t('invoices.definitive')}
                     >
                       <CheckCircleIcon className="h-4 w-4" />
-                      <span>{t('invoices.definitive')}</span>
                     </button>
                   )}
-                  
                   {!isReadOnly && invoice.status === 'definitief' && (
                     <button
                       onClick={() => handleStatusAction(invoice, 'verzonden')}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-yellow-600 bg-yellow-50 hover:bg-yellow-100 rounded-lg min-h-[44px]"
+                      className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded"
+                      title={t('invoices.sent')}
                     >
                       <PaperAirplaneIcon className="h-4 w-4" />
-                      <span>{t('invoices.sent')}</span>
                     </button>
                   )}
-                  
                   {!isReadOnly && invoice.status === 'verzonden' && (
                     <button
                       onClick={() => handleStatusAction(invoice, 'betaald')}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-green-600 bg-green-50 hover:bg-green-100 rounded-lg min-h-[44px]"
+                      className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                      title={t('invoices.paid')}
                     >
                       <CurrencyEuroIcon className="h-4 w-4" />
-                      <span>{t('invoices.paid')}</span>
                     </button>
                   )}
-                  
                   {!isReadOnly && (
                     <button
                       onClick={() => { setSelectedInvoice(invoice); setShowDeleteModal(true) }}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg min-h-[44px]"
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                      title={t('common.delete')}
                     >
                       <TrashIcon className="h-4 w-4" />
-                      <span>{t('common.delete')}</span>
                     </button>
                   )}
                 </div>
