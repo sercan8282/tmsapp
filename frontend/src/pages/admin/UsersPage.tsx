@@ -811,33 +811,33 @@ export default function UsersPage() {
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th 
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('achternaam')}
                 >
                   {t('common.name')} <SortIcon field="achternaam" />
                 </th>
                 <th 
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('email')}
                 >
                   {t('common.email')} <SortIcon field="email" />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase">
                   {t('users.role')}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase">
                   {t('common.status')}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase">
                   2FA
                 </th>
                 <th 
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('last_login')}
                 >
                   {t('users.lastLogin')} <SortIcon field="last_login" />
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-600 uppercase">
                   {t('common.actions')}
                 </th>
               </tr>
@@ -861,87 +861,84 @@ export default function UsersPage() {
               ) : (
                 users.map(user => (
                   <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div>
-                        <div className="font-medium text-gray-900">{user.full_name}</div>
-                        <div className="text-sm text-gray-500">@{user.username}</div>
-                      </div>
+                    <td className="px-3 py-2.5">
+                      <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{user.email}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${roleConfig[user.rol]?.color}`}>
+                    <td className="px-3 py-2.5 text-sm text-gray-600">{user.email}</td>
+                    <td className="px-3 py-2.5">
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${roleConfig[user.rol]?.color}`}>
                         {t(roleConfig[user.rol]?.key)}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5">
                       {user.is_active ? (
-                        <span className="flex items-center text-green-600">
+                        <span className="flex items-center text-sm text-green-600">
                           <CheckCircleIcon className="w-4 h-4 mr-1" />
                           {t('common.active')}
                         </span>
                       ) : (
-                        <span className="flex items-center text-red-600">
+                        <span className="flex items-center text-sm text-red-600">
                           <NoSymbolIcon className="w-4 h-4 mr-1" />
                           {t('common.inactive')}
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5">
                       {user.mfa_enabled ? (
-                        <span className="flex items-center text-green-600">
+                        <span className="flex items-center text-sm text-green-600">
                           <ShieldCheckIcon className="w-4 h-4 mr-1" />
                           Aan
                         </span>
                       ) : user.mfa_required ? (
-                        <span className="flex items-center text-orange-600">
+                        <span className="flex items-center text-sm text-orange-600">
                           <ShieldCheckIcon className="w-4 h-4 mr-1" />
                           Verplicht
                         </span>
                       ) : (
-                        <span className="text-gray-400">Uit</span>
+                        <span className="text-sm text-gray-400">Uit</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-3 py-2.5 text-sm text-gray-500">
                       {formatDate(user.last_login)}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center justify-end gap-0.5">
                         <button
                           onClick={() => { setSelectedUser(user); setShowEditModal(true) }}
-                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                          className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
                           title="Bewerken"
                         >
-                          <PencilSquareIcon className="w-5 h-5" />
+                          <PencilSquareIcon className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => { setSelectedUser(user); setShowPasswordModal(true) }}
-                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-yellow-600 hover:bg-gray-100 rounded"
+                          className="p-1.5 text-gray-500 hover:text-yellow-600 hover:bg-gray-100 rounded"
                           title="Wachtwoord resetten"
                         >
-                          <KeyIcon className="w-5 h-5" />
+                          <KeyIcon className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => { setSelectedUser(user); setShowBlockModal(true) }}
-                          className={`p-2 min-w-[40px] min-h-[40px] hover:bg-gray-100 rounded ${user.is_active ? 'text-gray-500 hover:text-orange-600' : 'text-gray-500 hover:text-green-600'}`}
+                          className={`p-1.5 hover:bg-gray-100 rounded ${user.is_active ? 'text-gray-500 hover:text-orange-600' : 'text-gray-500 hover:text-green-600'}`}
                           title={user.is_active ? 'Blokkeren' : 'Activeren'}
                         >
-                          {user.is_active ? <NoSymbolIcon className="w-5 h-5" /> : <CheckCircleIcon className="w-5 h-5" />}
+                          {user.is_active ? <NoSymbolIcon className="w-4 h-4" /> : <CheckCircleIcon className="w-4 h-4" />}
                         </button>
                         {user.mfa_enabled && (
                           <button
                             onClick={() => { setSelectedUser(user); setShowMfaModal(true) }}
-                            className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded"
+                            className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded"
                             title="2FA uitschakelen"
                           >
-                            <ShieldCheckIcon className="w-5 h-5" />
+                            <ShieldCheckIcon className="w-4 h-4" />
                           </button>
                         )}
                         <button
                           onClick={() => { setSelectedUser(user); setShowDeleteModal(true) }}
-                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
+                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
                           title="Verwijderen"
                         >
-                          <TrashIcon className="w-5 h-5" />
+                          <TrashIcon className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -967,23 +964,22 @@ export default function UsersPage() {
             </div>
           ) : (
             users.map(user => (
-              <div key={user.id} className="p-4 hover:bg-gray-50">
+              <div key={user.id} className="p-3 hover:bg-gray-50">
                 {/* Card Header */}
-                <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <h3 className="font-semibold text-gray-900 truncate">{user.full_name}</h3>
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <h3 className="font-semibold text-sm text-gray-900 truncate">{user.full_name}</h3>
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${roleConfig[user.rol]?.color}`}>
                         {t(roleConfig[user.rol]?.key)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500">@{user.username}</p>
-                    <p className="text-sm text-gray-600 truncate">{user.email}</p>
+                    <p className="text-xs text-gray-600 truncate">{user.email}</p>
                   </div>
                 </div>
 
                 {/* Card Status */}
-                <div className="flex flex-wrap gap-3 text-sm mb-3">
+                <div className="flex flex-wrap gap-3 text-xs mb-2">
                   {user.is_active ? (
                     <span className="flex items-center text-green-600">
                       <CheckCircleIcon className="w-4 h-4 mr-1" />

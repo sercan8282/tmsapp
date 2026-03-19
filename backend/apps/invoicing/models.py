@@ -137,6 +137,11 @@ class Invoice(models.Model):
         self.subtotaal = sum(line.totaal for line in self.lines.all())
         self.btw_bedrag = self.subtotaal * (self.btw_percentage / 100)
         self.totaal = self.subtotaal + self.btw_bedrag
+        # Creditfacturen: bedragen negatief opslaan
+        if self.type == 'credit':
+            self.subtotaal = -abs(self.subtotaal)
+            self.btw_bedrag = -abs(self.btw_bedrag)
+            self.totaal = -abs(self.totaal)
         self.save()
 
 

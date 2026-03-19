@@ -46,6 +46,12 @@ const STATUS_COLORS: Record<string, string> = {
   betaald: 'bg-green-100 text-green-800',
 }
 
+const TYPE_COLORS: Record<string, string> = {
+  verkoop: 'text-green-600',
+  credit: 'text-orange-500',
+  inkoop: 'text-red-600',
+}
+
 export default function InvoicesPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -610,8 +616,8 @@ export default function InvoicesPage() {
                     )}
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="flex items-center">
-                        <DocumentTextIcon className="h-4 w-4 text-gray-400 mr-1.5" />
-                        <span className="text-sm font-medium text-gray-900">{invoice.factuurnummer}</span>
+                        <DocumentTextIcon className={clsx('h-4 w-4 mr-1.5', TYPE_COLORS[invoice.type] || 'text-gray-400')} />
+                        <span className={clsx('text-sm font-medium', TYPE_COLORS[invoice.type] || 'text-gray-900')}>{invoice.factuurnummer}</span>
                       </div>
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
@@ -636,8 +642,10 @@ export default function InvoicesPage() {
                     <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-500">
                       {new Date(invoice.factuurdatum).toLocaleDateString('nl-NL')}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                      {formatCurrency(invoice.totaal)}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-right">
+                      <span className={TYPE_COLORS[invoice.type] || 'text-blue-600'}>
+                        {formatCurrency(invoice.totaal)}
+                      </span>
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <span className={clsx(
@@ -782,8 +790,8 @@ export default function InvoicesPage() {
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <DocumentTextIcon className="h-5 w-5 text-gray-400 shrink-0" />
-                      <span className="font-semibold text-gray-900 truncate">{invoice.factuurnummer}</span>
+                      <DocumentTextIcon className={clsx('h-5 w-5 shrink-0', TYPE_COLORS[invoice.type] || 'text-gray-400')} />
+                      <span className={clsx('font-semibold truncate', TYPE_COLORS[invoice.type] || 'text-gray-900')}>{invoice.factuurnummer}</span>
                       <span className={clsx(
                         'px-2 py-0.5 text-xs font-medium rounded-full capitalize shrink-0',
                         STATUS_COLORS[invoice.status] || 'bg-gray-100 text-gray-800'
@@ -794,7 +802,9 @@ export default function InvoicesPage() {
                     <p className="text-sm text-gray-600 truncate">{invoice.bedrijf_naam}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="font-semibold text-gray-900">{formatCurrency(invoice.totaal)}</div>
+                    <div className={clsx('font-semibold', TYPE_COLORS[invoice.type] || 'text-gray-900')}>
+                      {formatCurrency(invoice.totaal)}
+                    </div>
                     <div className="text-xs text-gray-500">{new Date(invoice.factuurdatum).toLocaleDateString('nl-NL')}</div>
                   </div>
                 </div>
