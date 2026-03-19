@@ -148,10 +148,11 @@ export async function getWeekSummary(weeknummer: number, jaar?: number, userId?:
 /**
  * Get history grouped by week
  */
-export async function getWeekHistory(userId?: string, status?: string): Promise<WeekHistory[]> {
+export async function getWeekHistory(userId?: string, status?: string, jaar?: number): Promise<WeekHistory[]> {
   const params = new URLSearchParams()
   if (userId) params.append('user', userId)
   if (status) params.append('status', status)
+  if (jaar) params.append('jaar', jaar.toString())
   
   const response = await api.get(`/time-entries/history/?${params.toString()}`)
   return response.data

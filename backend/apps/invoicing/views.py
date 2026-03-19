@@ -191,6 +191,14 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     filterset_fields = ['type', 'status', 'bedrijf', 'week_number', 'week_year', 'chauffeur']
     search_fields = ['factuurnummer', 'bedrijf__naam']
     ordering_fields = ['factuurdatum', 'factuurnummer', 'totaal', 'bedrijf__naam']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Year filter on factuurdatum
+        jaar = self.request.query_params.get('jaar')
+        if jaar:
+            qs = qs.filter(factuurdatum__year=int(jaar))
+        return qs
     
     @action(detail=False, methods=['get'])
     def next_number(self, request):

@@ -57,6 +57,7 @@ export interface InvoiceFilters {
   week_number?: number
   week_year?: number
   chauffeur?: string
+  jaar?: number
 }
 
 export interface TemplatesResponse {
@@ -168,6 +169,7 @@ export async function getInvoices(filters?: InvoiceFilters): Promise<InvoicesRes
   if (filters?.week_number) params.append('week_number', filters.week_number.toString())
   if (filters?.week_year) params.append('week_year', filters.week_year.toString())
   if (filters?.chauffeur) params.append('chauffeur', filters.chauffeur)
+  if (filters?.jaar) params.append('jaar', filters.jaar.toString())
   
   const response = await api.get(`/invoicing/invoices/?${params.toString()}`)
   return response.data

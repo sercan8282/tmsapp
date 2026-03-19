@@ -69,6 +69,7 @@ export default function InvoicesPage() {
     page: 1,
     page_size: 30,
     ordering: '-factuurdatum',
+    jaar: new Date().getFullYear(),
   })
   const [searchInput, setSearchInput] = useState('')
   const [pageSize, setPageSize] = useState<PageSize>(30)
@@ -448,7 +449,22 @@ export default function InvoicesPage() {
           </div>
           
           {/* Filter row */}
-          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 xs:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Year filter */}
+            <select
+              value={filters.jaar || new Date().getFullYear()}
+              onChange={(e) => {
+                const val = parseInt(e.target.value)
+                setFilters(prev => ({ ...prev, jaar: val || undefined, page: 1 }))
+              }}
+              className="input-field min-h-[44px]"
+            >
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+              <option value="">{t('common.all')}</option>
+            </select>
+
             {/* Type filter */}
             <select
               value={filters.type || ''}

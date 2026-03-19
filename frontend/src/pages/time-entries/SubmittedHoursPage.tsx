@@ -2,7 +2,7 @@
  * Submitted Hours Page - For admins to view and edit all submitted hours
  * Full editing capabilities for all chauffeur time entries
  */
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Dialog, Transition } from '@headlessui/react'
 import {
@@ -14,6 +14,7 @@ import {
   TruckIcon,
   CalendarDaysIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   DocumentArrowDownIcon,
   TableCellsIcon,
 } from '@heroicons/react/24/outline'
@@ -28,6 +29,7 @@ import {
   updateTimeEntry,
   WeekHistory,
   getWeekHistory,
+  getCurrentYear,
 } from '@/api/timetracking'
 import { getImportedEntries, ImportedTimeEntry } from '@/api/urenImport'
 import toast from 'react-hot-toast'
@@ -65,8 +67,10 @@ export default function SubmittedHoursPage() {
   const [filteredWeeks, setFilteredWeeks] = useState<WeekHistory[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'concept' | 'ingediend' | ''>('')
+  const [selectedYear, setSelectedYear] = useState(getCurrentYear())
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState<PageSize>(30)
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
   
   // Week detail state
   const [showWeekModal, setShowWeekModal] = useState(false)
@@ -91,10 +95,10 @@ export default function SubmittedHoursPage() {
   })
   const [saving, setSaving] = useState(false)
 
-  // Load week history on mount and when status filter changes
+  // Load week history on mount and when status/year filter changes
   useEffect(() => {
     loadWeekHistory()
-  }, [statusFilter])
+  }, [statusFilter, selectedYear])
 
   // Filter weeks when search changes
   useEffect(() => {
@@ -118,7 +122,7 @@ export default function SubmittedHoursPage() {
   const loadWeekHistory = async () => {
     try {
       setLoading(true)
-      const history = await getWeekHistory(undefined, statusFilter || undefined)
+      const history = await getWeekHistory(undefined, statusFilter || undefined, selectedYear)
       // Sort by year and week descending
       const sorted = history.sort((a, b) => {
         if (a.jaar !== b.jaar) return b.jaar - a.jaar
@@ -547,12 +551,40 @@ export default function SubmittedHoursPage() {
     }
   }
 
-  // Pagination
-  const totalPages = Math.ceil(filteredWeeks.length / pageSize)
-  const paginatedWeeks = filteredWeeks.slice(
+  // Group weeks by weeknummer+jaar for collapsible UI
+  const groupedWeeks = useMemo(() => {
+    const groups = new Map<string, { weeknummer: number; jaar: number; rows: WeekHistory[] }>()
+    filteredWeeks.forEach(week => {
+      const key = `${week.jaar}-${week.weeknummer}`
+      if (!groups.has(key)) {
+        groups.set(key, { weeknummer: week.weeknummer, jaar: week.jaar, rows: [] })
+      }
+      groups.get(key)!.rows.push(week)
+    })
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.jaar !== b.jaar) return b.jaar - a.jaar
+      return b.weeknummer - a.weeknummer
+    })
+  }, [filteredWeeks])
+
+  // Pagination on groups
+  const totalPages = Math.ceil(groupedWeeks.length / pageSize)
+  const paginatedGroups = groupedWeeks.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   )
+
+  // Available years
+  const years = Array.from({ length: 5 }, (_, i) => getCurrentYear() - i)
+
+  const toggleWeekGroup = (key: string) => {
+    setExpandedWeeks(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   return (
     <div>
@@ -672,6 +704,15 @@ export default function SubmittedHoursPage() {
               />
             </div>
             <select
+              value={selectedYear}
+              onChange={(e) => { setSelectedYear(parseInt(e.target.value)); setCurrentPage(1) }}
+              className="form-select sm:w-32"
+            >
+              {years.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as 'concept' | 'ingediend' | '')}
               className="form-select sm:w-48"
@@ -690,7 +731,7 @@ export default function SubmittedHoursPage() {
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
           </div>
-        ) : paginatedWeeks.length === 0 ? (
+        ) : paginatedGroups.length === 0 ? (
           <div className="p-8 text-center">
             <ClockIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">{t('timeEntries.noSubmittedHours')}</p>
@@ -723,7 +764,29 @@ export default function SubmittedHoursPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedWeeks.map((week) => (
+                  {paginatedGroups.map((group) => {
+                    const groupKey = `${group.jaar}-${group.weeknummer}`
+                    const isExpanded = expandedWeeks.has(groupKey)
+                    const grpTrips = group.rows.reduce((s, r) => s + r.entries_count, 0)
+                    const grpKm = group.rows.reduce((s, r) => s + r.totaal_km, 0)
+                    return (
+                      <Fragment key={groupKey}>
+                        <tr className="bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => toggleWeekGroup(groupKey)}>
+                          <td colSpan={6} className="px-6 py-3">
+                            <div className="flex items-center gap-3">
+                              {isExpanded ? <ChevronDownIcon className="h-4 w-4 text-gray-500" /> : <ChevronRightIcon className="h-4 w-4 text-gray-500" />}
+                              <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-primary-100 text-primary-700 font-bold text-sm">{group.weeknummer}</span>
+                              <span className="text-sm font-medium text-gray-700">Week {group.weeknummer}</span>
+                              <span className="text-xs text-gray-400">{group.jaar}</span>
+                              <div className="ml-auto flex items-center gap-4 text-xs text-gray-500">
+                                <span>{group.rows.length} chauffeurs</span>
+                                <span>{grpTrips} ritten</span>
+                                <span className="font-medium text-gray-700">{grpKm} km</span>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && group.rows.map((week) => (
                     <tr key={`${week.user_id}-${week.jaar}-${week.weeknummer}`} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary-100 text-primary-700 font-bold">
@@ -753,14 +816,31 @@ export default function SubmittedHoursPage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                        ))}
+                      </Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile Card View */}
             <div className="md:hidden divide-y divide-gray-200">
-              {paginatedWeeks.map((week) => (
+              {paginatedGroups.map((group) => {
+                const groupKey = `${group.jaar}-${group.weeknummer}`
+                const isExpanded = expandedWeeks.has(groupKey)
+                const grpTrips = group.rows.reduce((s, r) => s + r.entries_count, 0)
+                const grpKm = group.rows.reduce((s, r) => s + r.totaal_km, 0)
+                return (
+                  <div key={`m-${groupKey}`}>
+                    <div className="px-3 py-2.5 bg-gray-50 flex items-center gap-2 cursor-pointer active:bg-gray-100" onClick={() => toggleWeekGroup(groupKey)}>
+                      {isExpanded ? <ChevronDownIcon className="h-4 w-4 text-gray-500" /> : <ChevronRightIcon className="h-4 w-4 text-gray-500" />}
+                      <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-primary-100 text-primary-700 font-bold text-xs">{group.weeknummer}</span>
+                      <span className="text-sm font-medium text-gray-700">Week {group.weeknummer}</span>
+                      <span className="text-xs text-gray-400">{group.jaar}</span>
+                      <span className="ml-auto text-xs text-gray-400">{group.rows.length} • {grpTrips} ritten • {grpKm} km</span>
+                    </div>
+                    {isExpanded && group.rows.map((week) => (
                 <div key={`${week.user_id}-${week.jaar}-${week.weeknummer}`} className="p-3 hover:bg-gray-50">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary-100 text-primary-700 font-bold">
@@ -792,17 +872,20 @@ export default function SubmittedHoursPage() {
                     {t('timeEntries.viewEdit')}
                   </button>
                 </div>
-              ))}
+                    ))}
+                  </div>
+                )
+              })}
             </div>
 
             {/* Pagination */}
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalCount={filteredWeeks.length}
+              totalCount={groupedWeeks.length}
               pageSize={pageSize}
               onPageChange={setCurrentPage}
-              onPageSizeChange={(newSize) => { setPageSize(newSize); setCurrentPage(1); }}
+              onPageSizeChange={(newSize) => { setPageSize(newSize); setCurrentPage(1) }}
             />
           </>
         )}

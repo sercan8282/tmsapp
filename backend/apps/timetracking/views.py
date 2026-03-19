@@ -315,6 +315,11 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         if user_filter and (user.is_superuser or user.rol in ['admin', 'gebruiker']):
             queryset = queryset.filter(user_id=user_filter)
         
+        # Optional year filter
+        year_filter = request.query_params.get('jaar')
+        if year_filter:
+            queryset = queryset.filter(datum__year=int(year_filter))
+        
         # Group by week and year
         from django.db.models.functions import ExtractYear
         weeks = queryset.annotate(
