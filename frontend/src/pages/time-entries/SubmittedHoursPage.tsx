@@ -739,7 +739,7 @@ export default function SubmittedHoursPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                        {week.ingediend_count}
+                        {week.entries_count}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
                         {week.totaal_km} km
@@ -777,7 +777,7 @@ export default function SubmittedHoursPage() {
                   <div className="grid grid-cols-2 gap-x-4 text-xs mb-2 ml-13">
                     <div>
                       <span className="text-gray-500">{t('timeEntries.trips')}: </span>
-                      <span className="font-medium">{week.ingediend_count}</span>
+                      <span className="font-medium">{week.entries_count}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">{t('timeEntries.km')}: </span>
