@@ -89,6 +89,7 @@ export default function InvoicesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [showMoreCompanies, setShowMoreCompanies] = useState(false)
 
   useEffect(() => {
     loadInitialData()
@@ -449,58 +450,93 @@ export default function InvoicesPage() {
           </div>
           
           {/* Filter row */}
-          <div className="grid grid-cols-2 xs:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="space-y-3">
             {/* Year filter */}
-            <select
-              value={filters.jaar || new Date().getFullYear()}
-              onChange={(e) => {
-                const val = parseInt(e.target.value)
-                setFilters(prev => ({ ...prev, jaar: val || undefined, page: 1 }))
-              }}
-              className="input-field min-h-[44px]"
-            >
-              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
-                <option key={y} value={y}>{y}</option>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-medium text-gray-500 uppercase mr-1">{t('common.year')}:</span>
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).filter(y => y >= 2026).map(y => (
+                <button
+                  key={y}
+                  onClick={() => setFilters(prev => ({ ...prev, jaar: y, page: 1 }))}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filters.jaar === y ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                >
+                  {y}
+                </button>
               ))}
-              <option value="">{t('common.all')}</option>
-            </select>
+              <button
+                onClick={() => setFilters(prev => ({ ...prev, jaar: undefined, page: 1 }))}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${!filters.jaar ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              >
+                {t('common.all')}
+              </button>
+            </div>
 
             {/* Type filter */}
-            <select
-              value={filters.type || ''}
-              onChange={(e) => handleFilterChange('type', e.target.value)}
-              className="input-field min-h-[44px]"
-            >
-              <option value="">{t('common.allTypes')}</option>
-              <option value="verkoop">{t('invoices.sales')}</option>
-              <option value="inkoop">{t('invoices.purchase')}</option>
-              <option value="credit">{t('invoices.credit')}</option>
-            </select>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-medium text-gray-500 uppercase mr-1">{t('invoices.type')}:</span>
+              {([
+                { value: '', label: t('common.allTypes') },
+                { value: 'verkoop', label: t('invoices.sales') },
+                { value: 'inkoop', label: t('invoices.purchase') },
+                { value: 'credit', label: t('invoices.credit') },
+              ]).map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleFilterChange('type', opt.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${(filters.type || '') === opt.value ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             
             {/* Status filter */}
-            <select
-              value={filters.status || ''}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="input-field min-h-[44px]"
-            >
-              <option value="">{t('invoices.allStatuses')}</option>
-              <option value="concept">{t('invoices.draft')}</option>
-              <option value="definitief">{t('invoices.definitive')}</option>
-              <option value="verzonden">{t('invoices.sent')}</option>
-              <option value="betaald">{t('invoices.paid')}</option>
-            </select>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-medium text-gray-500 uppercase mr-1">{t('common.status')}:</span>
+              {([
+                { value: '', label: t('invoices.allStatuses') },
+                { value: 'concept', label: t('invoices.draft') },
+                { value: 'definitief', label: t('invoices.definitive') },
+                { value: 'verzonden', label: t('invoices.sent') },
+                { value: 'betaald', label: t('invoices.paid') },
+              ]).map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleFilterChange('status', opt.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${(filters.status || '') === opt.value ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             
             {/* Company filter */}
-            <select
-              value={filters.bedrijf || ''}
-              onChange={(e) => handleFilterChange('bedrijf', e.target.value)}
-              className="input-field min-h-[44px] xs:col-span-2 lg:col-span-1"
-            >
-              <option value="">{t('invoices.allCompanies')}</option>
-              {companies.map(company => (
-                <option key={company.id} value={company.id}>{company.naam}</option>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-medium text-gray-500 uppercase mr-1">{t('invoices.company')}:</span>
+              <button
+                onClick={() => handleFilterChange('bedrijf', '')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${!filters.bedrijf ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              >
+                {t('invoices.allCompanies')}
+              </button>
+              {(showMoreCompanies ? companies : companies.slice(0, 3)).map(company => (
+                <button
+                  key={company.id}
+                  onClick={() => handleFilterChange('bedrijf', company.id.toString())}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filters.bedrijf === company.id.toString() ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                >
+                  {company.naam}
+                </button>
               ))}
-            </select>
+              {companies.length > 3 && (
+                <button
+                  onClick={() => setShowMoreCompanies(!showMoreCompanies)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors"
+                >
+                  {showMoreCompanies ? t('common.showLess') : t('common.showMore')}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -509,11 +545,11 @@ export default function InvoicesPage() {
       <div className="card overflow-hidden">
         {/* Desktop Table View */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
                 {!isReadOnly && (
-                  <th className="px-3 py-2.5 text-left">
+                  <th className="px-2 py-2 text-left w-8">
                     <input
                       type="checkbox"
                       checked={invoices.length > 0 && selectedIds.size === invoices.length}
@@ -523,80 +559,80 @@ export default function InvoicesPage() {
                   </th>
                 )}
                 <th 
-                  className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('factuurnummer')}
                 >
                   <div className="flex items-center gap-1">
                     {t('invoices.invoiceNumber')}
                     {filters.ordering?.includes('factuurnummer') && (
                       filters.ordering.startsWith('-') 
-                        ? <ChevronDownIcon className="h-3.5 w-3.5" />
-                        : <ChevronUpIcon className="h-3.5 w-3.5" />
+                        ? <ChevronDownIcon className="h-3 w-3" />
+                        : <ChevronUpIcon className="h-3 w-3" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('bedrijf__naam')}
                 >
                   <div className="flex items-center gap-1">
                     {t('invoices.company')}
                     {filters.ordering?.includes('bedrijf__naam') && (
                       filters.ordering.startsWith('-') 
-                        ? <ChevronDownIcon className="h-3.5 w-3.5" />
-                        : <ChevronUpIcon className="h-3.5 w-3.5" />
+                        ? <ChevronDownIcon className="h-3 w-3" />
+                        : <ChevronUpIcon className="h-3 w-3" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('week_number')}
                 >
                   <div className="flex items-center gap-1">
                     {t('common.week')}
                     {filters.ordering?.includes('week_number') && (
                       filters.ordering.startsWith('-') 
-                        ? <ChevronDownIcon className="h-3.5 w-3.5" />
-                        : <ChevronUpIcon className="h-3.5 w-3.5" />
+                        ? <ChevronDownIcon className="h-3 w-3" />
+                        : <ChevronUpIcon className="h-3 w-3" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('chauffeur__first_name')}
                 >
                   <div className="flex items-center gap-1">
                     {t('timeEntries.driver')}
                     {filters.ordering?.includes('chauffeur') && (
                       filters.ordering.startsWith('-') 
-                        ? <ChevronDownIcon className="h-3.5 w-3.5" />
-                        : <ChevronUpIcon className="h-3.5 w-3.5" />
+                        ? <ChevronDownIcon className="h-3 w-3" />
+                        : <ChevronUpIcon className="h-3 w-3" />
                     )}
                   </div>
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                   {t('invoices.type')}
                 </th>
                 <th 
-                  className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('factuurdatum')}
                 >
                   <div className="flex items-center gap-1">
                     {t('common.date')}
                     {filters.ordering?.includes('factuurdatum') && (
                       filters.ordering.startsWith('-') 
-                        ? <ChevronDownIcon className="h-3.5 w-3.5" />
-                        : <ChevronUpIcon className="h-3.5 w-3.5" />
+                        ? <ChevronDownIcon className="h-3 w-3" />
+                        : <ChevronUpIcon className="h-3 w-3" />
                     )}
                   </div>
                 </th>
-                <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                   {t('common.total')}
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                   {t('common.status')}
                 </th>
-                <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                   {t('common.actions')}
                 </th>
               </tr>
@@ -604,13 +640,13 @@ export default function InvoicesPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={!isReadOnly ? 10 : 9} className="px-3 py-8 text-center">
+                  <td colSpan={!isReadOnly ? 10 : 9} className="px-2 py-8 text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
                   </td>
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={!isReadOnly ? 10 : 9} className="px-3 py-8 text-center text-gray-500">
+                  <td colSpan={!isReadOnly ? 10 : 9} className="px-2 py-8 text-center text-gray-500">
                     {t('invoices.noInvoices')}
                   </td>
                 </tr>
@@ -621,7 +657,7 @@ export default function InvoicesPage() {
                     selectedIds.has(invoice.id) && "bg-primary-50"
                   )}>
                     {!isReadOnly && (
-                      <td className="px-3 py-2.5 whitespace-nowrap">
+                      <td className="px-2 py-1.5">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(invoice.id)}
@@ -630,18 +666,18 @@ export default function InvoicesPage() {
                         />
                       </td>
                     )}
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap">
                       <div className="flex items-center">
-                        <DocumentTextIcon className={clsx('h-4 w-4 mr-1.5', TYPE_COLORS[invoice.type] || 'text-gray-400')} />
-                        <span className={clsx('text-sm font-medium', TYPE_COLORS[invoice.type] || 'text-gray-900')}>{invoice.factuurnummer}</span>
+                        <DocumentTextIcon className={clsx('h-4 w-4 mr-1', TYPE_COLORS[invoice.type] || 'text-gray-400')} />
+                        <span className={clsx('font-medium', TYPE_COLORS[invoice.type] || 'text-gray-900')}>{invoice.factuurnummer}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-2 py-1.5 max-w-[140px] truncate text-gray-900">
                       {invoice.bedrijf_naam}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap">
                       {invoice.week_number ? (
-                        <span className="inline-flex items-center justify-center h-7 min-w-[2rem] px-2 rounded-full bg-primary-100 text-primary-700 text-xs font-bold">
+                        <span className="inline-flex items-center justify-center h-6 min-w-[1.5rem] px-1.5 rounded-full bg-primary-100 text-primary-700 text-xs font-bold">
                           {invoice.week_number}
                           {invoice.week_year && <span className="text-primary-400 ml-0.5 font-normal">'{String(invoice.week_year).slice(-2)}</span>}
                         </span>
@@ -649,21 +685,21 @@ export default function InvoicesPage() {
                         <span className="text-gray-300">-</span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
+                    <td className="px-2 py-1.5 max-w-[120px] truncate text-gray-600">
                       {invoice.chauffeur_naam || <span className="text-gray-300">-</span>}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-500 capitalize">
+                    <td className="px-2 py-1.5 whitespace-nowrap text-gray-500 capitalize">
                       {invoice.type}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-2 py-1.5 whitespace-nowrap text-gray-500">
                       {new Date(invoice.factuurdatum).toLocaleDateString('nl-NL')}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-right">
+                    <td className="px-2 py-1.5 whitespace-nowrap font-medium text-right">
                       <span className={TYPE_COLORS[invoice.type] || 'text-blue-600'}>
                         {formatCurrency(invoice.totaal)}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap">
                       <span className={clsx(
                         'px-2 py-0.5 text-xs font-medium rounded-full capitalize',
                         STATUS_COLORS[invoice.status] || 'bg-gray-100 text-gray-800'
@@ -671,11 +707,11 @@ export default function InvoicesPage() {
                         {invoice.status}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-right">
+                    <td className="px-2 py-1.5 whitespace-nowrap text-right">
                       <div className="flex justify-end gap-0.5">
                         <button
                           onClick={() => { setSelectedInvoice(invoice); setShowDetailModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded"
+                          className="p-1 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded"
                           title={t('common.view')}
                         >
                           <EyeIcon className="h-4 w-4" />
@@ -685,7 +721,7 @@ export default function InvoicesPage() {
                         <button
                           onClick={() => handleDownloadPdf(invoice)}
                           disabled={saving}
-                          className="p-1.5 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded disabled:opacity-50"
+                          className="p-1 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded disabled:opacity-50"
                           title={t('invoices.downloadPdf')}
                         >
                           <ArrowDownTrayIcon className="h-4 w-4" />
@@ -695,7 +731,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && (
                           <button
                             onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
-                            className="p-1.5 text-orange-600 hover:text-orange-900 hover:bg-orange-50 rounded"
+                            className="p-1 text-orange-600 hover:text-orange-900 hover:bg-orange-50 rounded"
                             title={t('common.edit')}
                           >
                             <PencilSquareIcon className="h-4 w-4" />
@@ -707,7 +743,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && (invoice.status === 'definitief' || invoice.status === 'verzonden') && (
                           <button
                             onClick={() => openEmailModal(invoice)}
-                            className="p-1.5 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded"
+                            className="p-1 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded"
                             title={t('invoices.sendInvoice')}
                           >
                             <EnvelopeIcon className="h-4 w-4" />
@@ -718,7 +754,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && invoice.status === 'concept' && (
                           <button
                             onClick={() => handleStatusAction(invoice, 'definitief')}
-                            className="p-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded"
+                            className="p-1 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded"
                             title={t('invoices.makeDefinitive')}
                           >
                             <CheckCircleIcon className="h-4 w-4" />
@@ -728,7 +764,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && invoice.status === 'definitief' && (
                           <button
                             onClick={() => handleStatusAction(invoice, 'verzonden')}
-                            className="p-1.5 text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50 rounded"
+                            className="p-1 text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50 rounded"
                             title={t('invoices.markAsSent')}
                           >
                             <PaperAirplaneIcon className="h-4 w-4" />
@@ -738,7 +774,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && invoice.status === 'verzonden' && (
                           <button
                             onClick={() => handleStatusAction(invoice, 'betaald')}
-                            className="p-1.5 text-green-600 hover:text-green-900 hover:bg-green-50 rounded"
+                            className="p-1 text-green-600 hover:text-green-900 hover:bg-green-50 rounded"
                             title={t('invoices.markAsPaid')}
                           >
                             <CurrencyEuroIcon className="h-4 w-4" />
@@ -749,7 +785,7 @@ export default function InvoicesPage() {
                         {!isReadOnly && (
                           <button
                             onClick={() => { setSelectedInvoice(invoice); setShowDeleteModal(true) }}
-                            className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
+                            className="p-1 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
                             title={t('common.delete')}
                           >
                             <TrashIcon className="h-4 w-4" />
