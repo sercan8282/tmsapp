@@ -51,6 +51,7 @@ export function useGPSTracking(options: UseGPSTrackingOptions = {}) {
   const bufferRef = useRef<LocationSubmitData[]>([])
   const lastSentRef = useRef<number>(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const firstPointSentRef = useRef(false)
 
   const sendBufferedPoints = useCallback(async () => {
     if (bufferRef.current.length === 0) return
@@ -119,7 +120,13 @@ export function useGPSTracking(options: UseGPSTrackingOptions = {}) {
       ...prev,
       pointsBuffered: bufferRef.current.length,
     }))
-  }, [maxAccuracy, minInterval])
+
+    // Send first point immediately so user sees their position right away
+    if (!firstPointSentRef.current) {
+      firstPointSentRef.current = true
+      sendBufferedPoints()
+    }
+  }, [maxAccuracy, minInterval, sendBufferedPoints])
 
   const handleError = useCallback((error: GeolocationPositionError) => {
     let message: string
@@ -157,8 +164,8 @@ export function useGPSTracking(options: UseGPSTrackingOptions = {}) {
     )
     watchIdRef.current = watchId
 
-    // Start periodic buffer flush
-    const interval = setInterval(sendBufferedPoints, 5000) // Flush every 5s
+    // Start periodic buffer flush (every 3s for responsive tracking)
+    const interval = setInterval(sendBufferedPoints, 3000)
     intervalRef.current = interval
 
     setState(prev => ({
@@ -170,6 +177,7 @@ export function useGPSTracking(options: UseGPSTrackingOptions = {}) {
     }))
     bufferRef.current = []
     lastSentRef.current = 0
+    firstPointSentRef.current = false
   }, [handlePosition, handleError, highAccuracy, sendBufferedPoints])
 
   const stopTracking = useCallback(() => {

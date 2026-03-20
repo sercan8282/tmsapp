@@ -232,12 +232,14 @@ function VehicleMonitorPanel({
   vehicles,
   liveVehicles,
   onSelectVehicle,
+  onTrackingStarted,
   assignedVehicle,
   locationPermission,
 }: {
   vehicles: TrackingVehicle[]
   liveVehicles: LiveVehicle[]
   onSelectVehicle: (vehicleId: string | null) => void
+  onTrackingStarted?: () => void
   assignedVehicle?: { vehicle: TrackingVehicle; driver_naam: string } | null
   locationPermission: ReturnType<typeof useLocationPermission>
 }) {
@@ -249,7 +251,7 @@ function VehicleMonitorPanel({
   const [showPermissionDialog, setShowPermissionDialog] = useState(false)
   const [permissionLoading, setPermissionLoading] = useState(false)
 
-  const gps = useGPSTracking({ minInterval: 10000, maxAccuracy: 100 })
+  const gps = useGPSTracking({ minInterval: 5000, maxAccuracy: 5000 })
 
   // Auto-select assigned vehicle on mount
   useEffect(() => {
@@ -319,6 +321,7 @@ function VehicleMonitorPanel({
       const newSession = await trackingApi.startSession(selectedVehicle || undefined)
       setSession(newSession)
       gps.startTracking()
+      onTrackingStarted?.()
     } catch (err: any) {
       console.error('Failed to start tracking:', err)
     } finally {
@@ -660,20 +663,29 @@ export default function TrackingPage() {
     loadData()
   }, [])
 
-  // Poll live positions every 10s
-  useEffect(() => {
-    const poll = async () => {
-      try {
-        const live = await trackingApi.getLivePositions()
-        setLiveVehicles(live)
-      } catch {}
-    }
+  // Poll live positions every 5s
+  const pollLivePositions = useCallback(async () => {
+    try {
+      const live = await trackingApi.getLivePositions()
+      setLiveVehicles(live)
+    } catch {}
+  }, [])
 
-    pollIntervalRef.current = setInterval(poll, 10000)
+  useEffect(() => {
+    // Poll immediately on mount, then every 5s
+    pollLivePositions()
+    pollIntervalRef.current = setInterval(pollLivePositions, 5000)
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
     }
-  }, [])
+  }, [pollLivePositions])
+
+  // Called when tracking starts — poll after short delay so first GPS point appears on map
+  const handleTrackingStarted = useCallback(() => {
+    // Give GPS 2 seconds to get first fix, then poll
+    setTimeout(() => pollLivePositions(), 2000)
+    setTimeout(() => pollLivePositions(), 5000)
+  }, [pollLivePositions])
 
   const handleClearRoute = () => {
     setSelectedRoute(null)
@@ -747,6 +759,7 @@ export default function TrackingPage() {
             vehicles={trackingVehicles}
             liveVehicles={liveVehicles}
             onSelectVehicle={handleSelectVehicle}
+            onTrackingStarted={handleTrackingStarted}
             assignedVehicle={assignedVehicle}
             locationPermission={locationPermission}
           />
