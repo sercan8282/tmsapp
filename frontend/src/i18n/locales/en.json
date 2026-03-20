@@ -1898,7 +1898,8 @@
     "denied": {
       "title": "GPS location is blocked",
       "description": "Tracking cannot start because location access was denied. Change this in your device settings.",
-      "howToEnable": "How do I re-enable location?"
+      "howToEnable": "How do I re-enable location?",
+      "retryCheck": "Check again"
     },
     "help": {
       "android": {

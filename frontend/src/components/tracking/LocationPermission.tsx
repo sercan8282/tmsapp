@@ -132,9 +132,11 @@ export function LocationPermissionDialog({
 export function LocationDeniedBanner({
   platform,
   onDismiss,
+  onRetryCheck,
 }: {
   platform: Platform
   onDismiss?: () => void
+  onRetryCheck?: () => void
 }) {
   const { t } = useTranslation()
   const [showHelp, setShowHelp] = useState(false)
@@ -162,6 +164,14 @@ export function LocationDeniedBanner({
               <ChevronDownIcon className="h-3 w-3" />
             )}
           </button>
+          {onRetryCheck && (
+            <button
+              onClick={onRetryCheck}
+              className="mt-1.5 ml-3 inline-flex items-center gap-1 text-xs font-medium text-primary-700 hover:text-primary-900 underline underline-offset-2"
+            >
+              {t('tracking.denied.retryCheck')}
+            </button>
+          )}
         </div>
         {onDismiss && (
           <button

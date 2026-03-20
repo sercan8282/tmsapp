@@ -1923,7 +1923,8 @@
     "denied": {
       "title": "GPS locatie is geblokkeerd",
       "description": "Tracking kan niet starten omdat locatietoegang is geweigerd. Wijzig dit via je apparaatinstellingen.",
-      "howToEnable": "Hoe schakel ik locatie weer in?"
+      "howToEnable": "Hoe schakel ik locatie weer in?",
+      "retryCheck": "Opnieuw controleren"
     },
     "help": {
       "android": {
