@@ -98,6 +98,8 @@ export default function SendUserNotificationTab({ onSuccess, onError }: SendUser
         setTitle('')
         setBody('')
         setUrl('')
+      } else if (result.error === 'not_configured') {
+        onError?.(t('notifications.pushNotConfigured', 'Push notificaties zijn niet geconfigureerd. Stel eerst VAPID-sleutels in bij Instellingen.'))
       } else if (result.failure_count > 0) {
         onError?.(t('notifications.notificationFailedUser', { name: selectedUser.full_name }))
       } else {

@@ -164,21 +164,34 @@ export default function NotificationGroupsTab({ onSuccess, onError }: Notificati
 
   const handleSendNotification = async () => {
     if (!selectedGroup) return
+    if (!sendTitle.trim() || !sendBody.trim()) {
+      onError?.(t('notifications.titleAndBodyRequired', 'Titel en bericht zijn verplicht'))
+      return
+    }
     try {
       setSending(true)
       const result = await pushApi.sendToGroup(selectedGroup.id, {
-        title: sendTitle,
-        body: sendBody,
-        url: sendUrl || undefined,
+        title: sendTitle.trim(),
+        body: sendBody.trim(),
+        url: sendUrl.trim() || undefined,
       })
-      setShowSendModal(false)
-      setSendTitle('')
-      setSendBody('')
-      setSendUrl('')
-      onSuccess?.(t('notifications.notificationSentToDevices', { count: result.success_count }))
+      
+      if (result.success_count > 0) {
+        setShowSendModal(false)
+        setSendTitle('')
+        setSendBody('')
+        setSendUrl('')
+        onSuccess?.(t('notifications.notificationSentToDevices', { count: result.success_count }))
+      } else if (result.error === 'not_configured') {
+        onError?.(t('notifications.pushNotConfigured', 'Push notificaties zijn niet geconfigureerd. Stel eerst VAPID-sleutels in bij Instellingen.'))
+      } else if (result.failure_count > 0) {
+        onError?.(t('notifications.notificationFailed', 'Notificatie versturen mislukt naar {{count}} apparaten', { count: result.failure_count }))
+      } else {
+        onError?.(t('notifications.noSubscribedDevices', 'Geen geabonneerde apparaten gevonden in deze groep. Gebruikers moeten eerst push notificaties inschakelen.'))
+      }
     } catch (err: any) {
       console.error('Failed to send notification:', err)
-      onError?.(err.response?.data?.detail || t('notifications.sendError'))
+      onError?.(err.response?.data?.error || err.response?.data?.detail || t('notifications.sendError'))
     } finally {
       setSending(false)
     }

@@ -73,6 +73,7 @@ export interface SendResult {
   success_count: number
   failure_count: number
   error?: string
+  notification_id?: string
 }
 
 export interface PushNotificationLog {

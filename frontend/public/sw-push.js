@@ -18,8 +18,8 @@ self.addEventListener('push', (event) => {
 
     const options = {
       body: data.body || 'Nieuwe notificatie',
-      icon: data.icon || '/icons/icon-192x192.svg',
-      badge: data.badge || '/icons/badge-72x72.svg',
+      icon: data.icon || '/icons/icon-192x192.png',
+      badge: data.badge || '/icons/icon-72x72.png',
       vibrate: [100, 50, 100],
       data: {
         url: data.data?.url || '/',
@@ -41,7 +41,7 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification('TMS Notificatie', {
         body: event.data.text() || 'Nieuwe notificatie',
-        icon: '/icons/icon-192x192.svg',
+        icon: '/icons/icon-192x192.png',
       })
     )
   }
