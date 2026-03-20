@@ -95,21 +95,22 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('documents.title')}</h1>
-          <p className="mt-1 text-sm text-gray-500">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{t('documents.title')}</h1>
+          <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-gray-500 truncate">
             {t('documents.uploadViewSign', 'Upload, bekijk en onderteken PDF documenten')}
           </p>
         </div>
         <Link
           to="/documents/upload"
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="inline-flex items-center flex-shrink-0 px-2.5 py-1.5 sm:px-4 sm:py-2 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          {t('documents.uploadDocument')}
+          <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">{t('documents.uploadDocument')}</span>
+          <span className="sm:hidden">Upload</span>
         </Link>
       </div>
 
@@ -150,50 +151,58 @@ export default function DocumentsPage() {
                     to={`/documents/${doc.id}`}
                     className="block hover:bg-gray-50 transition-colors"
                   >
-                    <div className="px-4 py-4 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center min-w-0 flex-1">
-                          <DocumentIcon className="h-10 w-10 text-gray-400 flex-shrink-0" />
-                          <div className="ml-4 min-w-0 flex-1">
+                    <div className="px-3 py-3 sm:px-6 sm:py-4">
+                      <div className="flex items-start sm:items-center justify-between gap-2">
+                        <div className="flex items-start sm:items-center min-w-0 flex-1">
+                          <DocumentIcon className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+                          <div className="ml-2 sm:ml-4 min-w-0 flex-1">
                             <p className="text-sm font-medium text-blue-600 truncate">
                               {doc.title}
                             </p>
-                            <p className="text-sm text-gray-500 truncate">
+                            <p className="text-xs sm:text-sm text-gray-500 truncate">
                               {doc.original_filename}
                             </p>
+                            {/* Mobile: status badge inline */}
+                            <div className="sm:hidden mt-1">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${status.className}`}>
+                                <StatusIcon className="h-3 w-3 mr-0.5" />
+                                {status.label}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.className}`}>
+                        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                          {/* Desktop: status badge */}
+                          <span className={`hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.className}`}>
                             <StatusIcon className="h-4 w-4 mr-1" />
                             {status.label}
                           </span>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center gap-1">
                             {doc.status === 'pending' && (
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
                                   navigate(`/documents/${doc.id}/sign`);
                                 }}
-                                className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
+                                className="p-1.5 sm:p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
                                 title={t('documents.sign')}
                               >
-                                <PencilSquareIcon className="h-5 w-5" />
+                                <PencilSquareIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                               </button>
                             )}
                             <button
                               onClick={(e) => handleDelete(doc.id, e)}
-                              className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md"
+                              className="p-1.5 sm:p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md"
                               title={t('common.delete')}
                             >
-                              <TrashIcon className="h-5 w-5" />
+                              <TrashIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                             </button>
                           </div>
                         </div>
                       </div>
-                      <div className="mt-2 flex items-center text-sm text-gray-500 space-x-4">
-                        <span>{t('documents.uploadedBy')}: {doc.uploaded_by_name}</span>
-                        <span>•</span>
+                      <div className="mt-1.5 sm:mt-2 ml-10 sm:ml-14 flex flex-wrap items-center text-xs sm:text-sm text-gray-500 gap-x-2 sm:gap-x-4">
+                        <span>{doc.uploaded_by_name}</span>
+                        <span className="hidden sm:inline">•</span>
                         <span>{formatDate(doc.created_at)}</span>
                         {doc.signed_at && (
                           <>

@@ -1406,27 +1406,28 @@ function HistorieView() {
       {!loading && selectedDriver && report && (
         <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
           {/* Report Header */}
-          <div className="px-6 py-4 border-b bg-gray-50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
-                  <UserIcon className="h-5 w-5 text-primary-600" />
+          <div className="px-3 py-3 sm:px-6 sm:py-4 border-b bg-gray-50">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                  <UserIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary-600" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{report.driver_name || selectedDriver.naam}</h3>
-                  <p className="text-sm text-gray-500">{selectedDriver.gekoppelde_gebruiker_naam || ''}</p>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-sm sm:text-base text-gray-900 truncate">{report.driver_name || selectedDriver.naam}</h3>
+                  <p className="text-xs sm:text-sm text-gray-500 truncate">{selectedDriver.gekoppelde_gebruiker_naam || ''}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-500">
+              <div className="flex items-center gap-2 sm:gap-4 ml-10 sm:ml-0">
+                <span className="text-xs sm:text-sm text-gray-500">
                   {report.weeks.length} {t('drivers.weeksWithTrips')}
                 </span>
                 <button
                   onClick={() => downloadDriverReportPdf(selectedDriver.id.toString(), selectedDriver.naam)}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700"
                 >
-                  <DocumentArrowDownIcon className="h-4 w-4" />
-                  {t('drivers.exportPdf')}
+                  <DocumentArrowDownIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">{t('drivers.exportPdf')}</span>
+                  <span className="sm:hidden">PDF</span>
                 </button>
               </div>
             </div>
@@ -1439,57 +1440,89 @@ function HistorieView() {
               <p>{t('drivers.noSubmittedHours')}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-100">
-                      {t('common.week')}
-                    </th>
-                    {ALL_DAYS.map(day => (
-                      <th key={day.key} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                        {t(day.fullKey)}
+            <>
+              {/* Desktop Table */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-100">
+                        {t('common.week')}
                       </th>
+                      {ALL_DAYS.map(day => (
+                        <th key={day.key} className="px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {t(day.fullKey)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {report.weeks.map((week) => (
+                      <tr key={`${week.jaar}-${week.weeknummer}`} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 whitespace-nowrap font-medium text-sm text-gray-900 sticky left-0 bg-white">
+                          <div className="flex items-center gap-1.5">
+                            <CalendarDaysIcon className="h-4 w-4 text-gray-400" />
+                            <span>W{week.weeknummer} '{String(week.jaar).slice(-2)}</span>
+                          </div>
+                        </td>
+                        {ALL_DAYS.map(day => {
+                          const dayData = week.dagen[day.key as keyof typeof week.dagen]
+                          return (
+                            <td key={day.key} className="px-2 py-2 text-center">
+                              {dayData && dayData.length > 0 ? (
+                                <div className="space-y-1">
+                                  {dayData.map((entry, idx) => (
+                                    <div 
+                                      key={idx} 
+                                      className="bg-primary-50 text-primary-700 rounded px-1.5 py-0.5 text-xs"
+                                      title={`Rit ${entry.ritnummer} - ${entry.kenteken}`}
+                                    >
+                                      <div className="font-medium">{entry.ritnummer || '-'}</div>
+                                      <div className="text-primary-500 text-[10px]">{entry.kenteken}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-300">-</span>
+                              )}
+                            </td>
+                          )
+                        })}
+                      </tr>
                     ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {report.weeks.map((week) => (
-                    <tr key={`${week.jaar}-${week.weeknummer}`} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900 sticky left-0 bg-white">
-                        <div className="flex items-center gap-2">
-                          <CalendarDaysIcon className="h-4 w-4 text-gray-400" />
-                          <span>W{week.weeknummer} '{String(week.jaar).slice(-2)}</span>
-                        </div>
-                      </td>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card Layout */}
+              <div className="lg:hidden divide-y divide-gray-200">
+                {report.weeks.map((week) => (
+                  <div key={`${week.jaar}-${week.weeknummer}`} className="p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <CalendarDaysIcon className="h-4 w-4 text-gray-400" />
+                      <span className="font-medium text-sm text-gray-900">W{week.weeknummer} '{String(week.jaar).slice(-2)}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
                       {ALL_DAYS.map(day => {
                         const dayData = week.dagen[day.key as keyof typeof week.dagen]
+                        if (!dayData || dayData.length === 0) return null
                         return (
-                          <td key={day.key} className="px-4 py-3 text-center">
-                            {dayData && dayData.length > 0 ? (
-                              <div className="space-y-1">
-                                {dayData.map((entry, idx) => (
-                                  <div 
-                                    key={idx} 
-                                    className="bg-primary-50 text-primary-700 rounded px-2 py-1 text-xs"
-                                    title={`Rit ${entry.ritnummer} - ${entry.kenteken}`}
-                                  >
-                                    <div className="font-medium">{entry.ritnummer || '-'}</div>
-                                    <div className="text-primary-500 text-[10px]">{entry.kenteken}</div>
-                                  </div>
-                                ))}
+                          <div key={day.key} className="bg-gray-50 rounded p-1.5">
+                            <div className="text-[10px] font-medium text-gray-500 uppercase mb-0.5">{t(day.fullKey).substring(0, 2)}</div>
+                            {dayData.map((entry, idx) => (
+                              <div key={idx} className="bg-primary-50 text-primary-700 rounded px-1.5 py-0.5 text-xs mt-0.5">
+                                <span className="font-medium">{entry.ritnummer || '-'}</span>
+                                <span className="text-primary-500 text-[10px] ml-1">{entry.kenteken}</span>
                               </div>
-                            ) : (
-                              <span className="text-gray-300">-</span>
-                            )}
-                          </td>
+                            ))}
+                          </div>
                         )
                       })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}
