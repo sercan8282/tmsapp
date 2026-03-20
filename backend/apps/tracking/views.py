@@ -339,15 +339,19 @@ class RouteHistoryView(APIView):
 class TrackingVehiclesView(APIView):
     """
     Get list of vehicles available for tracking assignment.
-    Used in the tracking start form.
+    Used in the vehicle monitor dropdown.
     """
     permission_classes = [IsAuthenticated]
     throttle_classes = [TrackingReadThrottle]
 
     def get(self, request):
         """Get vehicles for tracking assignment."""
-        from apps.fleet.models import Vehicle
-        vehicles = Vehicle.objects.all().order_by('kenteken').values(
-            'id', 'kenteken', 'type_wagen', 'ritnummer',
-        )
-        return Response(list(vehicles))
+        try:
+            from apps.fleet.models import Vehicle
+            vehicles = Vehicle.objects.all().order_by('kenteken').values(
+                'id', 'kenteken', 'type_wagen', 'ritnummer',
+            )
+            return Response(list(vehicles))
+        except Exception as e:
+            logger.error(f"Failed to load tracking vehicles: {e}")
+            return Response([], status=status.HTTP_200_OK)

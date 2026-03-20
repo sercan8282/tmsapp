@@ -446,18 +446,23 @@ export default function TrackingPage() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
+      
+      // Load vehicles and live positions independently so one failure doesn't block both
       try {
-        const [vehicles, live] = await Promise.all([
-          trackingApi.getTrackingVehicles(),
-          trackingApi.getLivePositions(),
-        ])
+        const vehicles = await trackingApi.getTrackingVehicles()
         setTrackingVehicles(vehicles)
+      } catch (err) {
+        console.error('Failed to load vehicles:', err)
+      }
+
+      try {
+        const live = await trackingApi.getLivePositions()
         setLiveVehicles(live)
       } catch (err) {
-        console.error('Failed to load tracking data:', err)
-      } finally {
-        setLoading(false)
+        console.error('Failed to load live positions:', err)
       }
+
+      setLoading(false)
     }
     loadData()
   }, [])
