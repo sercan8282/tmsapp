@@ -44,6 +44,9 @@ import SubmittedHoursPage from '@/pages/time-entries/SubmittedHoursPage'
 // Planning
 import PlanningPage from '@/pages/planning/PlanningPage'
 
+// Track & Trace
+import TrackingPage from '@/pages/tracking/TrackingPage'
+
 // Profile
 import PasswordChangePage from '@/pages/profile/PasswordChangePage'
 
@@ -287,6 +290,9 @@ function App() {
         
         {/* Planning */}
         <Route path="/planning" element={<PlanningPage />} />
+
+        {/* Track & Trace */}
+        <Route path="/tracking" element={<TrackingPage />} />
         
         {/* Profile */}
         <Route path="/profile/password" element={<PasswordChangePage />} />

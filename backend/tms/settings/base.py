@@ -50,6 +50,7 @@ LOCAL_APPS = [
     'apps.spreadsheets',
     'apps.maintenance',
     'apps.licensing',
+    'apps.tracking',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -151,6 +152,8 @@ REST_FRAMEWORK = {
         'document_email': '20/hour', # Document email: 20 per hour
         'document_sign': '60/hour',  # Document signing: 60 per hour
         'email_import': '30/hour',   # Email import fetch: 30 per hour
+        'tracking_submit': '120/minute',  # GPS location submissions: 2/sec
+        'tracking_read': '60/minute',     # Map polling: 1/sec
     },
 }
 

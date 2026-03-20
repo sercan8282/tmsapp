@@ -27,6 +27,7 @@ import {
   TableCellsIcon,
   SwatchIcon,
   WrenchScrewdriverIcon,
+  MapPinIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
@@ -52,6 +53,7 @@ const navigation: NavItem[] = [
   { name: 'nav.companies', href: '/companies', icon: BuildingOfficeIcon, roles: ['admin', 'gebruiker'] },
   { name: 'nav.drivers', href: '/drivers', icon: UsersIcon, roles: ['admin', 'gebruiker'] },
   { name: 'nav.fleet', href: '/fleet', icon: TruckIcon, roles: ['admin', 'gebruiker'] },
+  { name: 'nav.tracking', href: '/tracking', icon: MapPinIcon },  // All roles - Track & Trace
   { name: 'nav.timeEntries', href: '/time-entries', icon: ClockIcon },  // All roles
   { name: 'nav.myHours', href: '/my-hours', icon: ClipboardDocumentListIcon, roles: ['chauffeur'] },
   { name: 'nav.submittedHours', href: '/submitted-hours', icon: ClipboardDocumentListIcon, roles: ['admin', 'gebruiker'] },

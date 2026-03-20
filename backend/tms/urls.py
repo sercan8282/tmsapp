@@ -49,6 +49,7 @@ urlpatterns = [
     path('api/spreadsheets/', include('apps.spreadsheets.urls')),
     path('api/maintenance/', include('apps.maintenance.urls')),
     path('api/licensing/', include('apps.licensing.urls')),
+    path('api/tracking/', include('apps.tracking.urls')),
 ]
 
 # Serve media files in development
