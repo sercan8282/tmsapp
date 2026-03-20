@@ -855,7 +855,7 @@ export default function InvoicesPage() {
                   </span>
                 </div>
                 
-                {/* Row 2: company, meta, date */}
+                {/* Row 2: company, week, date */}
                 <div className="flex items-center justify-between gap-2 mt-0.5">
                   <div className="flex items-center gap-1.5 text-xs text-gray-500 min-w-0 truncate">
                     <span className="truncate">{invoice.bedrijf_naam}</span>
@@ -865,15 +865,14 @@ export default function InvoicesPage() {
                         <span className="shrink-0">W{invoice.week_number}</span>
                       </>
                     )}
-                    {invoice.chauffeur_naam && (
-                      <>
-                        <span className="text-gray-300">·</span>
-                        <span className="truncate">{invoice.chauffeur_naam}</span>
-                      </>
-                    )}
                   </div>
                   <span className="text-xs text-gray-400 shrink-0">{new Date(invoice.factuurdatum).toLocaleDateString('nl-NL')}</span>
                 </div>
+
+                {/* Row 3: chauffeur */}
+                {invoice.chauffeur_naam && (
+                  <div className="text-xs text-gray-500 mt-0.5 truncate">{invoice.chauffeur_naam}</div>
+                )}
                 
                 {/* Row 3: icon-only action buttons */}
                 <div className="flex items-center gap-0.5 mt-1 pt-1 border-t border-gray-100">

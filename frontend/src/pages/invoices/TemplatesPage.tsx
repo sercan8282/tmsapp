@@ -290,61 +290,58 @@ export default function TemplatesPage() {
           {/* Mobile Card Layout */}
           <div className="md:hidden divide-y divide-gray-200">
             {templates.map((template) => (
-              <div key={template.id} className="p-3 space-y-2">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <DocumentDuplicateIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">{template.naam}</div>
-                      {template.beschrijving && (
-                        <div className="text-xs text-gray-500 truncate">{template.beschrijving}</div>
+              <div key={template.id} className="px-3 py-2">
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <DocumentDuplicateIcon className="h-4 w-4 text-gray-400 shrink-0" />
+                      <span className="text-sm font-medium text-gray-900 truncate">{template.naam}</span>
+                      {template.is_active ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-800 shrink-0">
+                          {t('common.active')}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-800 shrink-0">
+                          {t('common.inactive')}
+                        </span>
                       )}
                     </div>
+                    <div className="text-xs text-gray-500 mt-0.5 truncate">
+                      {template.beschrijving && <span>{template.beschrijving} · </span>}
+                      {t('common.updated')}: {new Date(template.updated_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
                   </div>
-                  {template.is_active ? (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 flex-shrink-0">
-                      <CheckCircleIcon className="h-3 w-3 mr-1" />
-                      {t('common.active')}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 flex-shrink-0">
-                      {t('common.inactive')}
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {t('common.updated')}: {new Date(template.updated_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </div>
-                <div className="flex items-center gap-1 pt-1 border-t border-gray-100">
-                  <button
-                    onClick={() => handleExport(template)}
-                    className="flex-1 flex items-center justify-center gap-1 p-2 text-xs text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
-                  >
-                    <ArrowDownTrayIcon className="h-4 w-4" />
-                    {t('templates.export')}
-                  </button>
-                  <button
-                    onClick={() => handleCopy(template)}
-                    disabled={isCopying}
-                    className="flex-1 flex items-center justify-center gap-1 p-2 text-xs text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors disabled:opacity-50"
-                  >
-                    <DocumentDuplicateIcon className="h-4 w-4" />
-                    {t('templates.copy')}
-                  </button>
-                  <button
-                    onClick={() => navigate(`/invoices/templates/${template.id}/edit`)}
-                    className="flex-1 flex items-center justify-center gap-1 p-2 text-xs text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
-                  >
-                    <PencilIcon className="h-4 w-4" />
-                    {t('common.edit')}
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirmId(template.id)}
-                    className="flex-1 flex items-center justify-center gap-1 p-2 text-xs text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                    {t('common.delete')}
-                  </button>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      onClick={() => handleExport(template)}
+                      className="p-1 text-gray-400 hover:text-green-600 rounded"
+                      title={t('templates.export')}
+                    >
+                      <ArrowDownTrayIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleCopy(template)}
+                      disabled={isCopying}
+                      className="p-1 text-gray-400 hover:text-blue-600 rounded disabled:opacity-50"
+                      title={t('templates.copy')}
+                    >
+                      <DocumentDuplicateIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => navigate(`/invoices/templates/${template.id}/edit`)}
+                      className="p-1 text-gray-400 hover:text-primary-600 rounded"
+                      title={t('common.edit')}
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirmId(template.id)}
+                      className="p-1 text-gray-400 hover:text-red-600 rounded"
+                      title={t('common.delete')}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

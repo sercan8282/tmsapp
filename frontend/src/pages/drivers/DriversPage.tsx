@@ -573,11 +573,11 @@ export default function DriversPage() {
             </div>
 
             {/* Company filter buttons */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-semibold text-gray-500 uppercase mr-1">{t('companies.title')}:</span>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-xs font-semibold text-gray-500 uppercase mr-0.5">{t('companies.title')}:</span>
               <button
                 onClick={() => { setCompanyFilter(''); setPage(1) }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${
                   companyFilter === '' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -587,7 +587,7 @@ export default function DriversPage() {
                 <button
                   key={company.id}
                   onClick={() => { setCompanyFilter(company.id.toString()); setPage(1) }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${
                     companyFilter === company.id.toString() ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -597,7 +597,7 @@ export default function DriversPage() {
               {companies.length > 4 && (
                 <button
                   onClick={() => setShowMoreCompanies(!showMoreCompanies)}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors"
+                  className="px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors"
                 >
                   {showMoreCompanies ? t('common.showLess') : t('common.showMore')}
                 </button>
@@ -605,8 +605,8 @@ export default function DriversPage() {
             </div>
 
             {/* ADR filter buttons */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-semibold text-gray-500 uppercase mr-1">ADR:</span>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-xs font-semibold text-gray-500 uppercase mr-0.5">ADR:</span>
               {[
                 { value: 'all' as const, label: t('common.all') },
                 { value: 'yes' as const, label: t('drivers.adrCertified') },
@@ -615,7 +615,7 @@ export default function DriversPage() {
                 <button
                   key={opt.value}
                   onClick={() => { setAdrFilter(opt.value); setPage(1) }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${
                     adrFilter === opt.value ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -756,38 +756,41 @@ export default function DriversPage() {
           ) : (
             drivers.map(driver => (
               <div key={driver.id} className="px-3 py-2 hover:bg-gray-50">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0 flex items-center gap-2 text-sm">
-                    <span className="font-semibold text-gray-900 truncate">{driver.naam}</span>
-                    {driver.adr && (
-                      <ShieldCheckIcon className="w-4 h-4 text-green-600 shrink-0" title="ADR" />
-                    )}
-                    <span className="text-gray-400">·</span>
-                    <span className="text-gray-500 truncate">{getCompanyName(driver)}</span>
-                    {driver.telefoon && (
-                      <>
-                        <span className="text-gray-400">·</span>
-                        <a href={`tel:${driver.telefoon}`} className="text-primary-600 shrink-0">{driver.telefoon}</a>
-                      </>
-                    )}
-                    {driver.voertuig_ritnummer && (
-                      <>
-                        <span className="text-gray-400 hidden xs:inline">·</span>
-                        <span className="text-gray-500 truncate hidden xs:inline">{driver.voertuig_ritnummer}</span>
-                      </>
-                    )}
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1 text-sm">
+                      <span className="font-semibold text-gray-900 truncate">{driver.naam}</span>
+                      {driver.adr && (
+                        <ShieldCheckIcon className="w-3.5 h-3.5 text-green-600 shrink-0" title="ADR" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-gray-500 truncate mt-0.5">
+                      <span className="truncate">{getCompanyName(driver)}</span>
+                      {driver.telefoon && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <a href={`tel:${driver.telefoon}`} className="text-primary-600 shrink-0">{driver.telefoon}</a>
+                        </>
+                      )}
+                      {driver.voertuig_ritnummer && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <span className="truncate">{driver.voertuig_ritnummer}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">
                     <button
                       onClick={() => { setSelectedDriver(driver); setShowEditModal(true) }}
-                      className="p-1.5 min-w-[36px] min-h-[36px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                      className="p-1 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
                       title={t('common.edit')}
                     >
                       <PencilSquareIcon className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => { setSelectedDriver(driver); setShowDeleteModal(true) }}
-                      className="p-1.5 min-w-[36px] min-h-[36px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
+                      className="p-1 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
                       title={t('common.delete')}
                     >
                       <TrashIcon className="w-4 h-4" />

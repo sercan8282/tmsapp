@@ -655,31 +655,32 @@ export default function FleetPage() {
             </div>
           ) : (
             vehicles.map(vehicle => (
-              <div key={vehicle.id} className="px-3 py-2.5 hover:bg-gray-50">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <LicensePlate kenteken={vehicle.kenteken} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        {vehicle.type_wagen && <span>{vehicle.type_wagen}</span>}
-                        {vehicle.type_wagen && vehicle.ritnummer && <span className="text-gray-300">&middot;</span>}
-                        {vehicle.ritnummer && <span>Rit {vehicle.ritnummer}</span>}
-                        <span className="text-gray-300">&middot;</span>
-                        <span>{getCompanyName(vehicle)}</span>
-                      </div>
+              <div key={vehicle.id} className="px-3 py-2 hover:bg-gray-50">
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <LicensePlate kenteken={vehicle.kenteken} size="sm" />
+                      {vehicle.type_wagen && (
+                        <span className="text-xs text-gray-500 truncate">{vehicle.type_wagen}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5 truncate">
+                      {vehicle.ritnummer && <span>Rit {vehicle.ritnummer}</span>}
+                      {vehicle.ritnummer && <span className="text-gray-300">&middot;</span>}
+                      <span className="truncate">{getCompanyName(vehicle)}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">
                     <button
                       onClick={() => { setSelectedVehicle(vehicle); setShowEditModal(true) }}
-                      className="p-1.5 min-w-[36px] min-h-[36px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                      className="p-1 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
                       title={t('common.edit')}
                     >
                       <PencilSquareIcon className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => { setSelectedVehicle(vehicle); setShowDeleteModal(true) }}
-                      className="p-1.5 min-w-[36px] min-h-[36px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
+                      className="p-1 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
                       title={t('common.delete')}
                     >
                       <TrashIcon className="w-4 h-4" />
