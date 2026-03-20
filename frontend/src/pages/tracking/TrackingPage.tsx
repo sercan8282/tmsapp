@@ -81,6 +81,7 @@ function TrackingMap({
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
   const routeLayerRef = useRef<L.Polyline | null>(null)
+  const initialFitDoneRef = useRef(false)
 
   // Initialize map
   useEffect(() => {
@@ -142,22 +143,23 @@ function TrackingMap({
       }
     })
 
-    // Auto-fit bounds if vehicles exist
-    if (vehicles.length > 0 && !selectedRoute) {
+    // Auto-fit bounds ONLY on first load when no vehicle is focused
+    if (vehicles.length > 0 && !selectedRoute && !focusVehicleId && !initialFitDoneRef.current) {
       const bounds = L.latLngBounds(vehicles.map(v => [v.latitude, v.longitude] as L.LatLngExpression))
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 })
+      initialFitDoneRef.current = true
     }
   }, [vehicles, selectedRoute, focusVehicleId])
 
-  // Zoom to focused vehicle
+  // Follow focused vehicle — update view on every poll when a vehicle is selected
   useEffect(() => {
     const map = mapRef.current
     if (!map || !focusVehicleId) return
 
     const vehicle = vehicles.find(v => v.vehicle_id === focusVehicleId)
     if (vehicle) {
-      map.setView([vehicle.latitude, vehicle.longitude], 15, { animate: true })
-      // Open popup
+      map.setView([vehicle.latitude, vehicle.longitude], Math.max(map.getZoom(), 14), { animate: true })
+      // Open popup on the marker
       const marker = markersRef.current.get(vehicle.session_id)
       if (marker) marker.openPopup()
     }
