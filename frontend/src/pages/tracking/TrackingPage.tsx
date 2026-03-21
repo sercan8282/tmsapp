@@ -251,7 +251,7 @@ function VehicleMonitorPanel({
   const [showPermissionDialog, setShowPermissionDialog] = useState(false)
   const [permissionLoading, setPermissionLoading] = useState(false)
 
-  const gps = useGPSTracking({ minInterval: 5000, maxAccuracy: 5000 })
+  const gps = useGPSTracking({ minInterval: 5000, maxAccuracy: 100 })
 
   // Auto-select assigned vehicle on mount
   useEffect(() => {
