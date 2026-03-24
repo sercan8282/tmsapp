@@ -980,10 +980,11 @@ class RevenueView(APIView):
         for period_date in all_periods:
             income = income_dict.get(period_date, 0)
             credit = credit_exp_dict.get(period_date, 0)
-            expenses = invoice_exp_dict.get(period_date, 0) + credit + direct_exp_dict.get(period_date, 0)
-            profit = income - expenses
+            net_income = income - credit
+            expenses = invoice_exp_dict.get(period_date, 0) + direct_exp_dict.get(period_date, 0)
+            profit = net_income - expenses
             
-            total_income += income
+            total_income += net_income
             total_expenses += expenses
             total_credit += credit
             
@@ -1001,7 +1002,7 @@ class RevenueView(APIView):
             data.append({
                 'period': period_date.isoformat(),
                 'label': label,
-                'income': round(income, 2),
+                'income': round(net_income, 2),
                 'credit': round(credit, 2),
                 'expenses': round(expenses, 2),
                 'profit': round(profit, 2),
@@ -1153,14 +1154,15 @@ class RevenueForecastView(APIView):
         monthly_data = []
         for month in all_months:
             income = income_dict.get(month, 0)
+            credit = credit_dict.get(month, 0)
+            net_income = income - credit
             expenses = (inkoop_dict.get(month, 0) +
-                        credit_dict.get(month, 0) +
                         direct_dict.get(month, 0))
             monthly_data.append({
                 'month': month,
-                'income': income,
+                'income': net_income,
                 'expenses': expenses,
-                'profit': income - expenses,
+                'profit': net_income - expenses,
             })
 
         n = len(monthly_data)
