@@ -960,7 +960,7 @@ class RevenueView(APIView):
         # Combine all data into a timeline
         income_dict = {item['period']: float(item['totaal'] or 0) for item in income_qs}
         invoice_exp_dict = {item['period']: float(item['totaal'] or 0) for item in invoice_expenses_qs}
-        credit_exp_dict = {item['period']: float(item['totaal'] or 0) for item in credit_expenses_qs}
+        credit_exp_dict = {item['period']: abs(float(item['totaal'] or 0)) for item in credit_expenses_qs}
         direct_exp_dict = {item['period']: float(item['totaal'] or 0) for item in direct_expenses_qs}
         
         # Get all unique periods
@@ -1122,7 +1122,7 @@ class RevenueForecastView(APIView):
         # Build dicts
         income_dict = {item['month']: float(item['totaal'] or 0) for item in monthly_income}
         inkoop_dict = {item['month']: float(item['totaal'] or 0) for item in monthly_inkoop}
-        credit_dict = {item['month']: float(item['totaal'] or 0) for item in monthly_credit}
+        credit_dict = {item['month']: abs(float(item['totaal'] or 0)) for item in monthly_credit}
         direct_dict = {item['month']: float(item['totaal'] or 0) for item in monthly_direct}
 
         all_months = sorted(set(
