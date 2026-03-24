@@ -488,7 +488,7 @@ class DashboardStatsView(APIView):
             factuurdatum__lte=today,
         ).aggregate(total=Sum('totaal'))
 
-        total_credit = float(credit_agg['total'] or 0)
+        total_credit = abs(float(credit_agg['total'] or 0))
         total_income = float(income_agg['total'] or 0) - total_credit
 
         # Total expenses (inkoop + direct expenses)
