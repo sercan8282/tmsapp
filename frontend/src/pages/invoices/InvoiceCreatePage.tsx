@@ -180,9 +180,9 @@ function TemplateCard({
     <div
       onClick={onSelect}
       className={`
-        box-border border-2 rounded-lg p-4 cursor-pointer transition-all min-h-[80px]
+        box-border border-2 rounded-lg p-4 cursor-pointer transition-colors min-h-[80px]
         ${selected 
-          ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200' 
+          ? 'border-primary-500 bg-primary-50 ring-2 ring-inset ring-primary-200' 
           : 'border-gray-200 hover:border-gray-300 bg-white'}
       `}
     >
