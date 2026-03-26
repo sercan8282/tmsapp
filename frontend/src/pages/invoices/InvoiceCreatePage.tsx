@@ -1839,9 +1839,9 @@ export default function InvoiceCreatePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/invoices')}
@@ -1906,13 +1906,13 @@ export default function InvoiceCreatePage() {
       {selectedTemplate && (
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-4">2. {t('invoices.invoiceDetails')}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('invoices.company')} *</label>
               <select
                 value={selectedCompany}
                 onChange={(e) => setSelectedCompany(e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                className="w-full min-w-0 truncate rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
               >
                 <option value="">{t('invoices.selectCompany')}...</option>
                 {companies.map((company) => (
@@ -1920,7 +1920,7 @@ export default function InvoiceCreatePage() {
                 ))}
               </select>
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('invoices.type')}</label>
               <select
                 value={invoiceType}
@@ -1929,7 +1929,7 @@ export default function InvoiceCreatePage() {
                   setInvoiceType(newType)
                   loadNextInvoiceNumber(newType)
                 }}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                className="w-full min-w-0 truncate rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
               >
                 <option value="verkoop">{t('invoices.salesInvoice')} (F-)</option>
                 <option value="credit">{t('invoices.creditInvoice')} (C-)</option>
@@ -2008,9 +2008,9 @@ export default function InvoiceCreatePage() {
       {/* Step 3: Invoice Lines */}
       {selectedTemplate && columns.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h2 className="text-lg font-semibold">3. {t('invoices.lines')}</h2>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => setShowImportModal(true)}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
