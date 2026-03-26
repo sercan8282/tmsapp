@@ -3,6 +3,7 @@ import csv
 import io
 import logging
 import re
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 logger = logging.getLogger(__name__)
@@ -73,12 +74,10 @@ def parse_ing_csv(file_content: bytes) -> list[dict]:
         mededelingen = row[8].strip() if len(row) > 8 else ''
 
         try:
-            from datetime import datetime
             # ING uses YYYYMMDD format
             datum = datetime.strptime(datum_str, '%Y%m%d').date()
         except ValueError:
             try:
-                from datetime import datetime
                 datum = datetime.strptime(datum_str, '%d-%m-%Y').date()
             except ValueError:
                 logger.warning("Ongeldig datum op rij %d: %s, overgeslagen", line_no, datum_str)
@@ -135,7 +134,6 @@ def parse_mt940(file_content: bytes) -> list[dict]:
             # Date: first 6 chars YYMMDD
             date_part = body[:6]
             try:
-                from datetime import datetime
                 datum = datetime.strptime(date_part, '%y%m%d').date()
             except ValueError:
                 datum = None
