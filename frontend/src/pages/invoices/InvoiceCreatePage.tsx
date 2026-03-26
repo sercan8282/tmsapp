@@ -2035,8 +2035,8 @@ export default function InvoiceCreatePage() {
 
           {columns.length === 0 ? (
             <div className="text-center py-12 text-gray-500 border-2 border-dashed rounded-lg">
-              <p className="mb-2">Deze template heeft geen kolommen geconfigureerd.</p>
-              <p className="text-sm">Bewerk de template om kolommen toe te voegen.</p>
+              <p className="mb-2">{t('invoices.noColumnsConfigured')}</p>
+              <p className="text-sm">{t('invoices.editTemplateToAddColumns')}</p>
             </div>
           ) : (
           <>

@@ -746,6 +746,8 @@
     "optionalNotes": "Optional notes...",
     "noLinesYet": "No invoice lines yet",
     "clickToAddLines": "Click 'Add line' to begin",
+    "noColumnsConfigured": "This template has no columns configured.",
+    "editTemplateToAddColumns": "Edit the template to add columns.",
     "sales": "Sales",
     "purchase": "Purchase",
     "credit": "Credit",

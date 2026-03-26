@@ -748,6 +748,8 @@
     "optionalNotes": "Optionele notities...",
     "noLinesYet": "Nog geen factuurregels",
     "clickToAddLines": "Klik op 'Regel toevoegen' om te beginnen",
+    "noColumnsConfigured": "Deze template heeft geen kolommen geconfigureerd.",
+    "editTemplateToAddColumns": "Bewerk de template om kolommen toe te voegen.",
     "sales": "Verkoop",
     "purchase": "Inkoop",
     "credit": "Credit",
