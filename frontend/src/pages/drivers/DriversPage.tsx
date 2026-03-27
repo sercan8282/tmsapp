@@ -173,8 +173,8 @@ function DriverForm({
     const saveData: DriverCreate | DriverUpdate = {
       naam: formData.naam,
       telefoon: formData.telefoon || undefined,
-      bedrijf: formData.bedrijf || undefined,
-      gekoppelde_gebruiker: formData.gekoppelde_gebruiker || undefined,
+      bedrijf: formData.bedrijf || null,
+      gekoppelde_gebruiker: formData.gekoppelde_gebruiker || null,
       voertuig: formData.voertuig || null,
       adr: formData.adr,
       minimum_uren_per_week: formData.minimum_uren_per_week ? parseFloat(formData.minimum_uren_per_week) : null,
