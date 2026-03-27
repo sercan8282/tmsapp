@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Sum, Count, Q, Max
 
-from .models import TimeEntry, TimeEntryStatus, WeeklyMinimumHours
+from .models import TimeEntry, TimeEntryStatus, WeeklyMinimumHours, ImportedTimeEntry
 from .serializers import TimeEntrySerializer, WeeklyMinimumHoursSerializer
 
 logger = logging.getLogger('accounts.security')
@@ -360,9 +360,9 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         for user_id, min_uren in driver_qs:
             driver_defaults[str(user_id)] = float(min_uren)
         
-        # Get all submitted time entries grouped by user, year, week
+        # Use imported time entries (from planbureau Excel) for worked hours
         # Only include users that have minimum_uren_per_week set
-        queryset = TimeEntry.objects.filter(status=TimeEntryStatus.INGEDIEND)
+        queryset = ImportedTimeEntry.objects.filter(user__isnull=False)
         
         if driver_defaults:
             queryset = queryset.filter(user_id__in=[uid for uid in driver_defaults.keys()])
@@ -382,8 +382,8 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
             'user_id', 'user__voornaam', 'user__achternaam', 'user__email',
             'user__bedrijf', 'weeknummer', 'jaar'
         ).annotate(
-            totaal_seconds=Sum('totaal_uren'),
-            totaal_km=Sum('totaal_km'),
+            totaal_uren_factuur=Sum('uren_factuur'),
+            totaal_km=Sum('km'),
             entries_count=Count('id'),
         ).order_by('-jaar', '-weeknummer', 'user__achternaam')
         
@@ -407,28 +407,22 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
                     'periode': periode,
                     'week_start': week_start,
                     'week_eind': week_eind,
-                    'worked_seconds': 0,
+                    'worked_hours': 0,
                     'totaal_km': 0,
                     'entries_count': 0,
                     'weken_in_periode': set(),
                 }
             
-            total_duration = row['totaal_seconds']
-            if total_duration and isinstance(total_duration, timedelta):
-                worked_seconds = total_duration.total_seconds()
-            elif total_duration:
-                worked_seconds = float(total_duration)
-            else:
-                worked_seconds = 0
+            worked_hours_val = float(row['totaal_uren_factuur'] or 0)
             
-            period_data[pkey]['worked_seconds'] += worked_seconds
-            period_data[pkey]['totaal_km'] += row['totaal_km'] or 0
+            period_data[pkey]['worked_hours'] += worked_hours_val
+            period_data[pkey]['totaal_km'] += float(row['totaal_km'] or 0)
             period_data[pkey]['entries_count'] += row['entries_count']
             period_data[pkey]['weken_in_periode'].add(row['weeknummer'])
         
         results = []
         for pkey, pd in period_data.items():
-            worked_hours = round(pd['worked_seconds'] / 3600, 2)
+            worked_hours = round(pd['worked_hours'], 2)
             
             # Minimum hours = driver weekly minimum × 4
             weekly_min = driver_defaults.get(pd['user_id'], None)
@@ -495,7 +489,8 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         for uid, min_uren in driver_qs:
             driver_defaults[str(uid)] = float(min_uren)
         
-        queryset = TimeEntry.objects.filter(status=TimeEntryStatus.INGEDIEND)
+        # Use imported time entries (from planbureau Excel) for worked hours
+        queryset = ImportedTimeEntry.objects.filter(user__isnull=False)
         
         if driver_defaults:
             queryset = queryset.filter(user_id__in=[uid for uid in driver_defaults.keys()])
@@ -516,8 +511,8 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
             'user_id', 'user__voornaam', 'user__achternaam', 'user__email',
             'user__bedrijf', 'jaar', 'maand'
         ).annotate(
-            totaal_seconds=Sum('totaal_uren'),
-            totaal_km=Sum('totaal_km'),
+            totaal_uren_factuur=Sum('uren_factuur'),
+            totaal_km=Sum('km'),
             entries_count=Count('id'),
         ).order_by('-jaar', '-maand', 'user__achternaam')
         
@@ -541,15 +536,7 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         
         results = []
         for row in monthly_data:
-            total_duration = row['totaal_seconds']
-            if total_duration and isinstance(total_duration, timedelta):
-                worked_seconds = total_duration.total_seconds()
-            elif total_duration:
-                worked_seconds = float(total_duration)
-            else:
-                worked_seconds = 0
-            
-            worked_hours = round(worked_seconds / 3600, 2)
+            worked_hours = round(float(row['totaal_uren_factuur'] or 0), 2)
             
             weekly_min = driver_defaults.get(str(row['user_id']), None)
             weken = weeks_in_month(row['jaar'], row['maand'])
@@ -576,7 +563,7 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
                 'gewerkte_uren': worked_hours,
                 'minimum_uren': minimum_hours,
                 'gemiste_uren': missed_hours,
-                'totaal_km': row['totaal_km'] or 0,
+                'totaal_km': float(row['totaal_km'] or 0),
                 'entries_count': row['entries_count'],
                 'minimum_uren_per_week': weekly_min,
             })
