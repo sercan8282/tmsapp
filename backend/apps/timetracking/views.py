@@ -467,9 +467,9 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         
         Logic:
         1. Get ALL vehicles with a ritnummer (active + inactive)
-        2. Match ImportedTimeEntry.ritlijst directly to vehicle ritnummers
+        2. Match via ImportedTimeEntry.gekoppeld_voertuig FK
         3. Only count entries from users with an active driver_profile
-        4. Sum uren_factuur per ritnummer per week
+        4. Sum uren_factuur per vehicle ritnummer per week
         
         Returns one row per ritnummer per week.
         """
@@ -491,13 +491,16 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         if not vehicles.exists():
             return Response([])
         
-        # Build ritnummer → vehicle info mapping
+        # Build vehicle_id → ritnummer + info mapping
         # Use the most recently created vehicle per ritnummer for display
-        ritnummer_info = {}
+        vehicle_to_ritnummer = {}  # vehicle_id -> ritnummer
+        ritnummer_info = {}  # ritnummer -> display info
         for vehicle in vehicles:
             rit = vehicle.ritnummer.strip()
             if not rit:
                 continue
+            
+            vehicle_to_ritnummer[vehicle.id] = rit
             
             if rit not in ritnummer_info or vehicle.created_at > ritnummer_info[rit]['_created']:
                 ritnummer_info[rit] = {
@@ -520,20 +523,26 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
             ).values_list('gekoppelde_gebruiker_id', flat=True)
         )
         
-        if not active_driver_user_ids:
-            return Response([])
+        # Step 3: Query ImportedTimeEntry via gekoppeld_voertuig FK
+        vehicle_ids = list(vehicle_to_ritnummer.keys())
         
-        # Step 3: Query ImportedTimeEntry matching ritlijst to ritnummers
-        # Only for active drivers
-        all_ritnummers = list(ritnummer_info.keys())
+        base_filter = {
+            'gekoppeld_voertuig_id__in': vehicle_ids,
+            'datum__year': jaar,
+        }
         
-        queryset = ImportedTimeEntry.objects.filter(
-            ritlijst__in=all_ritnummers,
-            datum__year=jaar,
-            user__isnull=False,
-            user_id__in=list(active_driver_user_ids),
-        ).values(
-            'ritlijst', 'weeknummer',
+        # If there are active drivers, filter by them; otherwise include all
+        if active_driver_user_ids:
+            queryset = ImportedTimeEntry.objects.filter(
+                **base_filter,
+            ).filter(
+                Q(user__isnull=True) | Q(user_id__in=list(active_driver_user_ids))
+            )
+        else:
+            queryset = ImportedTimeEntry.objects.filter(**base_filter)
+        
+        queryset = queryset.values(
+            'gekoppeld_voertuig_id', 'weeknummer',
         ).annotate(
             totaal_uren_factuur=Sum('uren_factuur'),
             totaal_km=Sum('km'),
@@ -541,12 +550,24 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         )
         
         # Step 4: Build results — per ritnummer per week
-        results = []
+        # Multiple vehicles with same ritnummer get combined
+        week_totals = {}  # (ritnummer, weeknummer) -> { uren, km, count }
         for row in queryset:
-            rit = row['ritlijst']
-            if rit not in ritnummer_info:
+            vid = row['gekoppeld_voertuig_id']
+            rit = vehicle_to_ritnummer.get(vid)
+            if not rit:
                 continue
             
+            wk = row['weeknummer']
+            key = (rit, wk)
+            if key not in week_totals:
+                week_totals[key] = {'uren': 0, 'km': 0, 'count': 0}
+            week_totals[key]['uren'] += float(row['totaal_uren_factuur'] or 0)
+            week_totals[key]['km'] += float(row['totaal_km'] or 0)
+            week_totals[key]['count'] += row['entries_count']
+        
+        results = []
+        for (rit, wk), wt in week_totals.items():
             info = ritnummer_info[rit]
             results.append({
                 'ritnummer': rit,
@@ -555,10 +576,10 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
                 'type_wagen': info['type_wagen'],
                 'bedrijf_naam': info['bedrijf_naam'],
                 'jaar': jaar,
-                'weeknummer': row['weeknummer'],
-                'gewerkte_uren': round(float(row['totaal_uren_factuur'] or 0), 2),
-                'totaal_km': round(float(row['totaal_km'] or 0), 1),
-                'entries_count': row['entries_count'],
+                'weeknummer': wk,
+                'gewerkte_uren': round(wt['uren'], 2),
+                'totaal_km': round(wt['km'], 1),
+                'entries_count': wt['count'],
             })
         
         # Sort by ritnummer, then week
