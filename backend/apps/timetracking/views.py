@@ -468,8 +468,9 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         Logic:
         1. Get ALL vehicles with a ritnummer (active + inactive)
         2. Match via ImportedTimeEntry.gekoppeld_voertuig FK
-        3. Only count entries from users with an active driver_profile
-        4. Sum uren_factuur per vehicle ritnummer per week
+        3. ALSO match orphaned entries (gekoppeld_voertuig=NULL) via kenteken_import
+        4. Only count entries from users with an active driver_profile
+        5. Sum uren_factuur per vehicle ritnummer per week
         
         Returns one row per ritnummer per week.
         """
@@ -480,6 +481,7 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         from datetime import date
         from apps.fleet.models import Vehicle
         from apps.drivers.models import Driver
+        from apps.timetracking.import_service import _normalize_kenteken
         
         jaar = int(request.query_params.get('jaar', date.today().year))
         
@@ -491,16 +493,27 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         if not vehicles.exists():
             return Response([])
         
-        # Build vehicle_id → ritnummer + info mapping
-        # Use the most recently created vehicle per ritnummer for display
+        # Build mappings:
+        # vehicle_id → ritnummer (for FK-based matching)
+        # normalized kenteken/ritnummer → ritnummer (for orphaned entry matching)
         vehicle_to_ritnummer = {}  # vehicle_id -> ritnummer
-        ritnummer_info = {}  # ritnummer -> display info
+        norm_to_ritnummer = {}     # normalized kenteken/ritnummer -> ritnummer
+        ritnummer_info = {}        # ritnummer -> display info
+        
         for vehicle in vehicles:
             rit = vehicle.ritnummer.strip()
             if not rit:
                 continue
             
             vehicle_to_ritnummer[vehicle.id] = rit
+            
+            # Map both normalized kenteken and normalized ritnummer
+            norm_k = _normalize_kenteken(vehicle.kenteken)
+            norm_r = _normalize_kenteken(vehicle.ritnummer)
+            if norm_k:
+                norm_to_ritnummer[norm_k] = rit
+            if norm_r:
+                norm_to_ritnummer[norm_r] = rit
             
             if rit not in ritnummer_info or vehicle.created_at > ritnummer_info[rit]['_created']:
                 ritnummer_info[rit] = {
@@ -523,25 +536,19 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
             ).values_list('gekoppelde_gebruiker_id', flat=True)
         )
         
-        # Step 3: Query ImportedTimeEntry via gekoppeld_voertuig FK
+        # Step 3a: Query entries WITH gekoppeld_voertuig FK (normal case)
         vehicle_ids = list(vehicle_to_ritnummer.keys())
         
-        base_filter = {
-            'gekoppeld_voertuig_id__in': vehicle_ids,
-            'datum__year': jaar,
-        }
-        
-        # If there are active drivers, filter by them; otherwise include all
+        fk_queryset = ImportedTimeEntry.objects.filter(
+            gekoppeld_voertuig_id__in=vehicle_ids,
+            datum__year=jaar,
+        )
         if active_driver_user_ids:
-            queryset = ImportedTimeEntry.objects.filter(
-                **base_filter,
-            ).filter(
+            fk_queryset = fk_queryset.filter(
                 Q(user__isnull=True) | Q(user_id__in=list(active_driver_user_ids))
             )
-        else:
-            queryset = ImportedTimeEntry.objects.filter(**base_filter)
         
-        queryset = queryset.values(
+        fk_rows = fk_queryset.values(
             'gekoppeld_voertuig_id', 'weeknummer',
         ).annotate(
             totaal_uren_factuur=Sum('uren_factuur'),
@@ -549,12 +556,46 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
             entries_count=Count('id'),
         )
         
+        # Step 3b: Query ORPHANED entries (gekoppeld_voertuig=NULL) by kenteken_import
+        orphan_queryset = ImportedTimeEntry.objects.filter(
+            gekoppeld_voertuig__isnull=True,
+            datum__year=jaar,
+        )
+        if active_driver_user_ids:
+            orphan_queryset = orphan_queryset.filter(
+                Q(user__isnull=True) | Q(user_id__in=list(active_driver_user_ids))
+            )
+        
+        orphan_rows = orphan_queryset.values(
+            'kenteken_import', 'weeknummer',
+        ).annotate(
+            totaal_uren_factuur=Sum('uren_factuur'),
+            totaal_km=Sum('km'),
+            entries_count=Count('id'),
+        )
+        
         # Step 4: Build results — per ritnummer per week
-        # Multiple vehicles with same ritnummer get combined
         week_totals = {}  # (ritnummer, weeknummer) -> { uren, km, count }
-        for row in queryset:
+        
+        # Process FK-matched entries
+        for row in fk_rows:
             vid = row['gekoppeld_voertuig_id']
             rit = vehicle_to_ritnummer.get(vid)
+            if not rit:
+                continue
+            
+            wk = row['weeknummer']
+            key = (rit, wk)
+            if key not in week_totals:
+                week_totals[key] = {'uren': 0, 'km': 0, 'count': 0}
+            week_totals[key]['uren'] += float(row['totaal_uren_factuur'] or 0)
+            week_totals[key]['km'] += float(row['totaal_km'] or 0)
+            week_totals[key]['count'] += row['entries_count']
+        
+        # Process orphaned entries (match kenteken_import to known vehicles)
+        for row in orphan_rows:
+            norm_key = _normalize_kenteken(row['kenteken_import'])
+            rit = norm_to_ritnummer.get(norm_key)
             if not rit:
                 continue
             
