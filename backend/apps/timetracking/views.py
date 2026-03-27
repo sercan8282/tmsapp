@@ -476,11 +476,11 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         if not (user.is_superuser or user.rol in ['admin', 'gebruiker']):
             return Response({'error': 'Geen toegang'}, status=status.HTTP_403_FORBIDDEN)
         
-        jaar = int(request.query_params.get('jaar', date.today().year))
-        
+        from datetime import date
         from apps.fleet.models import Vehicle
         from apps.drivers.models import Driver
-        from django.db.models.functions import ExtractYear
+        
+        jaar = int(request.query_params.get('jaar', date.today().year))
         
         # Step 1: Get all vehicles with a ritnummer
         vehicles = Vehicle.objects.filter(
