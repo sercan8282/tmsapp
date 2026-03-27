@@ -351,6 +351,41 @@ export async function getMonthlyHoursOverview(jaar?: number, userId?: string): P
   return response.data
 }
 
+// ============================================
+// Ritnummer Hours Overview API
+// ============================================
+
+export interface RitnummerHoursOverview {
+  user_id: string
+  user_naam: string
+  user_email: string
+  user_bedrijf: string
+  ritnummer: string
+  jaar: number
+  periode: number
+  week_start: number
+  week_eind: number
+  gewerkte_uren: number
+  minimum_uren: number | null
+  gemiste_uren: number | null
+  totaal_km: number
+  entries_count: number
+  minimum_uren_per_week: number | null
+  weken_met_uren: number
+}
+
+/**
+ * Get ritnummer hours overview for all users (admin only)
+ */
+export async function getRitnummerHoursOverview(jaar?: number, userId?: string): Promise<RitnummerHoursOverview[]> {
+  const params = new URLSearchParams()
+  if (jaar) params.append('jaar', jaar.toString())
+  if (userId) params.append('user', userId)
+  
+  const response = await api.get(`/time-entries/ritnummer_hours_overview/?${params.toString()}`)
+  return response.data
+}
+
 /**
  * Set minimum hours for a user for a specific week
  */

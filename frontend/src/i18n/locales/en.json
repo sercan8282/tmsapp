@@ -551,6 +551,17 @@
     "noDataHint": "Set the minimum weeks per year per vehicle in Fleet Management.",
     "loadError": "Failed to load vehicle overview"
   },
+  "ritnummerHours": {
+    "title": "Hours per Route Number",
+    "searchPlaceholder": "Search by name, route number or period...",
+    "showOnlyMissed": "Show only missed hours",
+    "driverName": "Driver",
+    "ritnummer": "Route Number",
+    "entries": "entries",
+    "trips": "Trips",
+    "noData": "No imported hours found for drivers with minimum hours set",
+    "loadError": "Failed to load route number overview"
+  },
   "planning": {
     "title": "Planning",
     "weekPlanning": "Week planning",

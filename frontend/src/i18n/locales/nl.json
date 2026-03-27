@@ -553,6 +553,17 @@
     "noDataHint": "Stel bij Vlootbeheer het minimum aantal weken per jaar in per voertuig.",
     "loadError": "Kon voertuigoverzicht niet laden"
   },
+  "ritnummerHours": {
+    "title": "Uren per Ritnummer",
+    "searchPlaceholder": "Zoek op naam, ritnummer of periode...",
+    "showOnlyMissed": "Toon alleen gemiste uren",
+    "driverName": "Chauffeur",
+    "ritnummer": "Ritnummer",
+    "entries": "regels",
+    "trips": "Ritten",
+    "noData": "Geen geïmporteerde uren gevonden voor chauffeurs met minimum uren",
+    "loadError": "Kon ritnummeroverzicht niet laden"
+  },
   "planning": {
     "title": "Planning",
     "weekPlanning": "Weekplanning",
