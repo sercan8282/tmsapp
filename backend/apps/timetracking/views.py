@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Sum, Count, Q, Max
+from django.db.models.functions import ExtractWeek
 
 from .models import TimeEntry, TimeEntryStatus, WeeklyMinimumHours, ImportedTimeEntry
 from .serializers import TimeEntrySerializer, WeeklyMinimumHoursSerializer
@@ -547,20 +548,26 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
                 q,
                 datum__year=jaar,
                 status=TimeEntryStatus.INGEDIEND,
-            ).values('ritnummer', 'weeknummer').annotate(
+            ).annotate(
+                iso_week=ExtractWeek('datum'),
+            ).values('ritnummer', 'iso_week').annotate(
                 totaal_km=Sum('totaal_km'),
             )
         else:
             chauffeur_km_rows = []
 
+        logger.debug(f"[ritnummer_hours_overview] jaar={jaar}, all_ritnummers count={len(all_ritnummers)}, sample={all_ritnummers[:5] if all_ritnummers else []}")
+
         chauffeur_km_lookup = {}
         for row in chauffeur_km_rows:
             canonical = ritnummer_lower_to_canonical.get(row['ritnummer'].lower())
             if canonical:
-                key = (canonical, row['weeknummer'])
+                key = (canonical, row['iso_week'])
                 # Accumulate in case multiple case variants of the same ritnummer exist
                 # (e.g. "r12" and "R12" both map to canonical "R12" for the same week)
                 chauffeur_km_lookup[key] = chauffeur_km_lookup.get(key, 0) + float(row['totaal_km'] or 0)
+
+        logger.debug(f"[ritnummer_hours_overview] chauffeur_km_lookup count={len(chauffeur_km_lookup)}, sample keys={list(chauffeur_km_lookup.keys())[:5]}")
 
         # Step 3: Query entries WITH gekoppeld_voertuig FK (normal case)
         # No driver filter — this is a vehicle-based overview
@@ -625,6 +632,8 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
             key = (rit, wk)
             if key not in week_totals:
                 week_totals[key] = {'uren': 0, 'km': 0, 'count': 0}
+
+        logger.debug(f"[ritnummer_hours_overview] week_totals keys={list(week_totals.keys())[:10]}")
 
         results = []
         for (rit, wk), wt in week_totals.items():
