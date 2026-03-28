@@ -6,7 +6,7 @@ from django.db import models
 class Vehicle(models.Model):
     """Voertuig model."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    kenteken = models.CharField(max_length=20, unique=True, verbose_name='Kenteken')
+    kenteken = models.CharField(max_length=20, verbose_name='Kenteken')
     type_wagen = models.CharField(max_length=100, verbose_name='Type Wagen')
     ritnummer = models.CharField(max_length=50, verbose_name='Ritnummer')
     bedrijf = models.ForeignKey(
@@ -34,6 +34,13 @@ class Vehicle(models.Model):
         verbose_name = 'Voertuig'
         verbose_name_plural = 'Voertuigen'
         ordering = ['kenteken']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['kenteken'],
+                condition=models.Q(actief=True),
+                name='unique_kenteken_actief'
+            )
+        ]
     
     def __str__(self):
         return f"{self.kenteken} - {self.type_wagen}"
