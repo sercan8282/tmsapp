@@ -314,7 +314,8 @@
     "minimumHoursPerWeek": "Minimum uren per week",
     "minimumHoursHelp": "Standaard minimum uren per week. Wordt automatisch gebruikt in het weekoverzicht als er geen specifieke waarde is ingesteld.",
     "minimumHoursPlaceholder": "Bijv. 40",
-    "activeHelp": "Inactieve chauffeurs worden niet meegeteld in urenoverzichten"
+    "activeHelp": "Inactieve chauffeurs worden niet meegeteld in urenoverzichten",
+    "selectCompaniesHelp": "Houd Ctrl/Cmd ingedrukt om meerdere bedrijven te selecteren"
   },
   "fleet": {
     "title": "Vloot",

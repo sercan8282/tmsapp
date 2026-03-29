@@ -158,16 +158,15 @@ for d in drivers_data:
         naam=d['naam'],
         defaults={
             'telefoon': d['telefoon'],
-            'bedrijf': bedrijf,
             'gekoppelde_gebruiker': user,
             'adr': d['adr'],
         }
     )
+    obj.bedrijven.add(bedrijf)
 
     # Als chauffeur al bestond maar nog niet gekoppeld, update
     if not created and user and not obj.gekoppelde_gebruiker:
         obj.gekoppelde_gebruiker = user
-        obj.bedrijf = bedrijf
         obj.adr = d['adr']
         obj.telefoon = d['telefoon']
         obj.save()

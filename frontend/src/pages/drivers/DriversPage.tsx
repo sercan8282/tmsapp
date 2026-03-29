@@ -141,7 +141,7 @@ function DriverForm({
   const [formData, setFormData] = useState({
     naam: driver?.naam || '',
     telefoon: driver?.telefoon || '',
-    bedrijf: driver?.bedrijf?.toString() || '',
+    bedrijven: driver?.bedrijven || [] as string[],
     gekoppelde_gebruiker: driver?.gekoppelde_gebruiker?.toString() || '',
     voertuig: driver?.voertuig?.toString() || '',
     adr: driver?.adr || false,
@@ -160,6 +160,11 @@ function DriverForm({
     setErrors(prev => ({ ...prev, [name]: '' }))
   }
 
+  const handleBedrijvenChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selected = Array.from(e.target.selectedOptions, opt => opt.value)
+    setFormData(prev => ({ ...prev, bedrijven: selected }))
+  }
+
   const validate = () => {
     const newErrors: Record<string, string> = {}
     if (!formData.naam.trim()) newErrors.naam = t('validation.nameRequired')
@@ -174,7 +179,7 @@ function DriverForm({
     const saveData: DriverCreate | DriverUpdate = {
       naam: formData.naam,
       telefoon: formData.telefoon || undefined,
-      bedrijf: formData.bedrijf || null,
+      bedrijven: formData.bedrijven.length > 0 ? formData.bedrijven : [],
       gekoppelde_gebruiker: formData.gekoppelde_gebruiker || null,
       voertuig: formData.voertuig || null,
       adr: formData.adr,
@@ -218,18 +223,22 @@ function DriverForm({
           {t('companies.title')}
         </label>
         <select
-          name="bedrijf"
-          value={formData.bedrijf}
-          onChange={handleChange}
+          name="bedrijven"
+          multiple
+          value={formData.bedrijven}
+          onChange={handleBedrijvenChange}
           className="input"
+          style={{ minHeight: '6rem' }}
         >
-          <option value="">{t('common.none')}</option>
           {companies.map(company => (
             <option key={company.id} value={company.id}>
               {company.naam}
             </option>
           ))}
         </select>
+        <p className="text-xs text-gray-500 mt-1">
+          {t('drivers.selectCompaniesHelp')}
+        </p>
       </div>
 
       <div>
@@ -268,7 +277,7 @@ function DriverForm({
         >
           <option value="">{t('drivers.noVehicle')}</option>
           {vehicles
-            .filter(v => v.actief && (!formData.bedrijf || v.bedrijf === formData.bedrijf))
+            .filter(v => v.actief && (formData.bedrijven.length === 0 || formData.bedrijven.includes(v.bedrijf)))
             .map(vehicle => (
               <option key={vehicle.id} value={vehicle.id}>
                 {vehicle.ritnummer} - {vehicle.kenteken} ({vehicle.type_wagen})
@@ -426,7 +435,7 @@ export default function DriversPage() {
         ordering: sortDirection === 'asc' ? sortField : `-${sortField}`,
       }
       if (search) filters.search = search
-      if (companyFilter) filters.bedrijf = companyFilter
+      if (companyFilter) filters.bedrijven = companyFilter
       if (adrFilter !== 'all') filters.adr = adrFilter === 'yes' ? 'true' : 'false'
       
       const response = await getDrivers(filters)
@@ -511,13 +520,12 @@ export default function DriversPage() {
     }
   }
 
-  // Get company name by ID
-  const getCompanyName = (driver: Driver) => {
-    if (driver.bedrijf_naam) return driver.bedrijf_naam
-    if (driver.bedrijf) {
-      const company = companies.find(c => c.id === driver.bedrijf)
-      return company?.naam || '-'
+  // Get company names for a driver
+  const getCompanyNames = (driver: Driver) => {
+    if (driver.bedrijven_namen && driver.bedrijven_namen.length > 0) {
+      return driver.bedrijven_namen.join(', ')
     }
+    if (driver.bedrijf_naam) return driver.bedrijf_naam
     return '-'
   }
 
@@ -713,7 +721,7 @@ export default function DriversPage() {
                       <div className="font-medium text-gray-900">{driver.naam}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{driver.telefoon || '-'}</td>
-                    <td className="px-4 py-3 text-gray-600">{getCompanyName(driver)}</td>
+                    <td className="px-4 py-3 text-gray-600">{getCompanyNames(driver)}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {driver.voertuig_ritnummer 
                         ? `${driver.voertuig_ritnummer} (${driver.voertuig_kenteken})`
@@ -804,7 +812,7 @@ export default function DriversPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 text-xs text-gray-500 truncate mt-0.5">
-                      <span className="truncate">{getCompanyName(driver)}</span>
+                      <span className="truncate">{getCompanyNames(driver)}</span>
                       {driver.voertuig_ritnummer && (
                         <>
                           <span className="text-gray-300">·</span>

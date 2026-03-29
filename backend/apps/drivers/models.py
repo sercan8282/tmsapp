@@ -9,13 +9,11 @@ class Driver(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     naam = models.CharField(max_length=200, verbose_name='Naam')
     telefoon = models.CharField(max_length=20, blank=True, verbose_name='Telefoon')
-    bedrijf = models.ForeignKey(
+    bedrijven = models.ManyToManyField(
         'companies.Company',
-        on_delete=models.SET_NULL,
-        null=True,
         blank=True,
         related_name='drivers',
-        verbose_name='Bedrijf'
+        verbose_name='Bedrijven'
     )
     gekoppelde_gebruiker = models.OneToOneField(
         settings.AUTH_USER_MODEL,

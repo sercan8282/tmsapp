@@ -314,7 +314,8 @@
     "minimumHoursPerWeek": "Minimum hours per week",
     "minimumHoursHelp": "Default minimum hours per week. Automatically used in the weekly overview when no specific value is set.",
     "minimumHoursPlaceholder": "E.g. 40",
-    "activeHelp": "Inactive drivers won't be counted in hour overviews"
+    "activeHelp": "Inactive drivers won't be counted in hour overviews",
+    "selectCompaniesHelp": "Hold Ctrl/Cmd to select multiple companies"
   },
   "fleet": {
     "title": "Fleet",
