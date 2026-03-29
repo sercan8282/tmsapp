@@ -131,6 +131,8 @@ export interface Driver {
   id: string
   naam: string
   telefoon: string
+  bedrijven: string[]
+  bedrijven_namen: string[]
   bedrijf: string | null
   bedrijf_naam: string | null
   gekoppelde_gebruiker: string | null

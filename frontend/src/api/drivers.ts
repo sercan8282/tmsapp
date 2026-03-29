@@ -8,7 +8,7 @@ import { Driver } from '@/types'
 export interface DriverCreate {
   naam: string
   telefoon?: string
-  bedrijf?: string | null
+  bedrijven?: string[]
   gekoppelde_gebruiker?: string | null
   voertuig?: string | null
   adr?: boolean
@@ -27,7 +27,7 @@ export interface DriversResponse {
 
 export interface DriverFilters {
   search?: string
-  bedrijf?: string
+  bedrijven?: string
   adr?: string
   page?: number
   page_size?: number
@@ -39,7 +39,7 @@ export async function getDrivers(filters?: DriverFilters): Promise<DriversRespon
   const params = new URLSearchParams()
   
   if (filters?.search) params.append('search', filters.search)
-  if (filters?.bedrijf) params.append('bedrijf', filters.bedrijf)
+  if (filters?.bedrijven) params.append('bedrijven', filters.bedrijven)
   if (filters?.adr !== undefined) params.append('adr', filters.adr)
   if (filters?.page) params.append('page', filters.page.toString())
   if (filters?.page_size) params.append('page_size', filters.page_size.toString())

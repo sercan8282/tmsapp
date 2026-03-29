@@ -14,11 +14,11 @@ class DriverViewSet(viewsets.ModelViewSet):
     - Admin/Gebruiker: Full CRUD access
     - Chauffeur: Read-only access
     """
-    queryset = Driver.objects.select_related('bedrijf', 'gekoppelde_gebruiker', 'voertuig').all()
+    queryset = Driver.objects.prefetch_related('bedrijven').select_related('gekoppelde_gebruiker', 'voertuig').all()
     serializer_class = DriverSerializer
     permission_classes = [IsAuthenticated, IsAdminOrManager]
     search_fields = ['naam', 'telefoon']
-    filterset_fields = ['bedrijf', 'adr']
+    filterset_fields = ['bedrijven', 'adr']
     ordering_fields = ['naam', 'created_at']
     ordering = ['naam']
     
