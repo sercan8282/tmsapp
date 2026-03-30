@@ -40,3 +40,11 @@ class ChatInputSerializer(serializers.Serializer):
     """Input for sending a message."""
     message = serializers.CharField(max_length=4096)
     session_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class ChatExportSerializer(serializers.Serializer):
+    """Input for exporting chat data to Excel or PDF."""
+    title = serializers.CharField(max_length=200, default='Overzicht')
+    columns = serializers.ListField(child=serializers.CharField())
+    rows = serializers.ListField(child=serializers.ListField())
+    format = serializers.ChoiceField(choices=['excel', 'pdf'])
