@@ -114,8 +114,9 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
         rows = serializer.validated_data['rows']
         fmt = serializer.validated_data['format']
 
-        # Sanitise title for use in filename
-        safe_title = ''.join(c for c in title if c.isalnum() or c in ' _-')[:50] or 'export'
+        # Sanitise title for use in filename (only allow alphanumeric, space, dash, underscore)
+        safe_title = ''.join(c for c in title if c.isalnum() or c in ' _-')[:50].strip() or 'export'
+        safe_title = safe_title.replace('..', '').replace('/', '').replace('\\', '')
 
         try:
             if fmt == 'excel':
