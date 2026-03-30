@@ -40,7 +40,7 @@ import LeaveSettingsPage from '@/pages/settings/LeaveSettingsPage'
 import ServerMonitoringPanel from '@/components/ServerMonitoringPanel'
 
 export default function SettingsPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { fetchSettings } = useAppStore()
   const serverConfig = useServerConfigStore()
 
@@ -1522,7 +1522,7 @@ export default function SettingsPage() {
                             return (
                               <tr key={log.id}>
                                 <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                                  {startDate.toLocaleDateString('nl-NL')} {startDate.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
+                                  {startDate.toLocaleDateString(i18n.language)} {startDate.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
                                 </td>
                                 <td className="px-4 py-2 whitespace-nowrap">
                                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[log.status] || 'bg-gray-100 text-gray-800'}`}>

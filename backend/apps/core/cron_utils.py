@@ -92,8 +92,8 @@ def build_cron_expression(settings):
         dow = '1-5'
     elif frequency == 'weekly':
         weekly_day = getattr(settings, 'reminder_weekly_day', 0)
-        # Python weekday: 0=Monday, cron: 1=Monday
-        cron_day = (weekly_day + 1) % 7  # Convert: 0(Mon)->1, 6(Sun)->0
+        # Python weekday: 0=Monday..6=Sunday → cron: 0=Sunday, 1=Monday..6=Saturday
+        cron_day = (weekly_day + 1) % 7
         dow = str(cron_day)
     elif frequency == 'custom':
         custom_days = getattr(settings, 'reminder_custom_days', [])
