@@ -25,8 +25,8 @@ def generate_excel(title: str, columns: list, rows: list) -> bytes:
     ws.title = title[:31]  # Excel sheet name max 31 chars
 
     # ---- Styles ----
-    header_fill = PatternFill(start_color='1F2937', end_color='1F2937', fill_type='solid')
-    alt_fill = PatternFill(start_color='F3F4F6', end_color='F3F4F6', fill_type='solid')
+    header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
+    alt_fill = PatternFill(start_color='EFF6FF', end_color='EFF6FF', fill_type='solid')
     header_font = Font(name='Calibri', bold=True, color='FFFFFF', size=11)
     title_font = Font(name='Calibri', bold=True, size=14)
     normal_font = Font(name='Calibri', size=10)

@@ -90,7 +90,7 @@ def generate_pdf(title: str, columns: list, rows: list) -> bytes:
         tbl = Table(table_data, colWidths=[col_width] * col_count, repeatRows=1)
         tbl.setStyle(TableStyle([
             # Header
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F2937')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563EB')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
@@ -100,7 +100,7 @@ def generate_pdf(title: str, columns: list, rows: list) -> bytes:
             ('TOPPADDING', (0, 0), (-1, 0), 6),
 
             # Alternate row background
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9FAFB')]),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#EFF6FF')]),
 
             # Grid
             ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#D1D5DB')),

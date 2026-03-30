@@ -110,7 +110,7 @@ export default function ReportResultModal({
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-gray-800 text-white sticky top-0">
+              <thead className="bg-blue-600 text-white sticky top-0">
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold text-xs w-10">#</th>
                   {columns.map((col, i) => (
@@ -124,7 +124,7 @@ export default function ReportResultModal({
                 {filteredRows.map((row, rowIdx) => (
                   <tr
                     key={rowIdx}
-                    className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-blue-50'}
                   >
                     <td className="px-3 py-2 text-gray-400 text-xs">{rowIdx + 1}</td>
                     {row.map((cell, colIdx) => (
