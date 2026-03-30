@@ -91,13 +91,14 @@ function DataTable({ data }: { data: ChatData }) {
 // Strip Markdown table content from text when a data table is already shown
 function cleanAssistantText(content: string, hasData: boolean): string {
   if (!hasData || !content) return content
-  // Remove Markdown table blocks (lines containing | ... |)
+  // Remove Markdown table blocks (lines containing | ... | or table separator lines like |---|---|)
   const lines = content.split('\n')
   const cleaned = lines.filter(line => {
     const trimmed = line.trim()
-    // Skip table separator lines and table rows
+    // Skip table rows: lines that start and end with |
     if (/^\|.*\|$/.test(trimmed)) return false
-    if (/^[\|\s\-:]+$/.test(trimmed)) return false
+    // Skip table separator lines: lines only containing |, -, :, and spaces
+    if (/^[\s|:\-]+$/.test(trimmed) && trimmed.includes('|')) return false
     return true
   })
   return cleaned.join('\n').trim()

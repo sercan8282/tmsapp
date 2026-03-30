@@ -6,7 +6,7 @@ Supports tool calls so the assistant can query TMS data.
 import json
 import logging
 import urllib.parse
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -347,7 +347,6 @@ def _execute_tool_get_weather(tool_args: dict) -> dict:
 def _execute_tool_get_distance(tool_args: dict) -> dict:
     """Calculate driving distance between two locations using OSRM (free, no API key)."""
     import urllib.request
-    import urllib.parse
 
     origin = tool_args.get("origin", "")
     destination = tool_args.get("destination", "")
@@ -411,7 +410,6 @@ def _execute_tool_get_distance(tool_args: dict) -> dict:
 def _execute_tool_web_search(tool_args: dict) -> dict:
     """Search the web using DuckDuckGo Instant Answer API (free, no API key)."""
     import urllib.request
-    import urllib.parse
 
     query = tool_args.get("query", "")
     max_results = int(tool_args.get("max_results", 5))
@@ -605,7 +603,7 @@ def chat(messages: list, user=None) -> dict:
 
     system = SYSTEM_PROMPT.format(
         today=date.today().isoformat(),
-        now=datetime.utcnow().strftime("%H:%M UTC"),
+        now=datetime.now(timezone.utc).strftime("%H:%M UTC"),
     )
     full_messages = [{"role": "system", "content": system}] + messages
 
