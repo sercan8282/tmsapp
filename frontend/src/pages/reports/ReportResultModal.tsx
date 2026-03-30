@@ -84,7 +84,7 @@ export default function ReportResultModal({
               )}
             </div>
           )}
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <input
               type="text"
