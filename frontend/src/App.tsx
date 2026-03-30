@@ -374,10 +374,10 @@ function App() {
         <Route path="/documents/:id/sign" element={<DocumentSignPage />} />
 
         {/* Reports Agent */}
-        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/reports" element={<AdminRoute><ReportsPage /></AdminRoute>} />
 
         {/* Chatbot */}
-        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/chat" element={<AdminRoute><ChatPage /></AdminRoute>} />
       </Route>
       
       {/* Catch all - redirect to home */}

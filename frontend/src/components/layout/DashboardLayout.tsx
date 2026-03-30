@@ -75,8 +75,8 @@ const navigation: NavItem[] = [
   { name: 'nav.spreadsheets', href: '/spreadsheets', icon: TableCellsIcon, roles: ['admin'], permission: 'view_spreadsheets' },
   { name: 'nav.spreadsheetTemplates', href: '/spreadsheets/templates', icon: SwatchIcon, roles: ['admin'], permission: 'view_spreadsheet_templates' },
   { name: 'nav.maintenance', href: '/maintenance', icon: WrenchScrewdriverIcon, roles: ['admin'], permission: 'view_maintenance' },
-  { name: 'nav.reports', href: '/reports', icon: SparklesIcon, roles: ['admin', 'gebruiker', 'chauffeur'] },
-  { name: 'nav.chat', href: '/chat', icon: ChatBubbleLeftRightIcon, roles: ['admin', 'gebruiker', 'chauffeur'] },
+  { name: 'nav.reports', href: '/reports', icon: SparklesIcon, roles: ['admin'] },
+  { name: 'nav.chat', href: '/chat', icon: ChatBubbleLeftRightIcon, roles: ['admin'] },
 ]
 
 const adminNavigation: NavItem[] = [

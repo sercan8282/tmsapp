@@ -3,8 +3,9 @@ import logging
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from apps.core.permissions import IsAdminOnly
 
 from .ai_service import chat
 from .models import ChatMessage, ChatSession
@@ -31,7 +32,7 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
     - POST /api/chat/message/                – send a message (creates session if needed)
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOnly]
     pagination_class = None  # Chat sessions are always fetched as a complete list
 
     def get_queryset(self):

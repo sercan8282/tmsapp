@@ -2,7 +2,7 @@
  * Reports Agent - Main page
  * Allows users to request reports, view queue status, and open completed reports.
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   DocumentChartBarIcon,
   PlusIcon,
@@ -183,16 +183,23 @@ export default function ReportsPage() {
       .catch(() => {})
   }, [])
 
+  const requestsRef = useRef<ReportRequest[]>([])
+
+  // Keep ref in sync with state so the polling interval always reads the latest value
+  useEffect(() => {
+    requestsRef.current = requests
+  }, [requests])
+
   useEffect(() => {
     fetchData()
-    // Poll for updates when any request is processing
+    // Poll for updates when any request is pending or processing
     const interval = setInterval(() => {
-      if (requests.some((r) => r.status === 'pending' || r.status === 'processing')) {
+      if (requestsRef.current.some((r) => r.status === 'pending' || r.status === 'processing')) {
         fetchData()
       }
     }, 5000)
     return () => clearInterval(interval)
-  }, [fetchData, requests])
+  }, [fetchData])
 
   const handleCreate = async (data: CreateReportRequest) => {
     try {
