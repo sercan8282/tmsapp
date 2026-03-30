@@ -1,6 +1,7 @@
 """Views for the smart chatbot."""
 import logging
 
+from django.http import HttpResponse
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -10,6 +11,7 @@ from apps.core.permissions import IsAdminOnly
 from .ai_service import chat
 from .models import ChatMessage, ChatSession
 from .serializers import (
+    ChatExportSerializer,
     ChatInputSerializer,
     ChatMessageSerializer,
     ChatSessionListSerializer,
@@ -92,6 +94,51 @@ class ChatSessionViewSet(viewsets.ModelViewSet):
             'user_message': ChatMessageSerializer(user_msg).data,
             'assistant_message': ChatMessageSerializer(assistant_msg).data,
         })
+
+    # ------------------------------------------------------------------
+    # POST /api/chat/sessions/export/  (export data to Excel or PDF)
+    # ------------------------------------------------------------------
+
+    @action(detail=False, methods=['post'], url_path='export')
+    def export_data(self, request):
+        """
+        Export chat data (columns + rows) to Excel or PDF.
+        Reuses the reports module generators.
+        """
+        serializer = ChatExportSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        title = serializer.validated_data['title']
+        columns = serializer.validated_data['columns']
+        rows = serializer.validated_data['rows']
+        fmt = serializer.validated_data['format']
+
+        # Sanitise title for use in filename
+        safe_title = ''.join(c for c in title if c.isalnum() or c in ' _-')[:50] or 'export'
+
+        try:
+            if fmt == 'excel':
+                from apps.reports.excel_generator import generate_excel
+                file_bytes = generate_excel(title, columns, rows)
+                content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                ext = 'xlsx'
+            else:
+                from apps.reports.pdf_generator import generate_pdf
+                file_bytes = generate_pdf(title, columns, rows)
+                content_type = 'application/pdf'
+                ext = 'pdf'
+
+            response = HttpResponse(file_bytes, content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="{safe_title}.{ext}"'
+            return response
+
+        except Exception as exc:
+            logger.exception("Chat export failed")
+            return Response(
+                {'error': f'Export mislukt: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     # ------------------------------------------------------------------
     # POST /api/chat/message/  (quick send – session optional)

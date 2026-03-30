@@ -72,3 +72,25 @@ export async function sendMessage(
   })
   return res.data
 }
+
+/** Export chat data (columns + rows) to Excel or PDF and trigger download */
+export async function exportChatData(
+  data: { title: string; columns: string[]; rows: unknown[][] },
+  format: 'excel' | 'pdf',
+): Promise<void> {
+  const res = await api.post(
+    '/chat/sessions/export/',
+    { ...data, format },
+    { responseType: 'blob' },
+  )
+  const ext = format === 'excel' ? 'xlsx' : 'pdf'
+  const blob = new Blob([res.data])
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${data.title || 'export'}.${ext}`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+}

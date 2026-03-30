@@ -15,6 +15,7 @@ import {
   ChevronUpIcon,
   Bars3Icon,
   XMarkIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import {
@@ -22,6 +23,7 @@ import {
   getChatSession,
   deleteChatSession,
   sendMessage,
+  exportChatData,
   ChatSession,
   ChatMessage,
   ChatData,
@@ -30,16 +32,33 @@ import {
 // ---- Data table component (for structured AI results) ----
 function DataTable({ data }: { data: ChatData }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
 
   if (!data.columns || !data.rows) return null
 
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    if (!data.columns || !data.rows) return
+    setExporting(format)
+    try {
+      await exportChatData(
+        { title: data.title || 'Overzicht', columns: data.columns, rows: data.rows },
+        format,
+      )
+      toast.success(format === 'excel' ? 'Excel gedownload' : 'PDF gedownload')
+    } catch {
+      toast.error('Export mislukt')
+    } finally {
+      setExporting(null)
+    }
+  }
+
   return (
     <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden text-sm">
-      <button
-        onClick={() => setCollapsed(v => !v)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left font-medium text-gray-700"
-      >
-        <span className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-3 py-2 bg-gray-50">
+        <button
+          onClick={() => setCollapsed(v => !v)}
+          className="flex items-center gap-2 hover:bg-gray-100 rounded px-1 py-0.5 text-left font-medium text-gray-700"
+        >
           <TableCellsIcon className="w-4 h-4 text-indigo-500" />
           {data.title || 'Resultaat'}
           <span className="text-xs text-gray-400 font-normal">
@@ -48,13 +67,33 @@ function DataTable({ data }: { data: ChatData }) {
           {data.truncated && (
             <span className="text-xs text-amber-600 font-normal">(eerste 50 getoond)</span>
           )}
-        </span>
-        {collapsed ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4" />
-        )}
-      </button>
+          {collapsed ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4" />
+          )}
+        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => handleExport('excel')}
+            disabled={exporting !== null}
+            title="Exporteer naar Excel"
+            className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+          >
+            <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+            {exporting === 'excel' ? '...' : 'Excel'}
+          </button>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting !== null}
+            title="Exporteer naar PDF"
+            className="flex items-center gap-1 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+          >
+            <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+            {exporting === 'pdf' ? '...' : 'PDF'}
+          </button>
+        </div>
+      </div>
       {!collapsed && (
         <div className="overflow-x-auto max-h-80">
           <table className="min-w-full divide-y divide-gray-200">
@@ -491,6 +530,7 @@ export default function ChatPage() {
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">TMS AI Assistent</h2>
                 <p className="text-gray-500 text-sm">
                   Ik kan uw TMS data opvragen, analyseren en overzichten tonen.
+                  U kunt overzichten ook exporteren naar Excel of PDF.
                   Stel me een vraag of kies een van de suggesties hieronder.
                 </p>
               </div>
