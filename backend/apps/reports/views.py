@@ -8,8 +8,9 @@ from django.http import FileResponse, HttpResponse
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from apps.core.permissions import IsAdminOnly
 
 from .excel_generator import generate_excel
 from .models import ReportOutputFormat, ReportRequest, ReportStatus, ReportType
@@ -287,7 +288,7 @@ class ReportRequestViewSet(viewsets.ModelViewSet):
     Supports creating, listing, retrieving, and processing report requests.
     Reports can be generated as on-screen data, Excel, or PDF.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOnly]
 
     def get_serializer_class(self):
         if self.action == 'create':
