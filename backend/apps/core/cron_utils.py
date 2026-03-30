@@ -6,13 +6,28 @@ Uses subprocess to manage crontab entries for the current user.
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 
 logger = logging.getLogger(__name__)
 
 # Unique comment identifier to find our cron entry
 CRON_COMMENT = 'tmsapp_driver_reminders'
+
+
+def _get_crontab_executable():
+    """Find the crontab executable, checking common locations."""
+    # First try PATH
+    path = shutil.which('crontab')
+    if path:
+        return path
+    # Fall back to common locations on Linux/macOS
+    for candidate in ('/usr/bin/crontab', '/bin/crontab', '/usr/local/bin/crontab'):
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
 
 
 def _get_manage_py_path():
@@ -30,30 +45,69 @@ def _get_python_path():
 
 def _get_current_crontab():
     """Get the current user's crontab entries."""
+    crontab_exe = _get_crontab_executable()
+    if not crontab_exe:
+        logger.error('crontab executable not found on this system')
+        return ''
     try:
         result = subprocess.run(
-            ['crontab', '-l'],
+            [crontab_exe, '-l'],
             capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0:
             return result.stdout
-        # No crontab for user
+        # Exit code 1 typically means "no crontab for user" – not an error
+        stderr = result.stderr.strip()
+        if stderr and 'no crontab for' not in stderr.lower():
+            logger.warning('crontab -l returned rc=%d: %s', result.returncode, stderr)
         return ''
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except subprocess.TimeoutExpired:
+        logger.error('crontab -l timed out')
+        return ''
+    except FileNotFoundError:
+        logger.error('crontab executable not found: %s', crontab_exe)
         return ''
 
 
 def _set_crontab(content):
-    """Set the current user's crontab."""
-    try:
-        result = subprocess.run(
-            ['crontab', '-'],
-            input=content, capture_output=True, text=True, timeout=10
-        )
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        logger.error(f'Failed to set crontab: {e}')
+    """Set the current user's crontab using a temporary file."""
+    crontab_exe = _get_crontab_executable()
+    if not crontab_exe:
+        logger.error('crontab executable not found – cannot set crontab')
         return False
+    tmpfile = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode='w', suffix='.crontab', delete=False
+        ) as f:
+            tmpfile = f.name
+            f.write(content)
+        result = subprocess.run(
+            [crontab_exe, tmpfile],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode != 0:
+            logger.error(
+                'Failed to set crontab (rc=%d): %s',
+                result.returncode,
+                result.stderr.strip(),
+            )
+        return result.returncode == 0
+    except subprocess.TimeoutExpired:
+        logger.error('crontab timed out while setting crontab')
+        return False
+    except FileNotFoundError:
+        logger.error('crontab executable not found: %s', crontab_exe)
+        return False
+    except Exception as e:
+        logger.error('Unexpected error setting crontab: %s', e)
+        return False
+    finally:
+        if tmpfile and os.path.exists(tmpfile):
+            try:
+                os.unlink(tmpfile)
+            except OSError:
+                pass
 
 
 def _remove_our_entry(crontab_content):
@@ -178,9 +232,15 @@ def sync_cron_job(settings):
                 'message': 'Cron job verwijderd (herinneringen zijn uitgeschakeld).',
                 'status': get_cron_status(),
             }
+        crontab_exe = _get_crontab_executable()
+        if crontab_exe:
+            detail = 'Controleer de server logs voor meer details.'
+        else:
+            detail = 'crontab executable niet gevonden.'
         return {
             'success': False,
             'message': 'Kon de cron job niet verwijderen.',
+            'detail': detail,
             'status': get_cron_status(),
         }
 
@@ -200,9 +260,19 @@ def sync_cron_job(settings):
             'message': 'Cron job succesvol aangemaakt/bijgewerkt.',
             'status': get_cron_status(),
         }
+    crontab_exe = _get_crontab_executable()
+    if crontab_exe:
+        detail = (
+            'Controleer de server logs voor meer details. '
+            'Zorg dat de service gebruiker crontab-rechten heeft '
+            '(niet vermeld in /etc/cron.deny, of opgenomen in /etc/cron.allow).'
+        )
+    else:
+        detail = 'crontab executable niet gevonden.'
     return {
         'success': False,
         'message': 'Kon de cron job niet aanmaken. Controleer de server permissies.',
+        'detail': detail,
         'status': get_cron_status(),
     }
 
