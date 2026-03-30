@@ -380,6 +380,16 @@ create_service_user() {
     if ! id "$SERVICE_USER" &>/dev/null; then
         useradd -r -m -s /bin/bash "$SERVICE_USER"
     fi
+
+    # Ensure the service user can manage its own crontab.
+    # If /etc/cron.allow exists, only users listed there may use crontab.
+    if [ -f /etc/cron.allow ]; then
+        grep -qxF "$SERVICE_USER" /etc/cron.allow || echo "$SERVICE_USER" >> /etc/cron.allow
+    fi
+    # If /etc/cron.deny exists, make sure the service user is not listed there.
+    if [ -f /etc/cron.deny ]; then
+        sed -i "/^${SERVICE_USER}$/d" /etc/cron.deny
+    fi
 }
 
 # PostgreSQL setup
