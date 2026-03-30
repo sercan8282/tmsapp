@@ -125,12 +125,37 @@ def _crontab_to_expression(schedule):
     """Convert a Celery crontab to a human-readable cron expression."""
     if not isinstance(schedule, crontab):
         return str(schedule)
-    minute = schedule._orig_minute if hasattr(schedule, '_orig_minute') else '*'
-    hour = schedule._orig_hour if hasattr(schedule, '_orig_hour') else '*'
-    dom = schedule._orig_day_of_month if hasattr(schedule, '_orig_day_of_month') else '*'
-    month = schedule._orig_month_of_year if hasattr(schedule, '_orig_month_of_year') else '*'
-    dow = schedule._orig_day_of_week if hasattr(schedule, '_orig_day_of_week') else '*'
-    return f'{minute} {hour} {dom} {month} {dow}'
+    # Use the public repr and parse, or reconstruct from the schedule
+    # crontab stores the original values as sets; use repr for display
+    try:
+        minute = _format_cron_field(schedule.minute)
+        hour = _format_cron_field(schedule.hour)
+        dom = _format_cron_field(schedule.day_of_month)
+        month = _format_cron_field(schedule.month_of_year)
+        dow = _format_cron_field(schedule.day_of_week)
+        return f'{minute} {hour} {dom} {month} {dow}'
+    except (AttributeError, TypeError):
+        return str(schedule)
+
+
+def _format_cron_field(field_set):
+    """Format a Celery crontab field set to a cron expression part."""
+    if not field_set:
+        return '*'
+    # Celery crontab fields are sets of integers
+    all_values = sorted(field_set)
+    # Detect if it covers all values (wildcard)
+    if len(all_values) >= 60:  # minute field covers all
+        return '*'
+    if len(all_values) >= 24 and max(all_values) <= 23:  # hour field covers all
+        return '*'
+    if len(all_values) >= 7 and max(all_values) <= 6:  # dow field covers all
+        return '*'
+    if len(all_values) >= 12 and max(all_values) <= 12:  # month field covers all
+        return '*'
+    if len(all_values) >= 31 and max(all_values) <= 31:  # dom field covers all
+        return '*'
+    return ','.join(str(v) for v in all_values)
 
 
 def sync_cron_job(settings):
@@ -139,6 +164,11 @@ def sync_cron_job(settings):
 
     If reminders are enabled, adds/updates the beat schedule entry.
     If reminders are disabled, removes the beat schedule entry.
+
+    Note: Runtime schedule changes take effect immediately for the running
+    celery-beat process. The management command also checks reminder_enabled
+    and frequency settings as a safety net, so even if celery-beat restarts
+    and loses the runtime changes, reminders will still respect the settings.
 
     Args:
         settings: AppSettings instance

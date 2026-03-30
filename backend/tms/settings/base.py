@@ -5,6 +5,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from celery.schedules import crontab
 from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -269,8 +270,6 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_ENABLE_UTC = True
 
 # Celery Beat Schedule
-from celery.schedules import crontab  # noqa: E402
-
 CELERY_BEAT_SCHEDULE = {
     'process-scheduled-notifications': {
         'task': 'apps.notifications.tasks.process_scheduled_notifications',
