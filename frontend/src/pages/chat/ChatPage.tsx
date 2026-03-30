@@ -88,9 +88,27 @@ function DataTable({ data }: { data: ChatData }) {
   )
 }
 
+// Strip Markdown table content from text when a data table is already shown
+function cleanAssistantText(content: string, hasData: boolean): string {
+  if (!hasData || !content) return content
+  // Remove Markdown table blocks (lines containing | ... | or table separator lines like |---|---|)
+  const lines = content.split('\n')
+  const cleaned = lines.filter(line => {
+    const trimmed = line.trim()
+    // Skip table rows: lines that start and end with |
+    if (/^\|.*\|$/.test(trimmed)) return false
+    // Skip table separator lines: lines only containing |, -, :, and spaces
+    if (/^[\s|:\-]+$/.test(trimmed) && trimmed.includes('|')) return false
+    return true
+  })
+  return cleaned.join('\n').trim()
+}
+
 // ---- Single message bubble ----
 function MessageBubble({ msg }: { msg: ChatMessage }) {
   const isUser = msg.role === 'user'
+  const hasData = !!(msg.data && !msg.data.error && msg.data.columns && msg.data.rows)
+  const displayContent = isUser ? msg.content : cleanAssistantText(msg.content, hasData)
 
   return (
     <div className={`flex gap-2 sm:gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -101,15 +119,17 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         {isUser ? 'J' : <SparklesIcon className="w-4 h-4" />}
       </div>
       <div className={`max-w-[85%] sm:max-w-[80%] ${isUser ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-        <div
-          className={`rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 text-sm leading-relaxed
-            ${isUser
-              ? 'bg-indigo-600 text-white rounded-tr-sm'
-              : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
-            }`}
-        >
-          <p className="whitespace-pre-wrap">{msg.content}</p>
-        </div>
+        {displayContent && (
+          <div
+            className={`rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 text-sm leading-relaxed
+              ${isUser
+                ? 'bg-indigo-600 text-white rounded-tr-sm'
+                : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
+              }`}
+          >
+            <p className="whitespace-pre-wrap">{displayContent}</p>
+          </div>
+        )}
         {msg.data && !msg.data.error && <DataTable data={msg.data} />}
         <span className="text-xs text-gray-400 px-1">
           {new Date(msg.created_at).toLocaleTimeString('nl-NL', {
