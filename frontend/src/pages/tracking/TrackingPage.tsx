@@ -16,8 +16,6 @@ import {
   MapPinIcon,
   ArrowPathIcon,
   TruckIcon,
-  ClockIcon,
-  ChevronRightIcon,
   XMarkIcon,
   MagnifyingGlassIcon,
   PlayIcon,
@@ -524,121 +522,6 @@ function VehicleMonitorPanel({
           )}
         </>
       )}
-    </div>
-  )
-}
-
-// ====== History Panel ======
-function HistoryPanel({
-  onSelectRoute,
-}: {
-  onSelectRoute: (route: RouteHistory | null) => void
-}) {
-  const { t } = useTranslation()
-  const [sessions, setSessions] = useState<TrackingSession[]>([])
-  const [loading, setLoading] = useState(false)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [loadingRoute, setLoadingRoute] = useState(false)
-
-  useEffect(() => {
-    loadSessions()
-  }, [])
-
-  const loadSessions = async () => {
-    setLoading(true)
-    try {
-      const data = await trackingApi.getSessionHistory()
-      setSessions(data)
-    } catch (err) {
-      console.error('Failed to load history:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSelectSession = async (sessionId: string) => {
-    if (selectedId === sessionId) {
-      setSelectedId(null)
-      onSelectRoute(null)
-      return
-    }
-    
-    setSelectedId(sessionId)
-    setLoadingRoute(true)
-    try {
-      const route = await trackingApi.getSessionRoute(sessionId)
-      onSelectRoute(route)
-    } catch (err) {
-      console.error('Failed to load route:', err)
-    } finally {
-      setLoadingRoute(false)
-    }
-  }
-
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('nl-NL', {
-      day: '2-digit', month: '2-digit',
-      hour: '2-digit', minute: '2-digit',
-    })
-  }
-
-  return (
-    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-      <div className="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-          <ClockIcon className="h-4 w-4 text-gray-500" />
-          {t('tracking.routeHistory')}
-        </h3>
-        <button
-          onClick={loadSessions}
-          className="p-1 text-gray-500 hover:text-gray-700 rounded"
-        >
-          <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
-
-      <div className="divide-y max-h-[200px] sm:max-h-[300px] overflow-y-auto">
-        {loading ? (
-          <div className="p-4 text-center text-sm text-gray-500">
-            <ArrowPathIcon className="h-5 w-5 animate-spin mx-auto mb-1" />
-            {t('common.loading')}
-          </div>
-        ) : sessions.length === 0 ? (
-          <div className="p-4 text-center text-sm text-gray-500">
-            {t('tracking.noHistory')}
-          </div>
-        ) : (
-          sessions.map(s => (
-            <button
-              key={s.id}
-              onClick={() => handleSelectSession(s.id)}
-              className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
-                selectedId === s.id ? 'bg-primary-50 border-l-2 border-primary-600' : ''
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-gray-900 truncate">
-                    {s.vehicle_kenteken || s.user_name}
-                  </div>
-                  <div className="text-[10px] text-gray-500">
-                    {formatTime(s.started_at)}
-                    {s.ended_at && ` — ${formatTime(s.ended_at)}`}
-                  </div>
-                  <div className="text-[10px] text-gray-400">
-                    {Math.round(s.duration_minutes)} {t('tracking.minutes')}
-                  </div>
-                </div>
-                {loadingRoute && selectedId === s.id ? (
-                  <ArrowPathIcon className="h-3.5 w-3.5 animate-spin text-primary-600 shrink-0" />
-                ) : (
-                  <ChevronRightIcon className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                )}
-              </div>
-            </button>
-          ))
-        )}
-      </div>
     </div>
   )
 }
