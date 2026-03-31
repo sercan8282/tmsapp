@@ -31,4 +31,7 @@ urlpatterns = [
 
     # FM-Track vehicle positions
     path('fm-positions/', views.FMTrackPositionsView.as_view(), name='fm-track-positions'),
+
+    # FM-Track vehicle detail with trip history
+    path('fm-positions/<str:object_id>/detail/', views.VehicleDetailView.as_view(), name='fm-vehicle-detail'),
 ]

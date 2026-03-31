@@ -29,6 +29,7 @@ import { trackingApi, type LiveVehicle, type TrackingSession, type TrackingVehic
 import { useGPSTracking } from '@/hooks/useGPSTracking'
 import { useLocationPermission } from '@/hooks/useLocationPermission'
 import { LocationPermissionDialog, LocationDeniedBanner } from '@/components/tracking/LocationPermission'
+import VehicleDetailPanel from '@/components/tracking/VehicleDetailPanel'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -652,6 +653,7 @@ export default function TrackingPage() {
   const [assignedVehicle, setAssignedVehicle] = useState<{ vehicle: TrackingVehicle; driver_naam: string } | null>(null)
   const [selectedRoute, setSelectedRoute] = useState<RouteHistory | null>(null)
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
+  const [selectedFMObject, setSelectedFMObject] = useState<{ objectId: string; plateNumber: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -886,7 +888,22 @@ export default function TrackingPage() {
                       key={v.session_id}
                       onClick={() => {
                         const id = v.vehicle_id || v.session_id
-                        handleSelectVehicle(selectedVehicleId === id ? null : id)
+                        const isFM = v.session_id.startsWith('fm-')
+                        if (selectedVehicleId === id) {
+                          handleSelectVehicle(null)
+                          setSelectedFMObject(null)
+                        } else {
+                          handleSelectVehicle(id)
+                          if (isFM) {
+                            const fmObjectId = v.session_id.replace('fm-', '')
+                            setSelectedFMObject({
+                              objectId: fmObjectId,
+                              plateNumber: v.vehicle_kenteken || v.user_name || '',
+                            })
+                          } else {
+                            setSelectedFMObject(null)
+                          }
+                        }
                       }}
                       className={`w-full px-3 py-2.5 text-left hover:bg-gray-50 transition-colors ${
                         isSelected ? 'bg-primary-50 border-l-2 border-primary-600' : ''
@@ -939,12 +956,20 @@ export default function TrackingPage() {
             </div>
           )}
 
-          {/* Route history (admin only) */}
-          {isAdmin && (
-            <HistoryPanel onSelectRoute={setSelectedRoute} />
-          )}
         </div>
       </div>
+
+      {/* Vehicle detail panel — shown below the map when an FM-Track vehicle is selected */}
+      {isAdmin && selectedFMObject && (
+        <VehicleDetailPanel
+          objectId={selectedFMObject.objectId}
+          platNumber={selectedFMObject.plateNumber}
+          onClose={() => {
+            setSelectedFMObject(null)
+            setSelectedVehicleId(null)
+          }}
+        />
+      )}
     </div>
   )
 }

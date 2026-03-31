@@ -613,3 +613,150 @@ class TachographManualSyncView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class VehicleDetailView(APIView):
+    """
+    GET /api/tracking/fm-positions/<object_id>/detail/?date=YYYY-MM-DD
+    Returns detailed trip history for a specific FM-Track vehicle on a given date.
+    Includes: current position, odometer, speed, trips with addresses, max speed per trip.
+    """
+    permission_classes = [IsAdminOrManager]
+
+    def get(self, request, object_id):
+        from datetime import datetime as dt, date as date_type
+        from apps.tracking.tachograph_service import (
+            get_trips, get_objects, get_vehicle_locations, FMTrackError,
+            _format_address, _format_duration,
+        )
+
+        date_str = request.query_params.get('date')
+        if not date_str:
+            date_str = date_type.today().isoformat()
+
+        try:
+            dt.strptime(date_str, '%Y-%m-%d')
+        except ValueError:
+            return Response(
+                {'error': 'Ongeldig datumformaat. Gebruik YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target_date = dt.strptime(date_str, '%Y-%m-%d').date()
+        date_from = dt(target_date.year, target_date.month, target_date.day, 0, 0, 0)
+        date_till = dt(target_date.year, target_date.month, target_date.day, 23, 59, 59)
+
+        try:
+            # Fetch trips for this vehicle on this date
+            trips_raw = get_trips(object_id, date_from, date_till)
+
+            # Filter to target date
+            trips_filtered = []
+            for trip in trips_raw:
+                trip_start_dt = trip.get('trip_start', {}).get('datetime', '')
+                if trip_start_dt and trip_start_dt[:10] == date_str:
+                    trips_filtered.append(trip)
+
+            # Get current live position for this vehicle
+            current_position = None
+            try:
+                positions = get_vehicle_locations()
+                for pos in positions:
+                    if pos.get('object_id') == object_id:
+                        current_position = pos
+                        break
+            except FMTrackError:
+                pass
+
+            # Get vehicle info from objects
+            vehicle_info = None
+            try:
+                objects = get_objects()
+                for obj in objects:
+                    if obj.get('id') == object_id:
+                        vp = obj.get('vehicle_params', {})
+                        vehicle_info = {
+                            'name': obj.get('name', ''),
+                            'plate_number': vp.get('plate_number') or obj.get('name', ''),
+                            'make': vp.get('make', ''),
+                            'model': vp.get('model', ''),
+                        }
+                        break
+            except FMTrackError:
+                pass
+
+            # Build trip details
+            trip_details = []
+            total_distance = 0
+            total_duration_seconds = 0
+            max_speed_overall = 0
+
+            for trip in trips_filtered:
+                start_info = trip.get('trip_start', {})
+                end_info = trip.get('trip_end', {})
+                duration = trip.get('trip_duration', 0)
+                total_duration_seconds += duration
+
+                start_mileage = start_info.get('mileage', 0)
+                end_mileage = end_info.get('mileage', 0)
+                distance_km = round(trip.get('mileage', 0) / 1000, 1)
+                total_distance += distance_km
+
+                # FM-Track provides max_speed in trip data (m/s or km/h depending on API version)
+                trip_max_speed = trip.get('max_speed', 0)
+                # Convert from m/s to km/h if needed (FM-Track v1 uses km/h)
+                if trip_max_speed > max_speed_overall:
+                    max_speed_overall = trip_max_speed
+
+                # Speed limit check: >130 km/h is considered speeding in NL
+                is_speeding = trip_max_speed > 130
+
+                trip_details.append({
+                    'start_time': start_info.get('datetime', ''),
+                    'end_time': end_info.get('datetime', ''),
+                    'start_address': _format_address(start_info.get('address')),
+                    'end_address': _format_address(end_info.get('address')),
+                    'start_km': round(start_mileage / 1000, 1) if start_mileage else 0,
+                    'end_km': round(end_mileage / 1000, 1) if end_mileage else 0,
+                    'distance_km': distance_km,
+                    'duration_seconds': duration,
+                    'duration_display': _format_duration(duration),
+                    'max_speed': round(trip_max_speed),
+                    'is_speeding': is_speeding,
+                })
+
+            # Current odometer from last trip or position
+            current_km = 0
+            if trip_details:
+                current_km = trip_details[-1]['end_km']
+            elif current_position and current_position.get('mileage'):
+                current_km = round(current_position['mileage'] / 1000, 1)
+
+            result = {
+                'object_id': object_id,
+                'date': date_str,
+                'vehicle': vehicle_info,
+                'current_position': {
+                    'latitude': current_position.get('latitude'),
+                    'longitude': current_position.get('longitude'),
+                    'speed': current_position.get('speed', 0),
+                    'address': current_position.get('address', ''),
+                    'vehicle_status': current_position.get('vehicle_status', 'parked'),
+                    'fuel_level': current_position.get('fuel_level', 0),
+                    'fuel_remaining_km': current_position.get('fuel_remaining_km'),
+                    'heading': current_position.get('heading'),
+                    'timestamp': current_position.get('timestamp', ''),
+                } if current_position else None,
+                'odometer_km': current_km,
+                'total_distance_km': round(total_distance, 1),
+                'total_duration_seconds': total_duration_seconds,
+                'total_duration_display': _format_duration(total_duration_seconds),
+                'max_speed': round(max_speed_overall),
+                'trip_count': len(trip_details),
+                'trips': trip_details,
+            }
+
+            return Response(result)
+
+        except FMTrackError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

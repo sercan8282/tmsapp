@@ -96,6 +96,49 @@ export interface LocationSubmitResult {
   rejected: number
 }
 
+export interface VehicleDetailTrip {
+  start_time: string
+  end_time: string
+  start_address: string
+  end_address: string
+  start_km: number
+  end_km: number
+  distance_km: number
+  duration_seconds: number
+  duration_display: string
+  max_speed: number
+  is_speeding: boolean
+}
+
+export interface VehicleDetail {
+  object_id: string
+  date: string
+  vehicle: {
+    name: string
+    plate_number: string
+    make: string
+    model: string
+  } | null
+  current_position: {
+    latitude: number
+    longitude: number
+    speed: number
+    address: string
+    vehicle_status: 'driving' | 'idle' | 'parked'
+    fuel_level: number
+    fuel_remaining_km: number | null
+    heading: number | null
+    timestamp: string
+  } | null
+  odometer_km: number
+  total_distance_km: number
+  total_duration_seconds: number
+  total_duration_display: string
+  max_speed: number
+  trip_count: number
+  trips: VehicleDetailTrip[]
+}
+
 // ============ API Functions ============
 
 export const trackingApi = {
@@ -169,5 +212,13 @@ export const trackingApi = {
   getFMTrackPositions: async (): Promise<FMTrackPosition[]> => {
     const response = await api.get('/tracking/fm-positions/')
     return response.data.positions || []
+  },
+
+  // FM-Track vehicle detail with trip history
+  getVehicleDetail: async (objectId: string, date?: string): Promise<VehicleDetail> => {
+    const params: Record<string, string> = {}
+    if (date) params.date = date
+    const response = await api.get(`/tracking/fm-positions/${objectId}/detail/`, { params })
+    return response.data
   },
 }
