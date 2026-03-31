@@ -1,7 +1,33 @@
 """
 Custom permission classes for TMS.
 """
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.permissions import BasePermission
+
+
+class HasModulePermission(BasePermission):
+    """
+    Permission that checks the user's module_permissions.
+    Admins always pass. Non-admin users need the specified permission code.
+    
+    Usage:
+        class MyView(APIView):
+            permission_classes = [IsAuthenticated, HasModulePermission]
+            module_permission = 'view_invoices'
+    """
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Admins/superusers bypass module permission checks
+        if request.user.is_superuser or request.user.rol == 'admin':
+            return True
+
+        required = getattr(view, 'module_permission', None)
+        if not required:
+            return True  # No permission configured on the view
+
+        return request.user.has_module_permission(required)
 
 
 class IsAdminOrManager(BasePermission):
@@ -45,6 +71,25 @@ class IsAdminOrManagerStrict(BasePermission):
         return request.user.rol in ['admin', 'gebruiker']
 
 
+class IsAdminOrLeaveManagerReadOnly(BasePermission):
+    """
+    Admins get full access. Users with can_manage_leave_for_all
+    module permission get read-only access (list/retrieve).
+    """
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        if request.user.is_superuser or request.user.rol == 'admin':
+            return True
+
+        if request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return request.user.has_module_permission('can_manage_leave_for_all')
+
+        return False
+
+
 class IsAdminOnly(BasePermission):
     """
     Permission that only allows admin role.
@@ -60,25 +105,6 @@ class IsAdminOnly(BasePermission):
         
         # Only admin role
         return request.user.rol == 'admin'
-
-
-class IsAdminOrLeaveManagerReadOnly(BasePermission):
-    """
-    Permission that allows admins full access and leave managers (users with
-    can_manage_leave_for_all permission) read-only access.
-    """
-
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-
-        if request.user.is_superuser or request.user.rol == 'admin':
-            return True
-
-        if 'can_manage_leave_for_all' in (request.user.module_permissions or []):
-            return request.method in SAFE_METHODS
-
-        return False
 
 
 class IsOwnerOrAdmin(BasePermission):

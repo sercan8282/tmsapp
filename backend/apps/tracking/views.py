@@ -390,3 +390,226 @@ class AssignedVehicleView(APIView):
         except Exception as e:
             logger.error(f"Failed to load assigned vehicle: {e}")
             return Response({'assigned': False}, status=status.HTTP_200_OK)
+
+
+class TachographOverviewView(APIView):
+    """
+    GET /api/tracking/tachograph/?date=YYYY-MM-DD
+    Returns tachograph trip data for all vehicles on the given date.
+    """
+    permission_classes = [IsAdminOrManager]
+
+    def get(self, request):
+        from .tachograph_service import get_tachograph_overview, FMTrackError
+        from datetime import date as date_type
+
+        date_str = request.query_params.get('date')
+        if not date_str:
+            date_str = date_type.today().isoformat()
+
+        # Validate date format
+        try:
+            from datetime import datetime
+            datetime.strptime(date_str, '%Y-%m-%d')
+        except ValueError:
+            return Response(
+                {'error': 'Ongeldig datumformaat. Gebruik YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            data = get_tachograph_overview(date_str)
+            return Response({'date': date_str, 'vehicles': data, 'count': len(data)})
+        except FMTrackError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TachographOvertimeWriteView(APIView):
+    """
+    POST /api/tracking/tachograph/overtime/
+    Write overtime hours from tachograph data to a driver.
+
+    Body: {
+        "driver_id": "<TMS driver UUID>",
+        "date": "YYYY-MM-DD",
+        "overtime_hours": 1.5,
+        "vehicle_name": "99-BRD-5",
+        "fm_driver_name": "Jan Scherpenisse"
+    }
+    """
+    permission_classes = [IsAdminOrManager]
+
+    def post(self, request):
+        from apps.drivers.models import Driver
+        from apps.tracking.models import TachographOvertime
+
+        driver_id = request.data.get('driver_id')
+        date_str = request.data.get('date')
+        overtime_hours = request.data.get('overtime_hours')
+        vehicle_name = request.data.get('vehicle_name', '')
+        fm_driver_name = request.data.get('fm_driver_name', '')
+
+        if not all([driver_id, date_str, overtime_hours]):
+            return Response(
+                {'error': 'driver_id, date en overtime_hours zijn verplicht.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            driver = Driver.objects.get(pk=driver_id)
+        except Driver.DoesNotExist:
+            return Response(
+                {'error': 'Chauffeur niet gevonden.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        overtime, created = TachographOvertime.objects.update_or_create(
+            driver=driver,
+            date=date_str,
+            defaults={
+                'overtime_hours': overtime_hours,
+                'vehicle_name': vehicle_name,
+                'fm_driver_name': fm_driver_name,
+                'created_by': request.user,
+            }
+        )
+
+        return Response({
+            'success': True,
+            'created': created,
+            'message': f'Overuren ({overtime_hours}u) {"aangemaakt" if created else "bijgewerkt"} voor {driver.naam}.',
+            'id': str(overtime.id),
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+class TachographOvertimeListView(APIView):
+    """
+    GET /api/tracking/tachograph/overtime/?driver_id=...&date_from=...&date_till=...
+    List tachograph overtime records.
+    """
+    permission_classes = [IsAdminOrManager]
+
+    def get(self, request):
+        from apps.tracking.models import TachographOvertime
+
+        qs = TachographOvertime.objects.select_related('driver').order_by('-date')
+
+        driver_id = request.query_params.get('driver_id')
+        if driver_id:
+            qs = qs.filter(driver_id=driver_id)
+
+        date_from = request.query_params.get('date_from')
+        if date_from:
+            qs = qs.filter(date__gte=date_from)
+
+        date_till = request.query_params.get('date_till')
+        if date_till:
+            qs = qs.filter(date__lte=date_till)
+
+        records = []
+        for ot in qs[:100]:
+            records.append({
+                'id': str(ot.id),
+                'driver_id': str(ot.driver_id),
+                'driver_naam': ot.driver.naam,
+                'date': ot.date.isoformat(),
+                'overtime_hours': float(ot.overtime_hours),
+                'vehicle_name': ot.vehicle_name,
+                'fm_driver_name': ot.fm_driver_name,
+                'created_at': ot.created_at.isoformat(),
+            })
+
+        return Response({'results': records, 'count': len(records)})
+
+
+class FMTrackPositionsView(APIView):
+    """
+    GET /api/tracking/fm-positions/
+    Returns last known positions of all FM-Track vehicles.
+    Matches FM-Track plate_number to TMS Vehicle kenteken for linking.
+    """
+    permission_classes = [IsAdminOrManager]
+
+    def get(self, request):
+        from apps.tracking.tachograph_service import get_vehicle_locations, FMTrackError
+        from apps.fleet.models import Vehicle
+
+        try:
+            positions = get_vehicle_locations()
+        except FMTrackError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Build a lookup of TMS vehicles by kenteken for enrichment
+        vehicle_lookup = {}
+        for v in Vehicle.objects.all():
+            if v.kenteken:
+                vehicle_lookup[v.kenteken.upper().replace('-', '')] = {
+                    'id': str(v.id),
+                    'kenteken': v.kenteken,
+                    'ritnummer': v.ritnummer,
+                }
+
+        # Enrich positions with TMS vehicle data
+        for pos in positions:
+            plate = (pos.get('plate_number') or '').upper().replace('-', '')
+            tms_vehicle = vehicle_lookup.get(plate)
+            if tms_vehicle:
+                pos['tms_vehicle'] = tms_vehicle
+            else:
+                pos['tms_vehicle'] = None
+
+        return Response({'positions': positions, 'count': len(positions)})
+
+
+class TachographVehiclesListView(APIView):
+    """
+    GET /api/tracking/tachograph/vehicles/
+    Returns a list of all FM-Track vehicle plate numbers.
+    Used for the tacho_kenteken dropdown in driver settings.
+    """
+    permission_classes = [IsAdminOrManager]
+
+    def get(self, request):
+        from apps.tracking.tachograph_service import get_objects, FMTrackError
+
+        try:
+            objects = get_objects()
+        except FMTrackError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        vehicles = []
+        for obj in objects:
+            vehicle_params = obj.get('vehicle_params', {})
+            plate = vehicle_params.get('plate_number') or obj.get('name', '')
+            vehicles.append({
+                'object_id': obj.get('id', ''),
+                'name': obj.get('name', ''),
+                'plate_number': plate,
+                'make': vehicle_params.get('make', ''),
+                'model': vehicle_params.get('model', ''),
+            })
+
+        vehicles.sort(key=lambda x: x['plate_number'])
+        return Response({'vehicles': vehicles, 'count': len(vehicles)})
+
+
+class TachographManualSyncView(APIView):
+    """
+    POST /api/tracking/tachograph/sync/
+    Manually trigger the tachograph hours sync task.
+    Returns the task result directly (synchronous).
+    """
+    permission_classes = [IsAdminOrManager]
+
+    def post(self, request):
+        from apps.tracking.tasks import sync_tachograph_hours
+
+        try:
+            result = sync_tachograph_hours()
+            return Response(result)
+        except Exception as e:
+            logger.exception('Manual tachograph sync failed')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

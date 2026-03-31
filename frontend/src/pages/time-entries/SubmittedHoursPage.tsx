@@ -2,7 +2,7 @@
  * Submitted Hours Page - For admins to view and edit all submitted hours
  * Full editing capabilities for all chauffeur time entries
  */
-import { useState, useEffect, useMemo, Fragment } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Dialog, Transition } from '@headlessui/react'
 import {
@@ -14,7 +14,6 @@ import {
   TruckIcon,
   CalendarDaysIcon,
   ChevronDownIcon,
-  ChevronRightIcon,
   DocumentArrowDownIcon,
   TableCellsIcon,
 } from '@heroicons/react/24/outline'
@@ -23,18 +22,17 @@ import autoTable from 'jspdf-autotable'
 import WeeklyHoursTab from './WeeklyHoursTab'
 import MonthlyHoursTab from './MonthlyHoursTab'
 import VehicleWeeksTab from './VehicleWeeksTab'
-import RitnummerHoursTab from './RitnummerHoursTab'
 import { TimeEntry } from '@/types'
 import {
   getTimeEntries,
   updateTimeEntry,
   WeekHistory,
   getWeekHistory,
-  getCurrentYear,
 } from '@/api/timetracking'
 import { getImportedEntries, ImportedTimeEntry } from '@/api/urenImport'
 import toast from 'react-hot-toast'
 import Pagination, { PageSize } from '@/components/common/Pagination'
+import { useAuthStore } from '@/stores/authStore'
 
 // Format duration to readable string
 function formatDuration(duration: string | null): string {
@@ -58,9 +56,11 @@ function formatDate(dateStr: string): string {
 
 export default function SubmittedHoursPage() {
   const { t } = useTranslation()
+  const { user } = useAuthStore()
+  const isDriver = user?.rol === 'chauffeur'
   
   // Tab state
-  const [activeTab, setActiveTab] = useState<'submitted' | 'weekly' | 'monthly' | 'vehicleWeeks' | 'ritnummer'>('submitted')
+  const [activeTab, setActiveTab] = useState<'submitted' | 'weekly' | 'monthly' | 'vehicleWeeks'>('submitted')
   
   // State
   const [loading, setLoading] = useState(true)
@@ -68,10 +68,8 @@ export default function SubmittedHoursPage() {
   const [filteredWeeks, setFilteredWeeks] = useState<WeekHistory[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'concept' | 'ingediend' | ''>('')
-  const [selectedYear, setSelectedYear] = useState(getCurrentYear())
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState<PageSize>(30)
-  const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
   
   // Week detail state
   const [showWeekModal, setShowWeekModal] = useState(false)
@@ -96,10 +94,10 @@ export default function SubmittedHoursPage() {
   })
   const [saving, setSaving] = useState(false)
 
-  // Load week history on mount and when status/year filter changes
+  // Load week history on mount and when status filter changes
   useEffect(() => {
     loadWeekHistory()
-  }, [statusFilter, selectedYear])
+  }, [statusFilter])
 
   // Filter weeks when search changes
   useEffect(() => {
@@ -123,7 +121,7 @@ export default function SubmittedHoursPage() {
   const loadWeekHistory = async () => {
     try {
       setLoading(true)
-      const history = await getWeekHistory(undefined, statusFilter || undefined, selectedYear)
+      const history = await getWeekHistory(undefined, statusFilter || undefined)
       // Sort by year and week descending
       const sorted = history.sort((a, b) => {
         if (a.jaar !== b.jaar) return b.jaar - a.jaar
@@ -552,40 +550,12 @@ export default function SubmittedHoursPage() {
     }
   }
 
-  // Group weeks by weeknummer+jaar for collapsible UI
-  const groupedWeeks = useMemo(() => {
-    const groups = new Map<string, { weeknummer: number; jaar: number; rows: WeekHistory[] }>()
-    filteredWeeks.forEach(week => {
-      const key = `${week.jaar}-${week.weeknummer}`
-      if (!groups.has(key)) {
-        groups.set(key, { weeknummer: week.weeknummer, jaar: week.jaar, rows: [] })
-      }
-      groups.get(key)!.rows.push(week)
-    })
-    return Array.from(groups.values()).sort((a, b) => {
-      if (a.jaar !== b.jaar) return b.jaar - a.jaar
-      return b.weeknummer - a.weeknummer
-    })
-  }, [filteredWeeks])
-
-  // Pagination on groups
-  const totalPages = Math.ceil(groupedWeeks.length / pageSize)
-  const paginatedGroups = groupedWeeks.slice(
+  // Pagination
+  const totalPages = Math.ceil(filteredWeeks.length / pageSize)
+  const paginatedWeeks = filteredWeeks.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   )
-
-  // Available years
-  const years = Array.from({ length: 5 }, (_, i) => getCurrentYear() - i).filter(y => y >= 2026)
-
-  const toggleWeekGroup = (key: string) => {
-    setExpandedWeeks(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
 
   return (
     <div>
@@ -596,7 +566,8 @@ export default function SubmittedHoursPage() {
         </div>
       </div>
 
-      {/* Desktop Tab navigation - hidden on mobile */}
+      {/* Desktop Tab navigation - hidden on mobile, hidden for drivers */}
+      {!isDriver && (
       <div className="hidden md:block mb-6 border-b border-gray-200">
         <nav className="-mb-px flex gap-6" aria-label="Tabs">
           <button
@@ -643,28 +614,18 @@ export default function SubmittedHoursPage() {
             <TruckIcon className="h-5 w-5" />
             {t('vehicleWeeks.title')}
           </button>
-          <button
-            onClick={() => setActiveTab('ritnummer')}
-            className={`flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
-              activeTab === 'ritnummer'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <TableCellsIcon className="h-5 w-5" />
-            {t('ritnummerHours.title')}
-          </button>
         </nav>
       </div>
+      )}
 
       {/* Mobile Accordion - hidden on desktop */}
+      {!isDriver && (
       <div className="md:hidden space-y-2 mb-4">
         {[
           { id: 'submitted' as const, name: t('timeEntries.submittedHoursTab'), icon: ClockIcon },
           { id: 'weekly' as const, name: t('weeklyHours.title'), icon: ChartBarIcon },
           { id: 'monthly' as const, name: t('monthlyHours.title'), icon: CalendarDaysIcon },
           { id: 'vehicleWeeks' as const, name: t('vehicleWeeks.title'), icon: TruckIcon },
-          { id: 'ritnummer' as const, name: t('ritnummerHours.title'), icon: TableCellsIcon },
         ].map((tab) => {
           const isOpen = activeTab === tab.id
           return (
@@ -686,21 +647,22 @@ export default function SubmittedHoursPage() {
                   {tab.id === 'weekly' && <WeeklyHoursTab />}
                   {tab.id === 'monthly' && <MonthlyHoursTab />}
                   {tab.id === 'vehicleWeeks' && <VehicleWeeksTab />}
-                  {tab.id === 'ritnummer' && <RitnummerHoursTab />}
                 </div>
               )}
             </div>
           )
         })}
       </div>
+      )}
 
       {/* Desktop tab content */}
+      {!isDriver && (
       <div className="hidden md:block">
         {activeTab === 'weekly' && <WeeklyHoursTab />}
         {activeTab === 'monthly' && <MonthlyHoursTab />}
         {activeTab === 'vehicleWeeks' && <VehicleWeeksTab />}
-        {activeTab === 'ritnummer' && <RitnummerHoursTab />}
       </div>
+      )}
 
       {/* Submitted Hours Tab */}
       {activeTab === 'submitted' && <>
@@ -718,28 +680,15 @@ export default function SubmittedHoursPage() {
                 className="form-input pl-10 w-full"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {years.map(y => (
-                <button
-                  key={y}
-                  onClick={() => { setSelectedYear(y); setCurrentPage(1) }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedYear === y ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {([{ value: '', label: t('timeEntries.allStatuses') }, { value: 'concept', label: t('timeEntries.concept') }, { value: 'ingediend', label: t('timeEntries.submitted') }] as const).map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => setStatusFilter(opt.value as 'concept' | 'ingediend' | '')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${statusFilter === opt.value ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'concept' | 'ingediend' | '')}
+              className="form-select sm:w-48"
+            >
+              <option value="">{t('timeEntries.allStatuses')}</option>
+              <option value="concept">{t('timeEntries.concept')}</option>
+              <option value="ingediend">{t('timeEntries.submitted')}</option>
+            </select>
           </div>
         </div>
       </div>
@@ -750,7 +699,7 @@ export default function SubmittedHoursPage() {
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
           </div>
-        ) : paginatedGroups.length === 0 ? (
+        ) : paginatedWeeks.length === 0 ? (
           <div className="p-8 text-center">
             <ClockIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">{t('timeEntries.noSubmittedHours')}</p>
@@ -758,101 +707,69 @@ export default function SubmittedHoursPage() {
         ) : (
           <>
             {/* Desktop Table */}
-            <div className="hidden md:block space-y-3">
-              {paginatedGroups.map((group) => {
-                const groupKey = `${group.jaar}-${group.weeknummer}`
-                const isExpanded = expandedWeeks.has(groupKey)
-                const grpTrips = group.rows.reduce((s, r) => s + r.entries_count, 0)
-                const grpKm = group.rows.reduce((s, r) => s + r.totaal_km, 0)
-                return (
-                  <div key={groupKey} className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                    <button
-                      onClick={() => toggleWeekGroup(groupKey)}
-                      className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        {isExpanded ? <ChevronDownIcon className="h-4 w-4 text-gray-500" /> : <ChevronRightIcon className="h-4 w-4 text-gray-500" />}
-                        <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-primary-100 text-primary-700 font-bold text-sm">{group.weeknummer}</span>
-                        <span className="text-sm font-medium text-gray-700">Week {group.weeknummer}</span>
-                        <span className="text-xs text-gray-400">{group.jaar}</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>{group.rows.length} chauffeurs</span>
-                        <span>{grpTrips} ritten</span>
-                        <span className="font-medium text-gray-700">{grpKm} km</span>
-                      </div>
-                    </button>
-                    {isExpanded && (
-                      <div className="border-t overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('common.week')}</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('common.year')}</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('drivers.title')}</th>
-                              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">{t('timeEntries.trips')}</th>
-                              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">{t('timeEntries.totalKm')}</th>
-                              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">{t('common.actions')}</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {group.rows.map((week) => (
-                              <tr key={`${week.user_id}-${week.jaar}-${week.weeknummer}`} className="hover:bg-gray-50">
-                                <td className="px-4 py-2 whitespace-nowrap">
-                                  <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-primary-100 text-primary-700 font-bold text-xs">
-                                    {week.weeknummer}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                                  {week.jaar}
-                                </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {week.user__voornaam} {week.user__achternaam}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-right">
-                                  {week.entries_count}
-                                </td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-right font-medium">
-                                  {week.totaal_km} km
-                                </td>
-                                <td className="px-4 py-2 whitespace-nowrap text-right">
-                                  <button
-                                    onClick={() => handleViewWeek(week)}
-                                    className="btn-secondary text-sm"
-                                  >
-                                    {t('timeEntries.viewEdit')}
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t('common.week')}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t('common.year')}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t('drivers.title')}
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t('timeEntries.trips')}
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t('timeEntries.totalKm')}
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t('common.actions')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {paginatedWeeks.map((week) => (
+                    <tr key={`${week.user_id}-${week.jaar}-${week.weeknummer}`} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary-100 text-primary-700 font-bold">
+                          {week.weeknummer}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {week.jaar}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {week.user__voornaam} {week.user__achternaam}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                        {week.ingediend_count}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
+                        {week.totaal_km} km
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <button
+                          onClick={() => handleViewWeek(week)}
+                          className="btn-secondary text-sm"
+                        >
+                          {t('timeEntries.viewEdit')}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             {/* Mobile Card View */}
             <div className="md:hidden divide-y divide-gray-200">
-              {paginatedGroups.map((group) => {
-                const groupKey = `${group.jaar}-${group.weeknummer}`
-                const isExpanded = expandedWeeks.has(groupKey)
-                const grpTrips = group.rows.reduce((s, r) => s + r.entries_count, 0)
-                const grpKm = group.rows.reduce((s, r) => s + r.totaal_km, 0)
-                return (
-                  <div key={`m-${groupKey}`}>
-                    <div className="px-3 py-2.5 bg-gray-50 flex items-center gap-2 cursor-pointer active:bg-gray-100" onClick={() => toggleWeekGroup(groupKey)}>
-                      {isExpanded ? <ChevronDownIcon className="h-4 w-4 text-gray-500" /> : <ChevronRightIcon className="h-4 w-4 text-gray-500" />}
-                      <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-primary-100 text-primary-700 font-bold text-xs">{group.weeknummer}</span>
-                      <span className="text-sm font-medium text-gray-700">Week {group.weeknummer}</span>
-                      <span className="text-xs text-gray-400">{group.jaar}</span>
-                      <span className="ml-auto text-xs text-gray-400">{group.rows.length} • {grpTrips} ritten • {grpKm} km</span>
-                    </div>
-                    {isExpanded && group.rows.map((week) => (
+              {paginatedWeeks.map((week) => (
                 <div key={`${week.user_id}-${week.jaar}-${week.weeknummer}`} className="p-3 hover:bg-gray-50">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary-100 text-primary-700 font-bold">
@@ -866,10 +783,10 @@ export default function SubmittedHoursPage() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-x-3 text-xs mb-2 ml-0 sm:ml-13">
+                  <div className="grid grid-cols-2 gap-x-4 text-xs mb-2 ml-13">
                     <div>
                       <span className="text-gray-500">{t('timeEntries.trips')}: </span>
-                      <span className="font-medium">{week.entries_count}</span>
+                      <span className="font-medium">{week.ingediend_count}</span>
                     </div>
                     <div>
                       <span className="text-gray-500">{t('timeEntries.km')}: </span>
@@ -884,20 +801,17 @@ export default function SubmittedHoursPage() {
                     {t('timeEntries.viewEdit')}
                   </button>
                 </div>
-                    ))}
-                  </div>
-                )
-              })}
+              ))}
             </div>
 
             {/* Pagination */}
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalCount={groupedWeeks.length}
+              totalCount={filteredWeeks.length}
               pageSize={pageSize}
               onPageChange={setCurrentPage}
-              onPageSizeChange={(newSize) => { setPageSize(newSize); setCurrentPage(1) }}
+              onPageSizeChange={(newSize) => { setPageSize(newSize); setCurrentPage(1); }}
             />
           </>
         )}

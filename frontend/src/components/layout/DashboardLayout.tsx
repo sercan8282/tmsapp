@@ -27,10 +27,8 @@ import {
   TableCellsIcon,
   SwatchIcon,
   WrenchScrewdriverIcon,
+  ChartBarSquareIcon,
   MapPinIcon,
-  BanknotesIcon,
-  SparklesIcon,
-  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
@@ -48,35 +46,33 @@ interface NavItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
   roles?: ('admin' | 'gebruiker' | 'chauffeur')[]  // If undefined, all roles can see it
-  permission?: string  // Optional module permission key that also grants access
+  permission?: string  // Module permission required (checked for non-admin users)
 }
 
 // Navigation items with role-based access - keys for translation
 const navigation: NavItem[] = [
-  { name: 'nav.dashboard', href: '/', icon: HomeIcon, roles: ['admin'], permission: 'view_dashboard' },
-  { name: 'nav.companies', href: '/companies', icon: BuildingOfficeIcon, roles: ['admin'], permission: 'view_companies' },
-  { name: 'nav.drivers', href: '/drivers', icon: UsersIcon, roles: ['admin'], permission: 'view_drivers' },
-  { name: 'nav.fleet', href: '/fleet', icon: TruckIcon, roles: ['admin'], permission: 'view_fleet' },
-  { name: 'nav.tracking', href: '/tracking', icon: MapPinIcon, roles: ['admin', 'chauffeur'] },
+  { name: 'nav.dashboard', href: '/', icon: HomeIcon, roles: ['admin', 'gebruiker'], permission: 'view_dashboard' },
+  { name: 'nav.companies', href: '/companies', icon: BuildingOfficeIcon, roles: ['admin', 'gebruiker'], permission: 'view_companies' },
+  { name: 'nav.drivers', href: '/drivers', icon: UsersIcon, roles: ['admin', 'gebruiker'], permission: 'view_drivers' },
+  { name: 'nav.fleet', href: '/fleet', icon: TruckIcon, roles: ['admin', 'gebruiker'], permission: 'view_fleet' },
   { name: 'nav.timeEntries', href: '/time-entries', icon: ClockIcon },  // All roles
-  { name: 'nav.myHours', href: '/my-hours', icon: ClipboardDocumentListIcon, roles: ['chauffeur', 'gebruiker'] },
-  { name: 'nav.submittedHours', href: '/submitted-hours', icon: ClipboardDocumentListIcon, roles: ['admin'], permission: 'view_submitted_hours' },
+  { name: 'nav.myHours', href: '/my-hours', icon: ClipboardDocumentListIcon, roles: ['chauffeur'] },
+  { name: 'nav.submittedHours', href: '/submitted-hours', icon: ClipboardDocumentListIcon, roles: ['admin', 'gebruiker'], permission: 'view_submitted_hours' },
   { name: 'nav.urenImport', href: '/uren-import', icon: ArrowUpTrayIcon, roles: ['admin'], permission: 'view_uren_import' },
-  { name: 'nav.planning', href: '/planning', icon: CalendarIcon, roles: ['admin', 'chauffeur'] },
+  { name: 'nav.planning', href: '/planning', icon: CalendarIcon },  // All roles (filtered by backend)
   { name: 'nav.leave', href: '/leave', icon: CalendarDaysIcon },  // All roles
-  { name: 'nav.leaveRequests', href: '/leave/admin', icon: ClipboardDocumentCheckIcon, roles: ['admin'], permission: 'can_manage_leave_for_all' },
-  { name: 'nav.documents', href: '/documents', icon: PencilSquareIcon, roles: ['admin'] },
+  { name: 'nav.leaveRequests', href: '/leave/admin', icon: ClipboardDocumentCheckIcon, roles: ['admin'] },
+  { name: 'nav.documents', href: '/documents', icon: PencilSquareIcon },  // All roles - PDF signing
   { name: 'nav.notifications', href: '/notifications', icon: BellIcon, roles: ['admin'], permission: 'view_notifications' },
-  { name: 'nav.invoices', href: '/invoices', icon: DocumentTextIcon, roles: ['admin'], permission: 'view_invoices' },
+  { name: 'nav.invoices', href: '/invoices', icon: DocumentTextIcon, roles: ['admin', 'gebruiker'], permission: 'view_invoices' },
   { name: 'nav.invoiceTemplates', href: '/invoices/templates', icon: DocumentDuplicateIcon, roles: ['admin'], permission: 'view_invoice_templates' },
-  { name: 'nav.invoiceImport', href: '/imports', icon: ArrowUpTrayIcon, roles: ['admin'], permission: 'view_invoice_import' },
-  { name: 'nav.banking', href: '/banking', icon: BanknotesIcon, roles: ['admin'], permission: 'view_banking' },
-  { name: 'nav.revenue', href: '/revenue', icon: CurrencyEuroIcon, roles: ['admin'], permission: 'view_revenue' },
+  { name: 'nav.invoiceImport', href: '/imports', icon: ArrowUpTrayIcon, roles: ['admin', 'gebruiker'], permission: 'view_invoice_import' },
+  { name: 'nav.revenue', href: '/revenue', icon: CurrencyEuroIcon, roles: ['admin', 'gebruiker'], permission: 'view_revenue' },
   { name: 'nav.spreadsheets', href: '/spreadsheets', icon: TableCellsIcon, roles: ['admin'], permission: 'view_spreadsheets' },
   { name: 'nav.spreadsheetTemplates', href: '/spreadsheets/templates', icon: SwatchIcon, roles: ['admin'], permission: 'view_spreadsheet_templates' },
-  { name: 'nav.maintenance', href: '/maintenance', icon: WrenchScrewdriverIcon, roles: ['admin'], permission: 'view_maintenance' },
-  { name: 'nav.reports', href: '/reports', icon: SparklesIcon, roles: ['admin'] },
-  { name: 'nav.chat', href: '/chat', icon: ChatBubbleLeftRightIcon, roles: ['admin'] },
+  { name: 'nav.maintenance', href: '/maintenance', icon: WrenchScrewdriverIcon, roles: ['admin', 'gebruiker'], permission: 'view_maintenance' },
+  { name: 'nav.trackTrace', href: '/track-trace', icon: MapPinIcon, roles: ['admin'] },
+  { name: 'nav.tachograph', href: '/tachograph', icon: ChartBarSquareIcon, roles: ['admin'] },
 ]
 
 const adminNavigation: NavItem[] = [
@@ -87,7 +83,7 @@ const adminNavigation: NavItem[] = [
 export default function DashboardLayout() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
-  const { settings, sidebarOpen, setSidebarOpen, fetchSettings, isLoading: settingsLoading } = useAppStore()
+  const { settings, sidebarOpen, setSidebarOpen, fetchSettings } = useAppStore()
   const { currentTheme, applyTheme } = useThemeStore()
   const { t } = useTranslation()
   
@@ -108,16 +104,16 @@ export default function DashboardLayout() {
   const userRole = user?.rol || 'chauffeur'
   const userPermissions = user?.module_permissions || []
   
-  // Filter navigation items based on user role OR explicit module permission
+  // Filter navigation items based on user role and module permissions
   const filterByRole = (items: NavItem[]) => 
     items.filter(item => {
-      // No role restriction - visible to all
-      if (!item.roles) return true
-      // Role matches
-      if (item.roles.includes(userRole)) return true
-      // User has explicit module permission for this item
-      if (item.permission && userPermissions.includes(item.permission)) return true
-      return false
+      // First check role
+      if (item.roles && !item.roles.includes(userRole)) return false
+      // Admins bypass permission checks
+      if (userRole === 'admin') return true
+      // If item has a permission requirement, check the user has it
+      if (item.permission && !userPermissions.includes(item.permission)) return false
+      return true
     })
   
   const filteredNavigation = filterByRole(navigation)
@@ -160,8 +156,7 @@ export default function DashboardLayout() {
                 
                 <SidebarContent 
                   navigation={allNavigation} 
-                  settings={settings}
-                  settingsLoading={settingsLoading}
+                  settings={settings} 
                   onNavigate={() => setSidebarOpen(false)}
                 />
               </Dialog.Panel>
@@ -172,7 +167,7 @@ export default function DashboardLayout() {
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
-        <SidebarContent navigation={allNavigation} settings={settings} settingsLoading={settingsLoading} />
+        <SidebarContent navigation={allNavigation} settings={settings} />
       </div>
 
       {/* Main content */}
@@ -262,8 +257,8 @@ export default function DashboardLayout() {
         <LicenseExpiryBanner />
 
         {/* Page content */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="px-3 py-4 sm:px-6 lg:px-8">
+        <main className="flex-1 overflow-auto">
+          <div className="px-4 py-6 sm:px-6 lg:px-8">
             <Outlet />
           </div>
         </main>
@@ -278,11 +273,10 @@ export default function DashboardLayout() {
 interface SidebarContentProps {
   navigation: NavItem[]
   settings: AppSettings | null
-  settingsLoading?: boolean
   onNavigate?: () => void
 }
 
-function SidebarContent({ navigation, settings, settingsLoading, onNavigate }: SidebarContentProps) {
+function SidebarContent({ navigation, settings, onNavigate }: SidebarContentProps) {
   const { t } = useTranslation()
   
   return (
@@ -291,16 +285,10 @@ function SidebarContent({ navigation, settings, settingsLoading, onNavigate }: S
       style={{ backgroundColor: 'var(--color-sidebar)' }}
     >
       <div className="flex h-16 shrink-0 items-center gap-3">
-        {settingsLoading ? (
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white opacity-50" />
-        ) : (
-          <>
-            {settings?.logo_url && (
-              <img className="h-8 w-auto" src={settings.logo_url} alt={settings.app_name} />
-            )}
-            <span className="text-xl font-bold text-white">{settings?.app_name || 'TMS'}</span>
-          </>
+        {settings?.logo_url && (
+          <img className="h-8 w-auto" src={settings.logo_url} alt={settings.app_name} />
         )}
+        <span className="text-xl font-bold text-white">{settings?.app_name || 'TMS'}</span>
       </div>
       
       <nav className="flex flex-1 flex-col">

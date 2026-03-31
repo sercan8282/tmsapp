@@ -131,3 +131,61 @@ class LocationPoint(models.Model):
 
     def __str__(self):
         return f"({self.latitude}, {self.longitude}) @ {self.recorded_at}"
+
+
+class TachographOvertime(models.Model):
+    """
+    Stores overtime hours derived from FM-Track tachograph data, linked to a TMS driver.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    driver = models.ForeignKey(
+        'drivers.Driver',
+        on_delete=models.CASCADE,
+        related_name='tachograph_overtime',
+        verbose_name='Chauffeur',
+    )
+    date = models.DateField(verbose_name='Datum')
+    overtime_hours = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        verbose_name='Overuren',
+        help_text='Aantal overuren (boven 8 uur).'
+    )
+    vehicle_name = models.CharField(max_length=100, blank=True, verbose_name='Voertuig')
+    fm_driver_name = models.CharField(max_length=200, blank=True, verbose_name='FM-Track Chauffeur')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name='Aangemaakt door',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Tachograaf Overuren'
+        verbose_name_plural = 'Tachograaf Overuren'
+        unique_together = ['driver', 'date']
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.driver} - {self.date} - {self.overtime_hours}u"
+
+
+class TachographSyncLog(models.Model):
+    """
+    Tracks which dates have been synced from the tachograph to avoid duplicate processing.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    date = models.DateField(unique=True, verbose_name='Datum')
+    vehicles_processed = models.PositiveIntegerField(default=0, verbose_name='Voertuigen verwerkt')
+    entries_created = models.PositiveIntegerField(default=0, verbose_name='Uren aangemaakt')
+    overtime_created = models.PositiveIntegerField(default=0, verbose_name='Overuren aangemaakt')
+    errors = models.TextField(blank=True, verbose_name='Fouten')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Tachograaf Sync Log'
+        verbose_name_plural = 'Tachograaf Sync Logs'
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"Sync {self.date} - {self.entries_created} entries"

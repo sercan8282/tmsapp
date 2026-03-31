@@ -9,9 +9,9 @@ export interface User {
   telefoon: string
   bedrijf: string
   rol: 'admin' | 'gebruiker' | 'chauffeur'
-  module_permissions: string[]
   mfa_enabled: boolean
   mfa_required: boolean
+  module_permissions: string[]
   is_active: boolean
   date_joined: string
   last_login: string | null
@@ -28,7 +28,6 @@ export interface UserCreate {
   bedrijf?: string
   rol: 'admin' | 'gebruiker' | 'chauffeur'
   is_active?: boolean
-  module_permissions?: string[]
 }
 
 // Auth types
@@ -96,39 +95,9 @@ export interface AppSettingsAdmin extends AppSettings {
     provider?: string
     message: string
   }
-  // Reminder Settings
-  reminder_enabled: boolean
-  reminder_time: string
-  reminder_frequency: 'daily' | 'weekdays' | 'weekly' | 'custom'
-  reminder_weekly_day: number
-  reminder_custom_days: number[]
-  reminder_weeks_before: number[]
-  reminder_email: string
-  reminder_signature: string
-}
-
-// Reminder cron job types
-export interface ReminderCronStatus {
-  active: boolean
-  expression: string | null
-  cron_line: string | null
-}
-
-export interface ReminderJobLog {
-  id: string
-  started_at: string
-  finished_at: string | null
-  status: 'success' | 'error' | 'warning' | 'skipped'
-  status_display: string
-  reminders_sent: number
-  message: string
-}
-
-export interface ReminderJobLogResponse {
-  count: number
-  next: string | null
-  previous: string | null
-  results: ReminderJobLog[]
+  // Linqo / FM-Track
+  linqo_api_key?: string // Write-only
+  tachograaf_start_datum?: string | null
 }
 
 // Company types
@@ -164,8 +133,6 @@ export interface Driver {
   id: string
   naam: string
   telefoon: string
-  bedrijven: string[]
-  bedrijven_namen: string[]
   bedrijf: string | null
   bedrijf_naam: string | null
   gekoppelde_gebruiker: string | null
@@ -174,12 +141,10 @@ export interface Driver {
   voertuig_ritnummer: string | null
   voertuig_kenteken: string | null
   adr: boolean
-  einddatum_bestuurderspas: string | null
-  einddatum_code95: string | null
-  einddatum_adr: string | null
-  einddatum_rijbewijs: string | null
   minimum_uren_per_week: number | null
-  actief: boolean
+  standaard_pauze: number
+  auto_uren: boolean
+  tacho_kenteken: string
   created_at: string
   updated_at: string
 }
@@ -874,4 +839,27 @@ export interface LicenseActivateResponse {
     features: string[]
     days_remaining: number
   }
+}
+
+// Reminder types
+export interface ReminderCronStatus {
+  active: boolean
+  expression: string | null
+  cron_line: string | null
+}
+
+export interface ReminderJobLog {
+  id: string
+  started_at: string
+  finished_at: string | null
+  status: 'success' | 'error' | 'warning' | 'skipped'
+  reminders_sent: number
+  message: string
+}
+
+export interface ReminderJobLogResponse {
+  count: number
+  next: string | null
+  previous: string | null
+  results: ReminderJobLog[]
 }

@@ -26,6 +26,7 @@ import {
 import { getAllCompanies } from '@/api/companies'
 import { getUsers } from '@/api/users'
 import { getAllVehicles } from '@/api/fleet'
+import { getTachographVehicles, TachoVehicle } from '@/api/tachograph'
 import Pagination, { PageSize } from '@/components/common/Pagination'
 
 // Modal component
@@ -141,19 +142,28 @@ function DriverForm({
   const [formData, setFormData] = useState({
     naam: driver?.naam || '',
     telefoon: driver?.telefoon || '',
-    bedrijven: driver?.bedrijven || [] as string[],
+    bedrijf: driver?.bedrijf?.toString() || '',
     gekoppelde_gebruiker: driver?.gekoppelde_gebruiker?.toString() || '',
     voertuig: driver?.voertuig?.toString() || '',
     adr: driver?.adr || false,
-    einddatum_bestuurderspas: driver?.einddatum_bestuurderspas || '',
-    einddatum_code95: driver?.einddatum_code95 || '',
-    einddatum_adr: driver?.einddatum_adr || '',
-    einddatum_rijbewijs: driver?.einddatum_rijbewijs || '',
     minimum_uren_per_week: driver?.minimum_uren_per_week?.toString() || '',
-    actief: driver?.actief ?? true,
+    standaard_pauze: driver?.standaard_pauze?.toString() || '30',
+    auto_uren: driver?.auto_uren || false,
+    tacho_kenteken: driver?.tacho_kenteken || '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [tachoVehicles, setTachoVehicles] = useState<TachoVehicle[]>([])
+  const [tachoLoading, setTachoLoading] = useState(false)
 
+  useEffect(() => {
+    if (formData.auto_uren && tachoVehicles.length === 0) {
+      setTachoLoading(true)
+      getTachographVehicles()
+        .then(data => setTachoVehicles(data.vehicles))
+        .catch(() => {})
+        .finally(() => setTachoLoading(false))
+    }
+  }, [formData.auto_uren])
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
     const checked = (e.target as HTMLInputElement).checked
@@ -162,11 +172,6 @@ function DriverForm({
       [name]: type === 'checkbox' ? checked : value 
     }))
     setErrors(prev => ({ ...prev, [name]: '' }))
-  }
-
-  const handleBedrijvenChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selected = Array.from(e.target.selectedOptions, opt => opt.value)
-    setFormData(prev => ({ ...prev, bedrijven: selected }))
   }
 
   const validate = () => {
@@ -183,16 +188,14 @@ function DriverForm({
     const saveData: DriverCreate | DriverUpdate = {
       naam: formData.naam,
       telefoon: formData.telefoon || undefined,
-      bedrijven: formData.bedrijven.length > 0 ? formData.bedrijven : [],
-      gekoppelde_gebruiker: formData.gekoppelde_gebruiker || null,
+      bedrijf: formData.bedrijf || undefined,
+      gekoppelde_gebruiker: formData.gekoppelde_gebruiker || undefined,
       voertuig: formData.voertuig || null,
       adr: formData.adr,
-      einddatum_bestuurderspas: formData.einddatum_bestuurderspas || null,
-      einddatum_code95: formData.einddatum_code95 || null,
-      einddatum_adr: formData.einddatum_adr || null,
-      einddatum_rijbewijs: formData.einddatum_rijbewijs || null,
       minimum_uren_per_week: formData.minimum_uren_per_week ? parseFloat(formData.minimum_uren_per_week) : null,
-      actief: formData.actief,
+      standaard_pauze: formData.standaard_pauze ? parseInt(formData.standaard_pauze) : 30,
+      auto_uren: formData.auto_uren,
+      tacho_kenteken: formData.auto_uren ? formData.tacho_kenteken : '',
     }
     onSave(saveData)
   }
@@ -231,22 +234,18 @@ function DriverForm({
           {t('companies.title')}
         </label>
         <select
-          name="bedrijven"
-          multiple
-          value={formData.bedrijven}
-          onChange={handleBedrijvenChange}
+          name="bedrijf"
+          value={formData.bedrijf}
+          onChange={handleChange}
           className="input"
-          style={{ minHeight: '6rem' }}
         >
+          <option value="">{t('common.none')}</option>
           {companies.map(company => (
             <option key={company.id} value={company.id}>
               {company.naam}
             </option>
           ))}
         </select>
-        <p className="text-xs text-gray-500 mt-1">
-          {t('drivers.selectCompaniesHelp')}
-        </p>
       </div>
 
       <div>
@@ -285,7 +284,7 @@ function DriverForm({
         >
           <option value="">{t('drivers.noVehicle')}</option>
           {vehicles
-            .filter(v => v.actief && (formData.bedrijven.length === 0 || formData.bedrijven.includes(v.bedrijf)))
+            .filter(v => !formData.bedrijf || v.bedrijf === formData.bedrijf)
             .map(vehicle => (
               <option key={vehicle.id} value={vehicle.id}>
                 {vehicle.ritnummer} - {vehicle.kenteken} ({vehicle.type_wagen})
@@ -311,61 +310,6 @@ function DriverForm({
         </span>
       </div>
 
-      {/* Expiry dates section */}
-      <div className="border-t pt-4 mt-4">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">{t('drivers.expiryDates')}</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('drivers.expiryDriverCard')}
-            </label>
-            <input
-              type="date"
-              name="einddatum_bestuurderspas"
-              value={formData.einddatum_bestuurderspas}
-              onChange={handleChange}
-              className="input"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('drivers.expiryCode95')}
-            </label>
-            <input
-              type="date"
-              name="einddatum_code95"
-              value={formData.einddatum_code95}
-              onChange={handleChange}
-              className="input"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('drivers.expiryAdr')}
-            </label>
-            <input
-              type="date"
-              name="einddatum_adr"
-              value={formData.einddatum_adr}
-              onChange={handleChange}
-              className="input"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('drivers.expiryLicense')}
-            </label>
-            <input
-              type="date"
-              name="einddatum_rijbewijs"
-              value={formData.einddatum_rijbewijs}
-              onChange={handleChange}
-              className="input"
-            />
-          </div>
-        </div>
-      </div>
-
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t('drivers.minimumHoursPerWeek')}
@@ -385,21 +329,79 @@ function DriverForm({
         </p>
       </div>
 
-      <div className="flex items-center">
-        <input
-          type="checkbox"
-          id="actief"
-          name="actief"
-          checked={formData.actief}
-          onChange={handleChange}
-          className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-        />
-        <label htmlFor="actief" className="ml-2 text-sm text-gray-700">
-          {t('common.active')}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {t('drivers.defaultPause')}
         </label>
-        <span className="ml-2 text-xs text-gray-500">
-          ({t('drivers.activeHelp')})
-        </span>
+        <div className="flex flex-wrap gap-2">
+          {[0, 15, 30, 45, 60, 90].map((val) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => handleChange({ target: { name: 'standaard_pauze', value: val.toString(), type: 'text' } } as any)}
+              className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                formData.standaard_pauze === val.toString()
+                  ? 'bg-primary-600 text-white border-primary-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {val} min
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          {t('drivers.defaultPauseHelp')}
+        </p>
+      </div>
+
+      <div className="border-t pt-4 mt-4">
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="auto_uren"
+            name="auto_uren"
+            checked={formData.auto_uren}
+            onChange={handleChange}
+            className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+          />
+          <label htmlFor="auto_uren" className="ml-2 text-sm font-medium text-gray-700">
+            {t('drivers.autoHours')}
+          </label>
+        </div>
+        <p className="text-xs text-gray-500 mt-1 ml-6">
+          {t('drivers.autoHoursHelp')}
+        </p>
+
+        {formData.auto_uren && (
+          <div className="mt-3 ml-6">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('drivers.tachoPlate')}
+            </label>
+            {tachoLoading ? (
+              <div className="flex items-center text-sm text-gray-500">
+                <ArrowPathIcon className="w-4 h-4 animate-spin mr-2" />
+                {t('common.loading')}
+              </div>
+            ) : (
+              <select
+                name="tacho_kenteken"
+                value={formData.tacho_kenteken}
+                onChange={handleChange}
+                className="input"
+              >
+                <option value="">{t('drivers.selectTachoPlate')}</option>
+                {tachoVehicles.map(v => (
+                  <option key={v.object_id} value={v.plate_number}>
+                    {v.plate_number}{v.name !== v.plate_number ? ` (${v.name})` : ''}{v.make ? ` - ${v.make} ${v.model}` : ''}
+                  </option>
+                ))}
+              </select>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              {t('drivers.tachoPlateHelp')}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t">
@@ -450,7 +452,6 @@ export default function DriversPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
-  const [showMoreCompanies, setShowMoreCompanies] = useState(false)
 
   // Helper to extract error message
   const getErrorMessage = (err: any, defaultMsg: string): string => {
@@ -498,7 +499,7 @@ export default function DriversPage() {
         ordering: sortDirection === 'asc' ? sortField : `-${sortField}`,
       }
       if (search) filters.search = search
-      if (companyFilter) filters.bedrijven = companyFilter
+      if (companyFilter) filters.bedrijf = companyFilter
       if (adrFilter !== 'all') filters.adr = adrFilter === 'yes' ? 'true' : 'false'
       
       const response = await getDrivers(filters)
@@ -583,12 +584,13 @@ export default function DriversPage() {
     }
   }
 
-  // Get company names for a driver
-  const getCompanyNames = (driver: Driver) => {
-    if (driver.bedrijven_namen && driver.bedrijven_namen.length > 0) {
-      return driver.bedrijven_namen.join(', ')
-    }
+  // Get company name by ID
+  const getCompanyName = (driver: Driver) => {
     if (driver.bedrijf_naam) return driver.bedrijf_naam
+    if (driver.bedrijf) {
+      const company = companies.find(c => c.id === driver.bedrijf)
+      return company?.naam || '-'
+    }
     return '-'
   }
 
@@ -604,7 +606,7 @@ export default function DriversPage() {
   }
 
   return (
-    <div className="overflow-x-hidden">
+    <div>
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">{t('drivers.title')}</h1>
@@ -636,84 +638,72 @@ export default function DriversPage() {
       )}
 
       {/* Filters */}
-      <div className="card mb-4">
-        <div className="p-3">
-          <div className="flex flex-col gap-3">
-            {/* Search row */}
-            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-              <div className="flex-1">
-                <div className="relative">
-                  <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                    placeholder={t('drivers.searchDrivers')}
-                    className="input pl-9 text-sm h-9"
-                  />
-                </div>
+      <div className="card mb-6">
+        <div className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
+            {/* Search */}
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('common.search')}
+              </label>
+              <div className="relative">
+                <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                  placeholder={t('drivers.searchDrivers')}
+                  className="input pl-10 min-h-[44px]"
+                />
               </div>
-              <button
-                onClick={() => fetchDrivers()}
-                className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg self-end"
-                title={t('common.refresh')}
-              >
-                <ArrowPathIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              </button>
             </div>
 
-            {/* Company filter buttons */}
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="text-xs font-semibold text-gray-500 uppercase mr-0.5">{t('companies.title')}:</span>
-              <button
-                onClick={() => { setCompanyFilter(''); setPage(1) }}
-                className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${
-                  companyFilter === '' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {t('common.all')}
-              </button>
-              {(showMoreCompanies ? companies : companies.slice(0, 4)).map(company => (
-                <button
-                  key={company.id}
-                  onClick={() => { setCompanyFilter(company.id.toString()); setPage(1) }}
-                  className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors max-w-[140px] sm:max-w-none truncate ${
-                    companyFilter === company.id.toString() ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                  title={company.naam}
+            {/* Filter row */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              {/* Company filter */}
+              <div className="flex-1 sm:w-40">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('companies.title')}
+                </label>
+                <select
+                  value={companyFilter}
+                  onChange={(e) => { setCompanyFilter(e.target.value); setPage(1) }}
+                  className="input min-h-[44px]"
                 >
-                  {company.naam}
-                </button>
-              ))}
-              {companies.length > 4 && (
-                <button
-                  onClick={() => setShowMoreCompanies(!showMoreCompanies)}
-                  className="px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors"
+                  <option value="">{t('companies.allCompanies')}</option>
+                  {companies.map(company => (
+                    <option key={company.id} value={company.id}>
+                      {company.naam}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* ADR filter */}
+              <div className="flex-1 sm:w-36">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ADR
+                </label>
+                <select
+                  value={adrFilter}
+                  onChange={(e) => { setAdrFilter(e.target.value as 'all' | 'yes' | 'no'); setPage(1) }}
+                  className="input min-h-[44px]"
                 >
-                  {showMoreCompanies ? t('common.showLess') : t('common.showMore')}
-                </button>
-              )}
+                  <option value="all">{t('common.all')}</option>
+                  <option value="yes">{t('drivers.adrCertified')}</option>
+                  <option value="no">{t('drivers.noAdr')}</option>
+                </select>
+              </div>
             </div>
 
-            {/* ADR filter buttons */}
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="text-xs font-semibold text-gray-500 uppercase mr-0.5">ADR:</span>
-              {[
-                { value: 'all' as const, label: t('common.all') },
-                { value: 'yes' as const, label: t('drivers.adrCertified') },
-                { value: 'no' as const, label: t('drivers.noAdr') },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => { setAdrFilter(opt.value); setPage(1) }}
-                  className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors ${
-                    adrFilter === opt.value ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            {/* Refresh button */}
+            <button
+              onClick={() => fetchDrivers()}
+              className="p-2 min-w-[44px] min-h-[44px] text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg self-end"
+              title={t('common.refresh')}
+            >
+              <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </div>
       </div>
@@ -722,34 +712,31 @@ export default function DriversPage() {
       <div className="card overflow-hidden">
         {/* Desktop Table View */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th 
-                  className="px-2 py-1.5 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('naam')}
                 >
                   {t('common.name')} <SortIcon field="naam" />
                 </th>
-                <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   {t('common.phone')}
                 </th>
-                <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   {t('companies.title')}
                 </th>
-                <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   {t('drivers.vehicle')}
                 </th>
-                <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   {t('drivers.linkedUser')}
                 </th>
-                <th className="px-2 py-1.5 text-center text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">
                   ADR
                 </th>
-                <th className="px-2 py-1.5 text-center text-xs font-semibold text-gray-600 uppercase">
-                  {t('common.status')}
-                </th>
-                <th className="px-2 py-1.5 text-right text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
                   {t('common.actions')}
                 </th>
               </tr>
@@ -757,7 +744,7 @@ export default function DriversPage() {
             <tbody className="divide-y">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                     <div className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
                       <span className="ml-3">{t('common.loading')}</span>
@@ -766,7 +753,7 @@ export default function DriversPage() {
                 </tr>
               ) : drivers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                     <UserGroupIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
                     <p>{t('drivers.noDrivers')}</p>
                     <button
@@ -779,12 +766,12 @@ export default function DriversPage() {
                 </tr>
               ) : (
                 drivers.map(driver => (
-                  <tr key={driver.id} className={`hover:bg-gray-50 ${!driver.actief ? 'opacity-50' : ''}`}>
+                  <tr key={driver.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900">{driver.naam}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{driver.telefoon || '-'}</td>
-                    <td className="px-4 py-3 text-gray-600">{getCompanyNames(driver)}</td>
+                    <td className="px-4 py-3 text-gray-600">{getCompanyName(driver)}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {driver.voertuig_ritnummer 
                         ? `${driver.voertuig_ritnummer} (${driver.voertuig_kenteken})`
@@ -800,17 +787,6 @@ export default function DriversPage() {
                         </span>
                       ) : (
                         <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {driver.actief ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          {t('common.active')}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                          {t('common.inactive')}
-                        </span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -860,51 +836,58 @@ export default function DriversPage() {
             </div>
           ) : (
             drivers.map(driver => (
-              <div key={driver.id} className={`px-3 py-2 hover:bg-gray-50 ${!driver.actief ? 'opacity-50' : ''}`}>
-                <div className="flex items-center justify-between gap-1.5">
+              <div key={driver.id} className="p-4 hover:bg-gray-50">
+                {/* Card Header */}
+                <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1 text-sm">
-                      <span className="font-semibold text-gray-900 truncate">{driver.naam}</span>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-gray-900 truncate">{driver.naam}</h3>
                       {driver.adr && (
-                        <ShieldCheckIcon className="w-3.5 h-3.5 text-green-600 shrink-0" title="ADR" />
-                      )}
-                      {!driver.actief && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">
-                          {t('common.inactive')}
+                        <span className="inline-flex items-center text-green-600 shrink-0" title="ADR gecertificeerd">
+                          <ShieldCheckIcon className="w-5 h-5" />
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-gray-500 truncate mt-0.5">
-                      <span className="truncate">{getCompanyNames(driver)}</span>
-                      {driver.voertuig_ritnummer && (
-                        <>
-                          <span className="text-gray-300">·</span>
-                          <span className="truncate">{driver.voertuig_ritnummer}</span>
-                        </>
-                      )}
-                    </div>
                     {driver.telefoon && (
-                      <div className="mt-0.5">
-                        <a href={`tel:${driver.telefoon}`} className="text-xs text-primary-600">{driver.telefoon}</a>
-                      </div>
+                      <a href={`tel:${driver.telefoon}`} className="text-sm text-primary-600">{driver.telefoon}</a>
                     )}
                   </div>
-                  <div className="flex items-center gap-0.5 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => { setSelectedDriver(driver); setShowEditModal(true) }}
-                      className="p-1 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                      className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg"
                       title={t('common.edit')}
                     >
-                      <PencilSquareIcon className="w-4 h-4" />
+                      <PencilSquareIcon className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => { setSelectedDriver(driver); setShowDeleteModal(true) }}
-                      className="p-1 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
+                      className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-lg"
                       title={t('common.delete')}
                     >
-                      <TrashIcon className="w-4 h-4" />
+                      <TrashIcon className="w-5 h-5" />
                     </button>
                   </div>
+                </div>
+
+                {/* Card Details */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <span className="text-gray-500">{t('companies.title')}: </span>
+                    <span className="text-gray-700">{getCompanyName(driver)}</span>
+                  </div>
+                  {driver.voertuig_ritnummer && (
+                    <div>
+                      <span className="text-gray-500">{t('drivers.vehicle')}: </span>
+                      <span className="text-gray-700">{driver.voertuig_ritnummer} ({driver.voertuig_kenteken})</span>
+                    </div>
+                  )}
+                  {driver.gekoppelde_gebruiker_naam && (
+                    <div>
+                      <span className="text-gray-500">{t('drivers.linkedUser')}: </span>
+                      <span className="text-gray-700">{driver.gekoppelde_gebruiker_naam}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))

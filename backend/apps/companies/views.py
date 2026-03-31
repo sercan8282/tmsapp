@@ -3,7 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from apps.core.permissions import IsAdminOrManager
+from apps.core.permissions import IsAdminOrManager, HasModulePermission
 from .models import Company, MailingListContact
 from .serializers import CompanySerializer, MailingListContactSerializer
 
@@ -18,7 +18,8 @@ class CompanyViewSet(viewsets.ModelViewSet):
     """
     queryset = Company.objects.prefetch_related('mailing_contacts').all()
     serializer_class = CompanySerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_companies'
     search_fields = ['naam', 'kvk', 'contactpersoon', 'email']
     ordering_fields = ['naam', 'stad', 'created_at']
     ordering = ['naam']

@@ -23,49 +23,13 @@ import {
   resetUserPassword, 
   toggleUserActive, 
   disableUserMFA,
+  getAvailablePermissions,
   UserFilters,
   UserUpdate,
+  AvailablePermission,
 } from '@/api/users'
 import { getAllCompanies } from '@/api/companies'
 import Pagination, { PageSize } from '@/components/common/Pagination'
-
-// Module permissions configuration (mirrors backend AVAILABLE_MODULE_PERMISSIONS)
-const AVAILABLE_PERMISSIONS = [
-  { code: 'can_manage_leave_for_all', label: 'Verlof beheren voor alle medewerkers' },
-  { code: 'view_dashboard', label: 'Dashboard' },
-  { code: 'view_companies', label: 'Bedrijven' },
-  { code: 'view_drivers', label: 'Chauffeurs' },
-  { code: 'view_fleet', label: 'Vloot' },
-  { code: 'view_submitted_hours', label: 'Ingediende uren' },
-  { code: 'view_uren_import', label: 'Uren import' },
-  { code: 'view_invoices', label: 'Facturen' },
-  { code: 'view_invoice_templates', label: 'Factuur templates' },
-  { code: 'view_invoice_import', label: 'Factuur import' },
-  { code: 'view_banking', label: 'Bankkoppeling' },
-  { code: 'view_revenue', label: 'Omzet' },
-  { code: 'view_spreadsheets', label: 'Ritregistratie' },
-  { code: 'view_spreadsheet_templates', label: 'Spreadsheet templates' },
-  { code: 'view_maintenance', label: 'Onderhoud' },
-  { code: 'view_notifications', label: 'Notificaties' },
-] as const
-
-// Which permissions are automatically included when another is enabled
-const PERMISSION_DEPENDENCIES: Record<string, string[]> = {
-  view_invoices: ['view_submitted_hours'],
-  view_invoice_templates: ['view_invoices', 'view_submitted_hours'],
-  view_invoice_import: ['view_invoices', 'view_submitted_hours'],
-  view_spreadsheet_templates: ['view_spreadsheets'],
-}
-
-function resolvePermissionsWithDeps(permissions: string[]): string[] {
-  const resolved = new Set(permissions)
-  for (const perm of [...resolved]) {
-    for (const dep of PERMISSION_DEPENDENCIES[perm] ?? []) {
-      resolved.add(dep)
-    }
-  }
-  return [...resolved]
-}
 
 // Role labels and colors
 const roleConfig: Record<string, { key: string; color: string }> = {
@@ -184,6 +148,9 @@ function UserForm({
 }) {
   const { t } = useTranslation()
   const [companies, setCompanies] = useState<Company[]>([])
+  const [availablePermissions, setAvailablePermissions] = useState<AvailablePermission[]>([])
+  const [dependencies, setDependencies] = useState<Record<string, string[]>>({})
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(user?.module_permissions || [])
   const [formData, setFormData] = useState({
     email: user?.email || '',
     username: user?.username || '',
@@ -197,13 +164,14 @@ function UserForm({
     password: '',
     password_confirm: '',
   })
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(
-    user?.module_permissions || []
-  )
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     getAllCompanies().then(setCompanies).catch(console.error)
+    getAvailablePermissions().then(data => {
+      setAvailablePermissions(data.permissions)
+      setDependencies(data.dependencies)
+    }).catch(console.error)
   }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -211,16 +179,6 @@ function UserForm({
     const newValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     setFormData(prev => ({ ...prev, [name]: newValue }))
     setErrors(prev => ({ ...prev, [name]: '' }))
-  }
-
-  const handlePermissionChange = (code: string, checked: boolean) => {
-    let updated: string[]
-    if (checked) {
-      updated = resolvePermissionsWithDeps([...selectedPermissions, code])
-    } else {
-      updated = selectedPermissions.filter(p => p !== code)
-    }
-    setSelectedPermissions(updated)
   }
 
   const validate = () => {
@@ -247,6 +205,44 @@ function UserForm({
     return Object.keys(newErrors).length === 0
   }
 
+  // Resolve dependencies: when toggling a permission on, also enable required dependencies
+  const resolveWithDependencies = (perms: string[]): string[] => {
+    const resolved = new Set(perms)
+    for (const perm of perms) {
+      for (const dep of (dependencies[perm] || [])) {
+        resolved.add(dep)
+      }
+    }
+    return Array.from(resolved)
+  }
+
+  // Check if a permission is a dependency of any currently selected permission
+  const isDependencyOf = (permCode: string): boolean => {
+    return selectedPermissions.some(p => 
+      (dependencies[p] || []).includes(permCode)
+    )
+  }
+
+  const handlePermissionToggle = (permCode: string) => {
+    setSelectedPermissions(prev => {
+      if (prev.includes(permCode)) {
+        // Don't allow unchecking if it's a dependency of another selected permission
+        if (isDependencyOf(permCode)) return prev
+        return prev.filter(p => p !== permCode)
+      } else {
+        return resolveWithDependencies([...prev, permCode])
+      }
+    })
+  }
+
+  const handleSelectAll = () => {
+    setSelectedPermissions(availablePermissions.map(p => p.code))
+  }
+
+  const handleDeselectAll = () => {
+    setSelectedPermissions([])
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
@@ -257,7 +253,7 @@ function UserForm({
       onSave({ ...updateData, module_permissions: selectedPermissions })
     } else {
       // Create - send all data
-      onSave({ ...(formData as UserCreate), module_permissions: selectedPermissions })
+      onSave({ ...formData, module_permissions: selectedPermissions } as any)
     }
   }
 
@@ -424,53 +420,69 @@ function UserForm({
         </div>
       </div>
 
-      {/* Module permissions - only shown for non-admin roles */}
-      {formData.rol !== 'admin' && (
-        <div className="border border-gray-200 rounded-lg p-4">
-          <div className="mb-3">
-            <h4 className="text-sm font-semibold text-gray-800">{t('users.permissions')}</h4>
-            <p className="text-xs text-gray-500 mt-0.5">{t('users.permissionsHint')}</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {AVAILABLE_PERMISSIONS.map(perm => {
-              const deps = PERMISSION_DEPENDENCIES[perm.code] ?? []
-              const isDependency = AVAILABLE_PERMISSIONS.some(
-                p => selectedPermissions.includes(p.code) &&
-                  (PERMISSION_DEPENDENCIES[p.code] ?? []).includes(perm.code)
-              )
-              const checked = selectedPermissions.includes(perm.code)
-              return (
-                <label
-                  key={perm.code}
-                  className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer hover:bg-gray-50 ${isDependency ? 'opacity-75' : ''}`}
+      {/* Module Permissions */}
+      {availablePermissions.length > 0 && (
+        <div className="pt-4 border-t">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-semibold text-gray-900">{t('users.modulePermissions')}</h4>
+            {formData.rol !== 'admin' && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSelectAll}
+                  className="text-xs text-primary-600 hover:text-primary-800"
                 >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={e => handlePermissionChange(perm.code, e.target.checked)}
-                    disabled={isDependency}
-                    className="mt-0.5 w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500 flex-shrink-0"
-                  />
-                  <span className="text-sm text-gray-700 leading-tight">
-                    {perm.label}
-                    {deps.length > 0 && (
-                      <span className="block text-xs text-gray-400">
-                        {t('users.requires')}: {deps.map(d => AVAILABLE_PERMISSIONS.find(p => p.code === d)?.label ?? d).join(', ')}
-                      </span>
-                    )}
-                    {isDependency && (
-                      <span className="block text-xs text-blue-500">{t('users.autoGranted')}</span>
-                    )}
-                  </span>
-                </label>
-              )
-            })}
+                  {t('users.selectAll')}
+                </button>
+                <span className="text-gray-300">|</span>
+                <button
+                  type="button"
+                  onClick={handleDeselectAll}
+                  className="text-xs text-primary-600 hover:text-primary-800"
+                >
+                  {t('users.deselectAll')}
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-      )}
-      {formData.rol === 'admin' && (
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-700">
-          {t('users.adminAllPermissions')}
+          <p className="text-xs text-gray-500 mb-3">{t('users.modulePermissionsDesc')}</p>
+          
+          {formData.rol === 'admin' ? (
+            <p className="text-sm text-green-600 bg-green-50 rounded-lg p-3">
+              ✓ {t('users.adminAllPermissions')}
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+              {availablePermissions.map(perm => {
+                const isChecked = selectedPermissions.includes(perm.code)
+                const isDepLocked = isDependencyOf(perm.code) && isChecked
+                return (
+                  <label
+                    key={perm.code}
+                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
+                      isChecked
+                        ? 'bg-primary-50 border-primary-200'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    } ${isDepLocked ? 'opacity-70' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handlePermissionToggle(perm.code)}
+                      disabled={isDepLocked}
+                      className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-700 select-none">
+                      {perm.label}
+                      {isDepLocked && (
+                        <span className="text-xs text-gray-400 ml-1">({t('users.autoEnabled')})</span>
+                      )}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -857,9 +869,9 @@ export default function UsersPage() {
             </div>
 
             {/* Filter row */}
-            <div className="flex flex-col xs:flex-row gap-3 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               {/* Role filter */}
-              <div className="flex-1 xs:w-36">
+              <div className="flex-1 sm:w-36">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('users.role')}
                 </label>
@@ -876,7 +888,7 @@ export default function UsersPage() {
               </div>
 
               {/* Status filter */}
-              <div className="flex-1 xs:w-36">
+              <div className="flex-1 sm:w-36">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('common.status')}
                 </label>
@@ -912,33 +924,33 @@ export default function UsersPage() {
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th 
-                  className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('achternaam')}
                 >
                   {t('common.name')} <SortIcon field="achternaam" />
                 </th>
                 <th 
-                  className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('email')}
                 >
                   {t('common.email')} <SortIcon field="email" />
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   {t('users.role')}
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   {t('common.status')}
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   2FA
                 </th>
                 <th 
-                  className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('last_login')}
                 >
                   {t('users.lastLogin')} <SortIcon field="last_login" />
                 </th>
-                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
                   {t('common.actions')}
                 </th>
               </tr>
@@ -962,84 +974,87 @@ export default function UsersPage() {
               ) : (
                 users.map(user => (
                   <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2.5">
-                      <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
+                    <td className="px-4 py-3">
+                      <div>
+                        <div className="font-medium text-gray-900">{user.full_name}</div>
+                        <div className="text-sm text-gray-500">@{user.username}</div>
+                      </div>
                     </td>
-                    <td className="px-3 py-2.5 text-sm text-gray-600">{user.email}</td>
-                    <td className="px-3 py-2.5">
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${roleConfig[user.rol]?.color}`}>
+                    <td className="px-4 py-3 text-gray-600">{user.email}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${roleConfig[user.rol]?.color}`}>
                         {t(roleConfig[user.rol]?.key)}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-4 py-3">
                       {user.is_active ? (
-                        <span className="flex items-center text-sm text-green-600">
+                        <span className="flex items-center text-green-600">
                           <CheckCircleIcon className="w-4 h-4 mr-1" />
                           {t('common.active')}
                         </span>
                       ) : (
-                        <span className="flex items-center text-sm text-red-600">
+                        <span className="flex items-center text-red-600">
                           <NoSymbolIcon className="w-4 h-4 mr-1" />
                           {t('common.inactive')}
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-4 py-3">
                       {user.mfa_enabled ? (
-                        <span className="flex items-center text-sm text-green-600">
+                        <span className="flex items-center text-green-600">
                           <ShieldCheckIcon className="w-4 h-4 mr-1" />
                           Aan
                         </span>
                       ) : user.mfa_required ? (
-                        <span className="flex items-center text-sm text-orange-600">
+                        <span className="flex items-center text-orange-600">
                           <ShieldCheckIcon className="w-4 h-4 mr-1" />
                           Verplicht
                         </span>
                       ) : (
-                        <span className="text-sm text-gray-400">Uit</span>
+                        <span className="text-gray-400">Uit</span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-gray-500">
                       {formatDate(user.last_login)}
                     </td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center justify-end gap-0.5">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => { setSelectedUser(user); setShowEditModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
                           title="Bewerken"
                         >
-                          <PencilSquareIcon className="w-4 h-4" />
+                          <PencilSquareIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => { setSelectedUser(user); setShowPasswordModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-yellow-600 hover:bg-gray-100 rounded"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-yellow-600 hover:bg-gray-100 rounded"
                           title="Wachtwoord resetten"
                         >
-                          <KeyIcon className="w-4 h-4" />
+                          <KeyIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => { setSelectedUser(user); setShowBlockModal(true) }}
-                          className={`p-1.5 hover:bg-gray-100 rounded ${user.is_active ? 'text-gray-500 hover:text-orange-600' : 'text-gray-500 hover:text-green-600'}`}
+                          className={`p-2 min-w-[40px] min-h-[40px] hover:bg-gray-100 rounded ${user.is_active ? 'text-gray-500 hover:text-orange-600' : 'text-gray-500 hover:text-green-600'}`}
                           title={user.is_active ? 'Blokkeren' : 'Activeren'}
                         >
-                          {user.is_active ? <NoSymbolIcon className="w-4 h-4" /> : <CheckCircleIcon className="w-4 h-4" />}
+                          {user.is_active ? <NoSymbolIcon className="w-5 h-5" /> : <CheckCircleIcon className="w-5 h-5" />}
                         </button>
                         {user.mfa_enabled && (
                           <button
                             onClick={() => { setSelectedUser(user); setShowMfaModal(true) }}
-                            className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded"
+                            className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded"
                             title="2FA uitschakelen"
                           >
-                            <ShieldCheckIcon className="w-4 h-4" />
+                            <ShieldCheckIcon className="w-5 h-5" />
                           </button>
                         )}
                         <button
                           onClick={() => { setSelectedUser(user); setShowDeleteModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
                           title="Verwijderen"
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <TrashIcon className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
@@ -1065,22 +1080,23 @@ export default function UsersPage() {
             </div>
           ) : (
             users.map(user => (
-              <div key={user.id} className="p-3 hover:bg-gray-50">
+              <div key={user.id} className="p-4 hover:bg-gray-50">
                 {/* Card Header */}
-                <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <h3 className="font-semibold text-sm text-gray-900 truncate">{user.full_name}</h3>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="font-semibold text-gray-900 truncate">{user.full_name}</h3>
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${roleConfig[user.rol]?.color}`}>
                         {t(roleConfig[user.rol]?.key)}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-600 truncate">{user.email}</p>
+                    <p className="text-sm text-gray-500">@{user.username}</p>
+                    <p className="text-sm text-gray-600 truncate">{user.email}</p>
                   </div>
                 </div>
 
                 {/* Card Status */}
-                <div className="flex flex-wrap gap-3 text-xs mb-2">
+                <div className="flex flex-wrap gap-3 text-sm mb-3">
                   {user.is_active ? (
                     <span className="flex items-center text-green-600">
                       <CheckCircleIcon className="w-4 h-4 mr-1" />
@@ -1114,40 +1130,40 @@ export default function UsersPage() {
                 <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
                   <button
                     onClick={() => { setSelectedUser(user); setShowEditModal(true) }}
-                    className="p-2 min-h-[44px] min-w-[44px] text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
-                    title={t('common.edit')}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg min-h-[44px]"
                   >
                     <PencilSquareIcon className="w-4 h-4" />
+                    <span>{t('common.edit')}</span>
                   </button>
                   <button
                     onClick={() => { setSelectedUser(user); setShowPasswordModal(true) }}
-                    className="p-2 min-h-[44px] min-w-[44px] text-yellow-600 bg-yellow-50 hover:bg-yellow-100 rounded-lg"
-                    title={t('auth.password')}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-yellow-600 bg-yellow-50 hover:bg-yellow-100 rounded-lg min-h-[44px]"
                   >
                     <KeyIcon className="w-4 h-4" />
+                    <span>{t('auth.password')}</span>
                   </button>
                   <button
                     onClick={() => { setSelectedUser(user); setShowBlockModal(true) }}
-                    className={`p-2 min-h-[44px] min-w-[44px] rounded-lg ${user.is_active ? 'text-orange-600 bg-orange-50 hover:bg-orange-100' : 'text-green-600 bg-green-50 hover:bg-green-100'}`}
-                    title={user.is_active ? t('common.inactive') : t('common.active')}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg min-h-[44px] ${user.is_active ? 'text-orange-600 bg-orange-50 hover:bg-orange-100' : 'text-green-600 bg-green-50 hover:bg-green-100'}`}
                   >
                     {user.is_active ? <NoSymbolIcon className="w-4 h-4" /> : <CheckCircleIcon className="w-4 h-4" />}
+                    <span>{user.is_active ? t('common.inactive') : t('common.active')}</span>
                   </button>
                   {user.mfa_enabled && (
                     <button
                       onClick={() => { setSelectedUser(user); setShowMfaModal(true) }}
-                      className="p-2 min-h-[44px] min-w-[44px] text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg"
-                      title={t('users.twoFactorDisabled')}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg min-h-[44px]"
                     >
                       <ShieldCheckIcon className="w-4 h-4" />
+                      <span>2FA uit</span>
                     </button>
                   )}
                   <button
                     onClick={() => { setSelectedUser(user); setShowDeleteModal(true) }}
-                    className="p-2 min-h-[44px] min-w-[44px] text-red-600 bg-red-50 hover:bg-red-100 rounded-lg"
-                    title={t('common.delete')}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg min-h-[44px]"
                   >
                     <TrashIcon className="w-4 h-4" />
+                    <span>{t('common.delete')}</span>
                   </button>
                 </div>
               </div>

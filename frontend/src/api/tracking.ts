@@ -60,6 +60,27 @@ export interface TrackingVehicle {
   ritnummer: string
 }
 
+export interface FMTrackPosition {
+  object_id: string
+  vehicle_name: string
+  plate_number: string
+  latitude: number
+  longitude: number
+  address: string
+  timestamp: string
+  speed: number
+  heading: number
+  ignition: boolean | null
+  vehicle_status: 'driving' | 'idle' | 'parked'
+  fuel_level: number
+  fuel_remaining_km: number | null
+  tms_vehicle: {
+    id: string
+    kenteken: string
+    ritnummer: string
+  } | null
+}
+
 export interface LocationSubmitData {
   latitude: number
   longitude: number
@@ -142,5 +163,11 @@ export const trackingApi = {
   }> => {
     const response = await api.get('/tracking/my-vehicle/')
     return response.data
+  },
+
+  // FM-Track vehicle positions
+  getFMTrackPositions: async (): Promise<FMTrackPosition[]> => {
+    const response = await api.get('/tracking/fm-positions/')
+    return response.data.positions || []
   },
 }

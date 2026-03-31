@@ -8,16 +8,14 @@ import { Driver } from '@/types'
 export interface DriverCreate {
   naam: string
   telefoon?: string
-  bedrijven?: string[]
+  bedrijf?: string | null
   gekoppelde_gebruiker?: string | null
   voertuig?: string | null
   adr?: boolean
-  einddatum_bestuurderspas?: string | null
-  einddatum_code95?: string | null
-  einddatum_adr?: string | null
-  einddatum_rijbewijs?: string | null
   minimum_uren_per_week?: number | null
-  actief?: boolean
+  standaard_pauze?: number
+  auto_uren?: boolean
+  tacho_kenteken?: string
 }
 
 export interface DriverUpdate extends Partial<DriverCreate> {}
@@ -31,7 +29,7 @@ export interface DriversResponse {
 
 export interface DriverFilters {
   search?: string
-  bedrijven?: string
+  bedrijf?: string
   adr?: string
   page?: number
   page_size?: number
@@ -43,7 +41,7 @@ export async function getDrivers(filters?: DriverFilters): Promise<DriversRespon
   const params = new URLSearchParams()
   
   if (filters?.search) params.append('search', filters.search)
-  if (filters?.bedrijven) params.append('bedrijven', filters.bedrijven)
+  if (filters?.bedrijf) params.append('bedrijf', filters.bedrijf)
   if (filters?.adr !== undefined) params.append('adr', filters.adr)
   if (filters?.page) params.append('page', filters.page.toString())
   if (filters?.page_size) params.append('page_size', filters.page_size.toString())

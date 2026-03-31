@@ -1,7 +1,5 @@
 import json
 import logging
-import mimetypes
-import os
 from datetime import date, timedelta
 from decimal import Decimal
 from django.utils import timezone
@@ -11,11 +9,10 @@ from django.db.models.functions import TruncWeek, TruncMonth, TruncQuarter, Trun
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
-from apps.core.permissions import IsAdminOnly, IsAdminOrManager
+from apps.core.permissions import IsAdminOrManager, HasModulePermission
 from apps.core.security import sanitize_filename
 from .models import InvoiceTemplate, Invoice, InvoiceLine, InvoiceStatus, InvoiceType, Expense, ExpenseCategory
 from .serializers import (
@@ -53,7 +50,7 @@ class InvoiceTemplateViewSet(viewsets.ModelViewSet):
     """
     queryset = InvoiceTemplate.objects.all()
     serializer_class = InvoiceTemplateSerializer
-    permission_classes = [IsAuthenticated, IsAdminOnly]
+    permission_classes = [IsAuthenticated, IsAdminUser]
     filterset_fields = ['is_active']
     search_fields = ['naam', 'beschrijving']
     
@@ -190,19 +187,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     queryset = Invoice.objects.select_related(
         'bedrijf', 'template', 'created_by'
     ).prefetch_related('lines').all()
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_invoices'
     filterset_fields = ['type', 'status', 'bedrijf', 'week_number', 'week_year', 'chauffeur']
     search_fields = ['factuurnummer', 'bedrijf__naam']
     ordering_fields = ['factuurdatum', 'factuurnummer', 'totaal', 'bedrijf__naam']
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        # Year filter on factuurdatum
-        jaar = self.request.query_params.get('jaar')
-        if jaar:
-            qs = qs.filter(factuurdatum__year=int(jaar))
-        return qs
     
     @action(detail=False, methods=['get'])
     def next_number(self, request):
@@ -715,13 +704,6 @@ Met vriendelijke groet,
             filename = f"factuur_{invoice.factuurnummer.replace('/', '-')}.pdf"
             email.attach(filename, pdf_content, 'application/pdf')
             
-            # Attach bijlage if present
-            if invoice.bijlage:
-                bijlage_name = os.path.basename(invoice.bijlage.name)
-                bijlage_content = invoice.bijlage.read()
-                bijlage_mime = mimetypes.guess_type(bijlage_name)[0] or 'application/octet-stream'
-                email.attach(bijlage_name, bijlage_content, bijlage_mime)
-            
             email.send()
             
             # Update invoice status to verzonden if definitief
@@ -890,10 +872,11 @@ class RevenueView(APIView):
     """
     API endpoint voor omzet/winst statistieken.
     Ondersteunt week/maand/kwartaal/jaar aggregatie.
-    Bevat: inkomsten (verkoop - credit), uitgaven (inkoop + directe kosten),
+    Bevat: inkomsten (verkoop), uitgaven (inkoop + credit + directe kosten),
     totaal gevorderd (betaald) en totaal nog te vorderen (niet betaald).
     """
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_revenue'
     
     def get(self, request):
         # Get parameters
@@ -971,7 +954,7 @@ class RevenueView(APIView):
         # Combine all data into a timeline
         income_dict = {item['period']: float(item['totaal'] or 0) for item in income_qs}
         invoice_exp_dict = {item['period']: float(item['totaal'] or 0) for item in invoice_expenses_qs}
-        credit_exp_dict = {item['period']: abs(float(item['totaal'] or 0)) for item in credit_expenses_qs}
+        credit_exp_dict = {item['period']: float(item['totaal'] or 0) for item in credit_expenses_qs}
         direct_exp_dict = {item['period']: float(item['totaal'] or 0) for item in direct_expenses_qs}
         
         # Get all unique periods
@@ -991,11 +974,10 @@ class RevenueView(APIView):
         for period_date in all_periods:
             income = income_dict.get(period_date, 0)
             credit = credit_exp_dict.get(period_date, 0)
-            net_income = income - credit
-            expenses = invoice_exp_dict.get(period_date, 0) + direct_exp_dict.get(period_date, 0)
-            profit = net_income - expenses
+            expenses = invoice_exp_dict.get(period_date, 0) + credit + direct_exp_dict.get(period_date, 0)
+            profit = income - expenses
             
-            total_income += net_income
+            total_income += income
             total_expenses += expenses
             total_credit += credit
             
@@ -1013,7 +995,7 @@ class RevenueView(APIView):
             data.append({
                 'period': period_date.isoformat(),
                 'label': label,
-                'income': round(net_income, 2),
+                'income': round(income, 2),
                 'credit': round(credit, 2),
                 'expenses': round(expenses, 2),
                 'profit': round(profit, 2),
@@ -1065,177 +1047,69 @@ class RevenueView(APIView):
 
 class RevenueForecastView(APIView):
     """
-    Forecast revenue, expenses and profit for upcoming periods.
-    Uses weighted moving average of recent months (last 6 months)
-    to project forward for month, quarter, half year and year.
+    Simple revenue forecast based on historical monthly averages.
     """
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_revenue'
 
     def get(self, request):
         today = date.today()
-        months_back = 6
-        # Start from 6 months ago, first day of that month
-        start_month = today.month - months_back
-        start_year = today.year
-        while start_month <= 0:
-            start_month += 12
-            start_year -= 1
-        start_date = date(start_year, start_month, 1)
+        year = int(request.query_params.get('year', today.year))
+        months_ahead = min(int(request.query_params.get('months', 6)), 12)
 
+        # Use past 12 months of income data as basis
+        lookback_start = date(today.year - 1, today.month, 1)
         income_statuses = [InvoiceStatus.DEFINITIEF, InvoiceStatus.VERZONDEN, InvoiceStatus.BETAALD]
 
-        # Monthly income (verkoop)
         monthly_income = Invoice.objects.filter(
             type=InvoiceType.VERKOOP,
             status__in=income_statuses,
-            factuurdatum__gte=start_date,
+            factuurdatum__gte=lookback_start,
             factuurdatum__lte=today,
         ).annotate(
-            month=TruncMonth('factuurdatum')
-        ).values('month').annotate(
+            period=TruncMonth('factuurdatum')
+        ).values('period').annotate(
             totaal=Sum('totaal')
-        ).order_by('month')
+        ).order_by('period')
 
-        # Monthly inkoop expenses
-        monthly_inkoop = Invoice.objects.filter(
+        monthly_expenses = Invoice.objects.filter(
             type=InvoiceType.INKOOP,
             status__in=income_statuses,
-            factuurdatum__gte=start_date,
+            factuurdatum__gte=lookback_start,
             factuurdatum__lte=today,
         ).annotate(
-            month=TruncMonth('factuurdatum')
-        ).values('month').annotate(
+            period=TruncMonth('factuurdatum')
+        ).values('period').annotate(
             totaal=Sum('totaal')
-        ).order_by('month')
+        ).order_by('period')
 
-        # Monthly credit expenses
-        monthly_credit = Invoice.objects.filter(
-            type=InvoiceType.CREDIT,
-            status__in=income_statuses,
-            factuurdatum__gte=start_date,
-            factuurdatum__lte=today,
-        ).annotate(
-            month=TruncMonth('factuurdatum')
-        ).values('month').annotate(
-            totaal=Sum('totaal')
-        ).order_by('month')
+        income_vals = [float(m['totaal'] or 0) for m in monthly_income]
+        expense_vals = [float(m['totaal'] or 0) for m in monthly_expenses]
 
-        # Monthly direct expenses
-        monthly_direct = Expense.objects.filter(
-            datum__gte=start_date,
-            datum__lte=today,
-        ).annotate(
-            month=TruncMonth('datum')
-        ).values('month').annotate(
-            totaal=Sum('totaal')
-        ).order_by('month')
+        avg_income = sum(income_vals) / len(income_vals) if income_vals else 0
+        avg_expenses = sum(expense_vals) / len(expense_vals) if expense_vals else 0
 
-        # Build dicts
-        income_dict = {item['month']: float(item['totaal'] or 0) for item in monthly_income}
-        inkoop_dict = {item['month']: float(item['totaal'] or 0) for item in monthly_inkoop}
-        credit_dict = {item['month']: abs(float(item['totaal'] or 0)) for item in monthly_credit}
-        direct_dict = {item['month']: float(item['totaal'] or 0) for item in monthly_direct}
-
-        all_months = sorted(set(
-            list(income_dict.keys()) +
-            list(inkoop_dict.keys()) +
-            list(credit_dict.keys()) +
-            list(direct_dict.keys())
-        ))
-
-        empty_forecast = {
-            'lookback_months': months_back,
-            'data_months': 0,
-            'avg_monthly_income': 0,
-            'avg_monthly_expenses': 0,
-            'avg_monthly_profit': 0,
-            'trend': 'stable',
-            'forecast': {
-                'month': {'income': 0, 'expenses': 0, 'profit': 0},
-                'quarter': {'income': 0, 'expenses': 0, 'profit': 0},
-                'half_year': {'income': 0, 'expenses': 0, 'profit': 0},
-                'year': {'income': 0, 'expenses': 0, 'profit': 0},
-            },
-            'monthly_trend': [],
-        }
-
-        if not all_months:
-            return Response(empty_forecast)
-
-        monthly_data = []
-        for month in all_months:
-            income = income_dict.get(month, 0)
-            credit = credit_dict.get(month, 0)
-            net_income = income - credit
-            expenses = (inkoop_dict.get(month, 0) +
-                        direct_dict.get(month, 0))
-            monthly_data.append({
-                'month': month,
-                'income': net_income,
-                'expenses': expenses,
-                'profit': net_income - expenses,
+        forecast = []
+        current = date(year, today.month, 1)
+        for i in range(months_ahead):
+            month = current.month + i
+            y = current.year + (month - 1) // 12
+            m = (month - 1) % 12 + 1
+            forecast_date = date(y, m, 1)
+            forecast.append({
+                'period': forecast_date.isoformat(),
+                'label': forecast_date.strftime('%B %Y'),
+                'income': round(avg_income, 2),
+                'expenses': round(avg_expenses, 2),
+                'profit': round(avg_income - avg_expenses, 2),
             })
 
-        n = len(monthly_data)
-        avg_income = sum(d['income'] for d in monthly_data) / n
-        avg_expenses = sum(d['expenses'] for d in monthly_data) / n
-        avg_profit = avg_income - avg_expenses
-
-        # Weighted average (recent months count more)
-        if n >= 3:
-            weights = list(range(1, n + 1))
-            total_weight = sum(weights)
-            w_income = sum(d['income'] * w for d, w in zip(monthly_data, weights)) / total_weight
-            w_expenses = sum(d['expenses'] * w for d, w in zip(monthly_data, weights)) / total_weight
-            w_profit = w_income - w_expenses
-        else:
-            w_income = avg_income
-            w_expenses = avg_expenses
-            w_profit = avg_profit
-
-        # Determine trend direction
-        if n >= 2:
-            first_half = monthly_data[:n//2]
-            second_half = monthly_data[n//2:]
-            avg_first = sum(d['profit'] for d in first_half) / len(first_half)
-            avg_second = sum(d['profit'] for d in second_half) / len(second_half)
-            if avg_second > avg_first * 1.1:
-                trend = 'up'
-            elif avg_second < avg_first * 0.9:
-                trend = 'down'
-            else:
-                trend = 'stable'
-        else:
-            trend = 'stable'
-
-        forecast = {}
-        multipliers = {'month': 1, 'quarter': 3, 'half_year': 6, 'year': 12}
-        for period_key, mult in multipliers.items():
-            forecast[period_key] = {
-                'income': round(w_income * mult, 2),
-                'expenses': round(w_expenses * mult, 2),
-                'profit': round(w_profit * mult, 2),
-            }
-
-        monthly_trend = [
-            {
-                'month': d['month'].strftime('%B %Y'),
-                'income': round(d['income'], 2),
-                'expenses': round(d['expenses'], 2),
-                'profit': round(d['profit'], 2),
-            }
-            for d in monthly_data
-        ]
-
         return Response({
-            'lookback_months': months_back,
-            'data_months': n,
+            'basis': 'monthly_average',
+            'lookback_months': len(income_vals),
             'avg_monthly_income': round(avg_income, 2),
             'avg_monthly_expenses': round(avg_expenses, 2),
-            'avg_monthly_profit': round(avg_profit, 2),
-            'trend': trend,
             'forecast': forecast,
-            'monthly_trend': monthly_trend,
         })
 
 

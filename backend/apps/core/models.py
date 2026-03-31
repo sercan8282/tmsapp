@@ -546,6 +546,20 @@ class AppSettings(models.Model):
         verbose_name='Primair Font',
         help_text='Het hoofdfont voor de applicatie (koppen en tekst)'
     )
+
+    # Linqo / FM-Track tachograaf integratie
+    linqo_api_key = EncryptedCharField(
+        max_length=512,
+        blank=True,
+        verbose_name='Linqo API Key',
+        help_text='API key voor FM-Track / Linqo tachograaf koppeling.'
+    )
+    tachograaf_start_datum = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Tachograaf startdatum',
+        help_text='Vanaf welke datum tachograaf gegevens automatisch verwerkt moeten worden.'
+    )
     secondary_font = models.ForeignKey(
         'CustomFont',
         on_delete=models.SET_NULL,

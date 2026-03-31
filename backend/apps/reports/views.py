@@ -304,6 +304,15 @@ class ReportRequestViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(requested_by=self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        """Create a report request and return the full serialized object (including id)."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        # Re-serialize with the full serializer so the response includes id etc.
+        output = ReportRequestSerializer(serializer.instance, context={'request': request})
+        return Response(output.data, status=status.HTTP_201_CREATED)
+
     # ------------------------------------------------------------------
     # List available report types
     # ------------------------------------------------------------------

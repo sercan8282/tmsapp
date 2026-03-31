@@ -1,7 +1,7 @@
 import logging
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from apps.core.permissions import IsAdminOrManager
+from apps.core.permissions import IsAdminOrManager, HasModulePermission
 from .models import Driver
 from .serializers import DriverSerializer
 
@@ -14,11 +14,12 @@ class DriverViewSet(viewsets.ModelViewSet):
     - Admin/Gebruiker: Full CRUD access
     - Chauffeur: Read-only access
     """
-    queryset = Driver.objects.prefetch_related('bedrijven').select_related('gekoppelde_gebruiker', 'voertuig').all()
+    queryset = Driver.objects.select_related('bedrijf', 'gekoppelde_gebruiker', 'voertuig').all()
     serializer_class = DriverSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_drivers'
     search_fields = ['naam', 'telefoon']
-    filterset_fields = ['bedrijven', 'adr']
+    filterset_fields = ['bedrijf', 'adr', 'auto_uren']
     ordering_fields = ['naam', 'created_at']
     ordering = ['naam']
     

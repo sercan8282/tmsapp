@@ -25,7 +25,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
-import { trackingApi, type LiveVehicle, type TrackingSession, type TrackingVehicle, type RouteHistory } from '@/api/tracking'
+import { trackingApi, type LiveVehicle, type TrackingSession, type TrackingVehicle, type RouteHistory, type FMTrackPosition } from '@/api/tracking'
 import { useGPSTracking } from '@/hooks/useGPSTracking'
 import { useLocationPermission } from '@/hooks/useLocationPermission'
 import { LocationPermissionDialog, LocationDeniedBanner } from '@/components/tracking/LocationPermission'
@@ -125,17 +125,26 @@ function TrackingMap({
     vehicles.forEach(v => {
       const existing = markersRef.current.get(v.session_id)
       const latlng: L.LatLngExpression = [v.latitude, v.longitude]
+      const isFMTrack = v.session_id.startsWith('fm-')
+
+      const getMarkerColor = () => {
+        if (focusVehicleId && v.vehicle_id === focusVehicleId) return '#2563eb'
+        if (isFMTrack) {
+          const fmStatus = (v as any).vehicle_status
+          if (fmStatus === 'driving') return '#22c55e'
+          if (fmStatus === 'idle') return '#f59e0b'
+          return '#9ca3af'
+        }
+        return v.is_active ? '#1e3a5f' : '#9ca3af'
+      }
 
       if (existing) {
         existing.setLatLng(latlng)
         existing.setPopupContent(createPopupContent(v))
-        // Update icon color based on focus
-        const isFocused = focusVehicleId && v.vehicle_id === focusVehicleId
-        existing.setIcon(createTruckIcon(isFocused ? '#2563eb' : v.is_active ? '#1e3a5f' : '#9ca3af'))
+        existing.setIcon(createTruckIcon(getMarkerColor()))
       } else {
-        const isFocused = focusVehicleId && v.vehicle_id === focusVehicleId
         const marker = L.marker(latlng, {
-          icon: createTruckIcon(isFocused ? '#2563eb' : v.is_active ? '#1e3a5f' : '#9ca3af'),
+          icon: createTruckIcon(getMarkerColor()),
         }).addTo(map)
 
         marker.bindPopup(createPopupContent(v))
@@ -212,17 +221,40 @@ function TrackingMap({
 }
 
 function createPopupContent(v: LiveVehicle): string {
-  const speed = v.speed != null ? `${Math.round(v.speed)} km/h` : '-'
+  const speed = v.speed != null && v.speed > 0 ? `${Math.round(v.speed)} km/h` : 'Stilstaand'
   const time = new Date(v.recorded_at).toLocaleTimeString('nl-NL', {
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   })
+  const isFMTrack = v.session_id.startsWith('fm-')
+  const source = isFMTrack ? '<span style="color:#d97706;font-size:10px">FM-Track</span>' : ''
+
+  // Vehicle status for FM-Track
+  let statusHtml = ''
+  if (isFMTrack) {
+    const fmData = v as any
+    const status = fmData.vehicle_status || 'parked'
+    const statusColors: Record<string, string> = {
+      driving: '#22c55e',
+      idle: '#f59e0b',
+      parked: '#9ca3af',
+    }
+    const statusLabels: Record<string, string> = {
+      driving: 'Rijdend',
+      idle: 'Stationair',
+      parked: 'Geparkeerd',
+    }
+    statusHtml = `<span style="color:${statusColors[status]};font-weight:600">\u25CF ${statusLabels[status]}</span><br/>`
+  }
+
   return `
-    <div style="min-width:160px">
+    <div style="min-width:180px">
       <strong>${v.vehicle_kenteken || v.user_name}</strong><br/>
       ${v.vehicle_ritnummer ? `<span style="color:#666">Rit: ${v.vehicle_ritnummer}</span><br/>` : ''}
-      <span style="color:#666">${v.user_name}</span><br/>
-      <span>🚀 ${speed}</span><br/>
-      <span>🕐 ${time}</span>
+      ${isFMTrack ? source + '<br/>' : `<span style="color:#666">${v.user_name}</span><br/>`}
+      ${statusHtml}
+      <span>\u{1F680} ${speed}</span><br/>
+      ${isFMTrack && (v as any).fuel_level > 0 ? `<span>\u26FD ${Math.round((v as any).fuel_level)}%${(v as any).fuel_remaining_km ? ` (~${(v as any).fuel_remaining_km} km)` : ''}</span><br/>` : ''}
+      <span>\u{1F550} ${time}</span>
     </div>
   `
 }
@@ -615,6 +647,7 @@ export default function TrackingPage() {
   const { t } = useTranslation()
   const { user } = useAuthStore()
   const [liveVehicles, setLiveVehicles] = useState<LiveVehicle[]>([])
+  const [fmPositions, setFmPositions] = useState<FMTrackPosition[]>([])
   const [trackingVehicles, setTrackingVehicles] = useState<TrackingVehicle[]>([])
   const [assignedVehicle, setAssignedVehicle] = useState<{ vehicle: TrackingVehicle; driver_naam: string } | null>(null)
   const [selectedRoute, setSelectedRoute] = useState<RouteHistory | null>(null)
@@ -658,6 +691,16 @@ export default function TrackingPage() {
         console.error('Failed to load assigned vehicle:', err)
       }
 
+      // Load FM-Track positions (admin only)
+      if (user?.rol === 'admin' || user?.rol === 'gebruiker') {
+        try {
+          const positions = await trackingApi.getFMTrackPositions()
+          setFmPositions(positions)
+        } catch (err) {
+          console.error('Failed to load FM-Track positions:', err)
+        }
+      }
+
       setLoading(false)
     }
     loadData()
@@ -671,6 +714,16 @@ export default function TrackingPage() {
     } catch {}
   }, [])
 
+  // Poll FM-Track positions every 60s (separate cadence to avoid API overload)
+  const pollFMPositions = useCallback(async () => {
+    if (user?.rol === 'admin' || user?.rol === 'gebruiker') {
+      try {
+        const positions = await trackingApi.getFMTrackPositions()
+        setFmPositions(positions)
+      } catch {}
+    }
+  }, [user])
+
   useEffect(() => {
     // Poll immediately on mount, then every 5s
     pollLivePositions()
@@ -679,6 +732,15 @@ export default function TrackingPage() {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
     }
   }, [pollLivePositions])
+
+  // FM-Track positions poll (every 30s)
+  const fmPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => {
+    fmPollRef.current = setInterval(pollFMPositions, 30000)
+    return () => {
+      if (fmPollRef.current) clearInterval(fmPollRef.current)
+    }
+  }, [pollFMPositions])
 
   // Called when tracking starts — poll after short delay so first GPS point appears on map
   const handleTrackingStarted = useCallback(() => {
@@ -698,6 +760,37 @@ export default function TrackingPage() {
     // Map will zoom to this vehicle via the focusVehicleId prop
   }, [])
 
+  // Combine GPS live vehicles with FM-Track positions for the map
+    const allMapVehicles: (LiveVehicle & { vehicle_status?: string })[] = [
+    ...liveVehicles,
+    ...fmPositions
+      // Don't duplicate vehicles already tracked via GPS
+      .filter(fp => !liveVehicles.some(lv =>
+        lv.vehicle_kenteken && fp.plate_number &&
+        lv.vehicle_kenteken.replace(/-/g, '').toUpperCase() === fp.plate_number.replace(/-/g, '').toUpperCase()
+      ))
+      .map(fp => ({
+        session_id: `fm-${fp.object_id}`,
+        user_name: fp.vehicle_name,
+        vehicle_id: fp.tms_vehicle?.id || null,
+        vehicle_kenteken: fp.plate_number,
+        vehicle_ritnummer: fp.tms_vehicle?.ritnummer || null,
+        vehicle_type: null,
+        latitude: fp.latitude,
+        longitude: fp.longitude,
+        speed: fp.speed,
+        heading: fp.heading || null,
+        accuracy: null,
+        recorded_at: fp.timestamp,
+        is_active: fp.vehicle_status === 'driving',
+        vehicle_status: fp.vehicle_status,
+        fuel_level: fp.fuel_level,
+        fuel_remaining_km: fp.fuel_remaining_km,
+      })),
+  ]
+
+  const totalVehicles = allMapVehicles.length
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -716,7 +809,7 @@ export default function TrackingPage() {
             {t('tracking.title')}
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-            {liveVehicles.length} {t('tracking.activeVehicles')}
+            {totalVehicles} {t('tracking.activeVehicles')}
           </p>
         </div>
       </div>
@@ -746,7 +839,7 @@ export default function TrackingPage() {
         {/* Map — z-index isolated so Leaflet controls don't overlap modals */}
         <div className="flex-1 bg-white rounded-lg shadow-sm border overflow-hidden min-h-[300px] sm:min-h-[400px] lg:min-h-[500px] relative z-0">
           <TrackingMap
-            vehicles={liveVehicles}
+            vehicles={allMapVehicles}
             selectedRoute={selectedRoute}
             focusVehicleId={selectedVehicleId}
           />
@@ -754,42 +847,94 @@ export default function TrackingPage() {
 
         {/* Sidebar */}
         <div className="w-full lg:w-80 space-y-4">
-          {/* Vehicle monitor */}
-          <VehicleMonitorPanel
-            vehicles={trackingVehicles}
-            liveVehicles={liveVehicles}
-            onSelectVehicle={handleSelectVehicle}
-            onTrackingStarted={handleTrackingStarted}
-            assignedVehicle={assignedVehicle}
-            locationPermission={locationPermission}
-          />
+          {/* Vehicle monitor — only for chauffeurs who can track themselves */}
+          {!isAdmin && (
+            <VehicleMonitorPanel
+              vehicles={trackingVehicles}
+              liveVehicles={liveVehicles}
+              onSelectVehicle={handleSelectVehicle}
+              onTrackingStarted={handleTrackingStarted}
+              assignedVehicle={assignedVehicle}
+              locationPermission={locationPermission}
+            />
+          )}
 
           {/* Active vehicles list (admin only) */}
-          {isAdmin && liveVehicles.length > 0 && (
+          {isAdmin && allMapVehicles.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
               <div className="px-3 py-2 border-b bg-gray-50">
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-900 flex items-center gap-2">
                   <TruckIcon className="h-4 w-4 text-gray-500 shrink-0" />
-                  <span className="truncate">{t('tracking.liveVehicles')} ({liveVehicles.length})</span>
+                  <span className="truncate">{t('tracking.liveVehicles')} ({allMapVehicles.length})</span>
                 </h3>
               </div>
-              <div className="divide-y max-h-[200px] sm:max-h-[250px] overflow-y-auto">
-                {liveVehicles.map(v => (
-                  <div key={v.session_id} className="px-3 py-2 hover:bg-gray-50">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-medium text-gray-900 truncate">
-                          {v.vehicle_kenteken || v.user_name}
-                        </div>
-                        <div className="text-[10px] text-gray-500 truncate">
-                          {v.user_name}
-                          {v.speed != null && ` · ${Math.round(v.speed)} km/h`}
+              <div className="divide-y max-h-[300px] sm:max-h-[400px] overflow-y-auto">
+                {allMapVehicles.map(v => {
+                  const isFM = v.session_id.startsWith('fm-')
+                  const status = (v as any).vehicle_status || (v.is_active ? 'driving' : 'parked')
+                  const isSelected = selectedVehicleId && (v.vehicle_id === selectedVehicleId || v.session_id === `fm-${selectedVehicleId}`)
+
+                  const statusConfig: Record<string, { color: string; label: string; dot: string }> = {
+                    driving: { color: 'text-green-600', label: 'Rijdend', dot: 'bg-green-500 animate-pulse' },
+                    idle: { color: 'text-amber-600', label: 'Stationair', dot: 'bg-amber-500 animate-pulse' },
+                    parked: { color: 'text-gray-500', label: 'Geparkeerd', dot: 'bg-gray-400' },
+                  }
+                  const sc = statusConfig[status] || statusConfig.parked
+
+                  return (
+                    <button
+                      key={v.session_id}
+                      onClick={() => {
+                        const id = v.vehicle_id || v.session_id
+                        handleSelectVehicle(selectedVehicleId === id ? null : id)
+                      }}
+                      className={`w-full px-3 py-2.5 text-left hover:bg-gray-50 transition-colors ${
+                        isSelected ? 'bg-primary-50 border-l-2 border-primary-600' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${sc.dot}`} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-900 truncate">
+                              {v.vehicle_kenteken || v.user_name}
+                            </span>
+                            <span className={`text-[10px] font-medium ${sc.color} shrink-0 ml-1`}>
+                              {sc.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between mt-0.5">
+                            <span className="text-[10px] text-gray-500 truncate">
+                              {v.vehicle_ritnummer ? `Rit ${v.vehicle_ritnummer}` : (isFM ? 'FM-Track' : v.user_name)}
+                            </span>
+                            <span className="text-[10px] text-gray-400 shrink-0 ml-1">
+                              {v.speed != null && v.speed > 0
+                                ? `${Math.round(v.speed)} km/h`
+                                : new Date(v.recorded_at).toLocaleTimeString('nl-NL', {
+                                    hour: '2-digit', minute: '2-digit',
+                                  })
+                              }
+                            </span>
+                          </div>
+                          {(v as any).fuel_level > 0 && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-[10px] text-gray-500">⛽ {Math.round((v as any).fuel_level)}%</span>
+                              <div className="flex-1 h-1.5 bg-gray-200 rounded-full max-w-[60px]">
+                                <div
+                                  className={`h-1.5 rounded-full ${(v as any).fuel_level > 25 ? 'bg-green-500' : (v as any).fuel_level > 10 ? 'bg-amber-500' : 'bg-red-500'}`}
+                                  style={{ width: `${Math.min((v as any).fuel_level, 100)}%` }}
+                                />
+                              </div>
+                              {(v as any).fuel_remaining_km && (
+                                <span className="text-[10px] text-gray-400">~{(v as any).fuel_remaining_km} km</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}

@@ -36,6 +36,7 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # Trust proxy headers (for nginx)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -78,6 +79,15 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@example.com')
 
 # Static files
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+
+# Celery Configuration
+CELERY_BROKER_URL = REDIS_URL if REDIS_URL else 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE if 'TIME_ZONE' in dir() else 'Europe/Amsterdam'
+# CELERY_BEAT_SCHEDULE is inherited from base.py — do not override here
 
 # Logging - Production (console only for Docker compatibility)
 # Docker captures stdout/stderr automatically, no file logging needed

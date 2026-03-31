@@ -15,6 +15,7 @@ class LeaveType(models.TextChoices):
     OVERUREN = 'overuren', 'Verlof overuren'
     BIJZONDER_TANDARTS = 'bijzonder_tandarts', 'Bijzonder verlof tandarts'
     BIJZONDER_HUISARTS = 'bijzonder_huisarts', 'Bijzonder verlof huisarts'
+    ZIEKTEVERZUIM = 'ziekteverzuim', 'Ziekteverzuim'
 
 
 class LeaveRequestStatus(models.TextChoices):

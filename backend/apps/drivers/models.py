@@ -9,11 +9,13 @@ class Driver(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     naam = models.CharField(max_length=200, verbose_name='Naam')
     telefoon = models.CharField(max_length=20, blank=True, verbose_name='Telefoon')
-    bedrijven = models.ManyToManyField(
+    bedrijf = models.ForeignKey(
         'companies.Company',
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
         related_name='drivers',
-        verbose_name='Bedrijven'
+        verbose_name='Bedrijf'
     )
     gekoppelde_gebruiker = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -32,36 +34,28 @@ class Driver(models.Model):
         verbose_name='Voertuig (Ritnummer)'
     )
     adr = models.BooleanField(default=False, verbose_name='ADR Gecertificeerd')
-    einddatum_bestuurderspas = models.DateField(
-        null=True, blank=True,
-        verbose_name='Einddatum Bestuurderspas',
-        help_text='Verloopdatum van de bestuurderspas.'
-    )
-    einddatum_code95 = models.DateField(
-        null=True, blank=True,
-        verbose_name='Einddatum Code 95',
-        help_text='Verloopdatum van Code 95 certificering.'
-    )
-    einddatum_adr = models.DateField(
-        null=True, blank=True,
-        verbose_name='Einddatum ADR',
-        help_text='Verloopdatum van het ADR certificaat.'
-    )
-    einddatum_rijbewijs = models.DateField(
-        null=True, blank=True,
-        verbose_name='Einddatum Rijbewijs',
-        help_text='Verloopdatum van het rijbewijs.'
-    )
     minimum_uren_per_week = models.DecimalField(
         max_digits=5, decimal_places=2,
         null=True, blank=True,
         verbose_name='Minimum uren per week',
         help_text='Standaard minimum uren per week voor deze chauffeur. Wordt gebruikt als er geen specifieke weekinstelling is.'
     )
-    actief = models.BooleanField(
-        default=True,
-        verbose_name='Actief',
-        help_text='Inactieve chauffeurs worden niet meegeteld in urenoverzichten.'
+    standaard_pauze = models.PositiveIntegerField(
+        default=30,
+        verbose_name='Standaard pauze (minuten)',
+        help_text='Standaard pauzetijd in minuten die automatisch wordt ingevuld bij tachograaf uren.'
+    )
+    auto_uren = models.BooleanField(
+        default=False,
+        verbose_name='Automatisch uren registreren',
+        help_text='Automatisch tijdregistratie aanmaken op basis van tachograaf gegevens.'
+    )
+    tacho_kenteken = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        verbose_name='Tachograaf kenteken',
+        help_text='Kenteken uit de tachograaf lijst om deze chauffeur aan te koppelen.'
     )
     
     created_at = models.DateTimeField(auto_now_add=True)

@@ -30,7 +30,7 @@ export interface LeaveBalance {
   updated_at: string
 }
 
-export type LeaveType = 'vakantie' | 'overuren' | 'bijzonder_tandarts' | 'bijzonder_huisarts'
+export type LeaveType = 'vakantie' | 'overuren' | 'bijzonder_tandarts' | 'bijzonder_huisarts' | 'ziekteverzuim'
 export type LeaveRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 export interface LeaveRequest {
@@ -95,6 +95,7 @@ export const LEAVE_TYPE_OPTIONS = [
   { value: 'overuren', label: 'Verlof overuren' },
   { value: 'bijzonder_tandarts', label: 'Bijzonder verlof tandarts' },
   { value: 'bijzonder_huisarts', label: 'Bijzonder verlof huisarts' },
+  { value: 'ziekteverzuim', label: 'Ziekteverzuim' },
 ] as const
 
 // ===== Global Settings =====

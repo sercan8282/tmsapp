@@ -135,6 +135,9 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
             'reminder_enabled', 'reminder_time', 'reminder_frequency',
             'reminder_weekly_day', 'reminder_custom_days', 'reminder_weeks_before',
             'reminder_email', 'reminder_signature',
+            # Linqo / Tachograaf
+            'linqo_api_key',
+            'tachograaf_start_datum',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'ai_status']
@@ -145,6 +148,7 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
             'ai_github_token': {'write_only': True},
             'ai_openai_api_key': {'write_only': True},
             'ai_azure_api_key': {'write_only': True},
+            'linqo_api_key': {'write_only': True},
         }
     
     def get_ai_status(self, obj):

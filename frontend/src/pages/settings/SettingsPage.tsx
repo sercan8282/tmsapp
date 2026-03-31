@@ -6,7 +6,7 @@
  * - Company info (for invoices)
  * - Email settings (SMTP/OAuth)
  */
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Cog6ToothIcon,
@@ -32,15 +32,15 @@ import { settingsApi } from '@/api/settings'
 import { useAppStore } from '@/stores/appStore'
 import { useServerConfigStore } from '@/stores/serverConfigStore'
 import ThemeSelector from '@/components/settings/ThemeSelector'
-import type { AppSettingsAdmin, ReminderCronStatus, ReminderJobLog } from '@/types'
-import { CalendarDaysIcon, ShieldCheckIcon, BellAlertIcon } from '@heroicons/react/24/outline'
+import type { AppSettingsAdmin } from '@/types'
+import { CalendarDaysIcon, ShieldCheckIcon, LinkIcon } from '@heroicons/react/24/outline'
 import LicenseStatusCard from '@/components/licensing/LicenseStatusCard'
 import FontManagementPage from '@/pages/settings/FontManagementPage'
 import LeaveSettingsPage from '@/pages/settings/LeaveSettingsPage'
 import ServerMonitoringPanel from '@/components/ServerMonitoringPanel'
 
 export default function SettingsPage() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { fetchSettings } = useAppStore()
   const serverConfig = useServerConfigStore()
 
@@ -52,8 +52,8 @@ export default function SettingsPage() {
     { id: 'company', name: t('settings.companyInfo', 'Bedrijfsgegevens'), icon: BuildingOfficeIcon },
     { id: 'invoice', name: t('settings.invoiceSettings', 'Factuur'), icon: DocumentTextIcon },
     { id: 'email', name: t('settings.emailSettings', 'E-mail'), icon: EnvelopeIcon },
-    { id: 'reminders', name: t('settings.reminders', 'Herinneringen'), icon: BellAlertIcon },
     { id: 'ai', name: t('settings.aiExtraction', 'AI Extractie'), icon: SparklesIcon },
+    { id: 'integrations', name: t('settings.integrations', 'Koppelingen'), icon: LinkIcon },
     { id: 'server', name: t('settings.server', 'Server'), icon: ServerIcon },
     { id: 'leave', name: t('settings.leaveSettings', 'Verlof'), icon: CalendarDaysIcon, link: '/settings/leave' },
     { id: 'license', name: t('settings.license', 'Licentie'), icon: ShieldCheckIcon },
@@ -83,15 +83,6 @@ export default function SettingsPage() {
   const [testEmail, setTestEmail] = useState('')
   const [testingEmail, setTestingEmail] = useState(false)
 
-  // Reminder cron job state
-  const [cronStatus, setCronStatus] = useState<ReminderCronStatus | null>(null)
-  const [cronLoading, setCronLoading] = useState(false)
-  const [cronMessage, setCronMessage] = useState<string | null>(null)
-  const [jobLogs, setJobLogs] = useState<ReminderJobLog[]>([])
-  const [jobLogsPage, setJobLogsPage] = useState(1)
-  const [jobLogsTotalCount, setJobLogsTotalCount] = useState(0)
-  const jobLogsPageSize = 10
-
   // Load settings on mount
   useEffect(() => {
     loadSettings()
@@ -105,7 +96,6 @@ export default function SettingsPage() {
       setFormData({
         app_name: data.app_name,
         primary_color: data.primary_color,
-        login_background_color: data.login_background_color,
         company_name: data.company_name,
         company_address: data.company_address,
         company_phone: data.company_phone,
@@ -131,15 +121,8 @@ export default function SettingsPage() {
         ai_azure_endpoint: data.ai_azure_endpoint,
         ai_azure_deployment: data.ai_azure_deployment,
         ai_model: data.ai_model || 'gpt-4o-mini',
-        // Reminder settings
-        reminder_enabled: data.reminder_enabled,
-        reminder_time: data.reminder_time,
-        reminder_frequency: data.reminder_frequency,
-        reminder_weekly_day: data.reminder_weekly_day,
-        reminder_custom_days: data.reminder_custom_days,
-        reminder_weeks_before: data.reminder_weeks_before,
-        reminder_email: data.reminder_email,
-        reminder_signature: data.reminder_signature,
+        // Integrations
+        linqo_api_key: '',
       })
     } catch (err: any) {
       setError(t('errors.loadFailed'))
@@ -152,67 +135,6 @@ export default function SettingsPage() {
   const handleInputChange = (field: keyof AppSettingsAdmin, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     setHasChanges(true)
-  }
-
-  // Reminder cron functions
-  const loadCronStatus = useCallback(async () => {
-    try {
-      const status = await settingsApi.getReminderCronStatus()
-      setCronStatus(status)
-    } catch {
-      // Silently fail - cron status is optional info
-    }
-  }, [])
-
-  const loadJobLogs = useCallback(async (page: number = 1) => {
-    try {
-      const response = await settingsApi.getReminderLogs(page, jobLogsPageSize)
-      setJobLogs(response.results)
-      setJobLogsTotalCount(response.count)
-      setJobLogsPage(page)
-    } catch {
-      // Silently fail
-    }
-  }, [jobLogsPageSize])
-
-  // Load cron data when reminders tab is active
-  useEffect(() => {
-    if (activeTab === 'reminders') {
-      loadCronStatus()
-      loadJobLogs(1)
-    }
-  }, [activeTab, loadCronStatus, loadJobLogs])
-
-  const handleSyncCron = async () => {
-    try {
-      setCronLoading(true)
-      setCronMessage(null)
-      const result = await settingsApi.syncReminderCron()
-      setCronStatus(result.status)
-      setCronMessage(result.message)
-      setTimeout(() => setCronMessage(null), 5000)
-    } catch (err: any) {
-      setCronMessage(err.response?.data?.message || t('settings.cronSyncError'))
-      setTimeout(() => setCronMessage(null), 5000)
-    } finally {
-      setCronLoading(false)
-    }
-  }
-
-  const handleRemoveCron = async () => {
-    try {
-      setCronLoading(true)
-      setCronMessage(null)
-      const result = await settingsApi.removeReminderCron()
-      setCronStatus({ active: false, expression: null, cron_line: null })
-      setCronMessage(result.message)
-      setTimeout(() => setCronMessage(null), 5000)
-    } catch (err: any) {
-      setCronMessage(err.response?.data?.message || t('settings.cronRemoveError'))
-      setTimeout(() => setCronMessage(null), 5000)
-    } finally {
-      setCronLoading(false)
-    }
   }
 
   const handleSave = async () => {
@@ -1146,6 +1068,55 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* Integrations Tab */}
+          {activeTab === 'integrations' && (
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-gray-900">{t('settings.integrations', 'Koppelingen')}</h2>
+              <p className="text-sm text-gray-500">
+                {t('settings.integrationsDescription', 'Beheer externe koppelingen en API keys.')}
+              </p>
+
+              {/* Linqo / FM-Track */}
+              <div className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-4 space-y-4">
+                <h3 className="text-md font-medium text-gray-900 dark:text-white">
+                  {t('settings.linqoTitle', 'Linqo / FM-Track (Tachograaf)')}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {t('settings.linqoDescription', 'Koppel de FM-Track tachograaf API om ritgegevens automatisch op te halen.')}
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {t('settings.linqoApiKey', 'API Key')}
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.linqo_api_key || ''}
+                    onChange={(e) => handleInputChange('linqo_api_key', e.target.value)}
+                    placeholder={t('settings.linqoApiKeyPlaceholder', 'Voer de FM-Track API key in...')}
+                    className="input w-full"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {t('settings.linqoApiKeyHint', 'De API key is beschikbaar in het FM-Track / Linqo dashboard.')}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {t('settings.tachograafStartDatum', 'Startdatum tachograaf')}
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.tachograaf_start_datum || ''}
+                    onChange={(e) => handleInputChange('tachograaf_start_datum', e.target.value || null)}
+                    className="input w-full"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {t('settings.tachograafStartDatumHint', 'Vanaf deze datum worden automatisch uren ingediend op basis van tachograaf gegevens.')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Server Tab */}
           {activeTab === 'server' && (
             <div className="space-y-6">
@@ -1201,388 +1172,6 @@ export default function SettingsPage() {
                   <ServerIcon className="h-5 w-5 mr-2" />
                   {t('settings.serverSetup')}
                 </button>
-              </div>
-            </div>
-          )}
-
-          {/* Reminders Tab */}
-          {activeTab === 'reminders' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                  {t('settings.reminders', 'Herinneringen')}
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {t('settings.remindersDescription', 'Configureer automatische e-mailherinneringen voor verlopen chauffeursdocumenten (bestuurderspas, code 95, ADR, rijbewijs).')}
-                </p>
-              </div>
-
-              {/* Enable/Disable */}
-              <div className="flex items-center gap-3">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.reminder_enabled || false}
-                    onChange={(e) => handleInputChange('reminder_enabled', e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                </label>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {t('settings.reminderEnabled', 'Herinneringen inschakelen')}
-                </span>
-              </div>
-
-              {/* Recipient Email */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('settings.reminderEmail', 'Ontvanger e-mailadres')}
-                </label>
-                <input
-                  type="email"
-                  value={formData.reminder_email || ''}
-                  onChange={(e) => handleInputChange('reminder_email', e.target.value)}
-                  className="input-field max-w-md"
-                  placeholder={t('settings.reminderEmailPlaceholder', 'bijv. admin@bedrijf.nl (leeg = bedrijfs-e-mail)')}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {t('settings.reminderEmailHelp', 'Laat leeg om het bedrijfs-e-mailadres te gebruiken.')}
-                </p>
-              </div>
-
-              {/* Send Time */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('settings.reminderTime', 'Verzendtijdstip')}
-                </label>
-                <input
-                  type="time"
-                  value={formData.reminder_time || '08:00'}
-                  onChange={(e) => handleInputChange('reminder_time', e.target.value)}
-                  className="input-field max-w-xs"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {t('settings.reminderTimeHelp', 'Het tijdstip waarop de herinneringsmails worden verstuurd.')}
-                </p>
-              </div>
-
-              {/* Frequency */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('settings.reminderFrequency', 'Frequentie')}
-                </label>
-                <select
-                  value={formData.reminder_frequency || 'daily'}
-                  onChange={(e) => handleInputChange('reminder_frequency', e.target.value)}
-                  className="input-field max-w-md"
-                >
-                  <option value="daily">{t('settings.frequencyDaily', 'Dagelijks')}</option>
-                  <option value="weekdays">{t('settings.frequencyWeekdays', 'Werkdagen (ma-vr)')}</option>
-                  <option value="weekly">{t('settings.frequencyWeekly', 'Wekelijks')}</option>
-                  <option value="custom">{t('settings.frequencyCustom', 'Aangepast')}</option>
-                </select>
-              </div>
-
-              {/* Weekly Day Selection */}
-              {formData.reminder_frequency === 'weekly' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t('settings.reminderWeeklyDay', 'Dag van de week')}
-                  </label>
-                  <select
-                    value={formData.reminder_weekly_day ?? 0}
-                    onChange={(e) => handleInputChange('reminder_weekly_day', parseInt(e.target.value))}
-                    className="input-field max-w-md"
-                  >
-                    <option value={0}>{t('settings.dayMonday', 'Maandag')}</option>
-                    <option value={1}>{t('settings.dayTuesday', 'Dinsdag')}</option>
-                    <option value={2}>{t('settings.dayWednesday', 'Woensdag')}</option>
-                    <option value={3}>{t('settings.dayThursday', 'Donderdag')}</option>
-                    <option value={4}>{t('settings.dayFriday', 'Vrijdag')}</option>
-                    <option value={5}>{t('settings.daySaturday', 'Zaterdag')}</option>
-                    <option value={6}>{t('settings.daySunday', 'Zondag')}</option>
-                  </select>
-                </div>
-              )}
-
-              {/* Custom Days Selection */}
-              {formData.reminder_frequency === 'custom' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('settings.reminderCustomDays', 'Selecteer dagen')}
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 0, label: t('settings.dayMonday', 'Maandag') },
-                      { value: 1, label: t('settings.dayTuesday', 'Dinsdag') },
-                      { value: 2, label: t('settings.dayWednesday', 'Woensdag') },
-                      { value: 3, label: t('settings.dayThursday', 'Donderdag') },
-                      { value: 4, label: t('settings.dayFriday', 'Vrijdag') },
-                      { value: 5, label: t('settings.daySaturday', 'Zaterdag') },
-                      { value: 6, label: t('settings.daySunday', 'Zondag') },
-                    ].map((day) => {
-                      const customDays = (formData.reminder_custom_days as number[]) || []
-                      const isSelected = customDays.includes(day.value)
-                      return (
-                        <button
-                          key={day.value}
-                          type="button"
-                          onClick={() => {
-                            const current = (formData.reminder_custom_days as number[]) || []
-                            const updated = isSelected
-                              ? current.filter((d) => d !== day.value)
-                              : [...current, day.value].sort()
-                            handleInputChange('reminder_custom_days', updated)
-                          }}
-                          className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                            isSelected
-                              ? 'bg-primary-100 border-primary-300 text-primary-700'
-                              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          {day.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Weeks Before */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('settings.reminderWeeksBefore', 'Weken voor verloopdatum')}
-                </label>
-                <p className="text-xs text-gray-500 mb-2">
-                  {t('settings.reminderWeeksBeforeHelp', 'Selecteer hoeveel weken voor de verloopdatum een herinnering wordt verstuurd.')}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((week) => {
-                    const weeksBefore = (formData.reminder_weeks_before as number[]) || []
-                    const isSelected = weeksBefore.includes(week)
-                    return (
-                      <button
-                        key={week}
-                        type="button"
-                        onClick={() => {
-                          const current = (formData.reminder_weeks_before as number[]) || []
-                          const updated = isSelected
-                            ? current.filter((w) => w !== week)
-                            : [...current, week].sort((a, b) => a - b)
-                          handleInputChange('reminder_weeks_before', updated)
-                        }}
-                        className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                          isSelected
-                            ? 'bg-primary-100 border-primary-300 text-primary-700'
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        {week} {week === 1 ? t('settings.week', 'week') : t('settings.weeks', 'weken')}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Signature */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('settings.reminderSignature', 'Handtekening')}
-                </label>
-                <textarea
-                  value={formData.reminder_signature || ''}
-                  onChange={(e) => handleInputChange('reminder_signature', e.target.value)}
-                  rows={4}
-                  className="input-field w-full max-w-lg"
-                  placeholder={t('settings.reminderSignaturePlaceholder', 'Met vriendelijke groet,\nBedrijfsnaam')}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {t('settings.reminderSignatureHelp', 'Wordt onderaan elke herinneringsmail toegevoegd. Laat leeg voor standaard handtekening.')}
-                </p>
-              </div>
-
-              {/* Info Box */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-blue-800 mb-2">
-                  {t('settings.reminderInfo', 'Welke documenten worden bewaakt?')}
-                </h3>
-                <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
-                  <li>{t('settings.reminderFieldDriverCard', 'Bestuurderspas (einddatum)')}</li>
-                  <li>{t('settings.reminderFieldCode95', 'Code 95 (einddatum)')}</li>
-                  <li>{t('settings.reminderFieldAdr', 'ADR certificaat (einddatum)')}</li>
-                  <li>{t('settings.reminderFieldLicense', 'Rijbewijs (einddatum)')}</li>
-                </ul>
-              </div>
-
-              {/* Cron Job Management */}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                <h3 className="text-md font-semibold text-gray-900 dark:text-white mb-3">
-                  {t('settings.cronJobManagement', 'Cron Job Beheer')}
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  {t('settings.cronJobDescription', 'Beheer de automatische taakplanning voor het versturen van herinneringen.')}
-                </p>
-
-                {/* Status */}
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {t('settings.cronStatus', 'Status')}:
-                  </span>
-                  {cronStatus?.active ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      {t('settings.cronActive', 'Actief')}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      {t('settings.cronInactive', 'Inactief')}
-                    </span>
-                  )}
-                  {cronStatus?.expression && (
-                    <span className="text-xs text-gray-500 font-mono">
-                      ({cronStatus.expression})
-                    </span>
-                  )}
-                </div>
-
-                {/* Buttons */}
-                <div className="flex gap-3 mb-4">
-                  <button
-                    type="button"
-                    onClick={handleSyncCron}
-                    disabled={cronLoading}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {cronLoading ? (
-                      <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <ArrowPathIcon className="h-4 w-4 mr-2" />
-                    )}
-                    {t('settings.cronSync', 'Cron Job Aanmaken / Bijwerken')}
-                  </button>
-                  {cronStatus?.active && (
-                    <button
-                      type="button"
-                      onClick={handleRemoveCron}
-                      disabled={cronLoading}
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <TrashIcon className="h-4 w-4 mr-2" />
-                      {t('settings.cronRemove', 'Cron Job Verwijderen')}
-                    </button>
-                  )}
-                </div>
-
-                {/* Message */}
-                {cronMessage && (
-                  <div className="mb-4 p-3 rounded-md bg-blue-50 border border-blue-200 text-sm text-blue-800">
-                    {cronMessage}
-                  </div>
-                )}
-              </div>
-
-              {/* Job Log History */}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-md font-semibold text-gray-900 dark:text-white">
-                    {t('settings.jobLogHistory', 'Uitvoeringsgeschiedenis')}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => loadJobLogs(jobLogsPage)}
-                    className="text-sm text-primary-600 hover:text-primary-700"
-                  >
-                    <ArrowPathIcon className="h-4 w-4 inline mr-1" />
-                    {t('common.refresh', 'Verversen')}
-                  </button>
-                </div>
-
-                {jobLogs.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">
-                    {t('settings.noJobLogs', 'Nog geen uitvoeringen geregistreerd.')}
-                  </p>
-                ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-800">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('settings.jobLogDate', 'Datum')}</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('settings.jobLogStatus', 'Status')}</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('settings.jobLogSent', 'Verstuurd')}</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('settings.jobLogDuration', 'Duur')}</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('settings.jobLogMessage', 'Bericht')}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                          {jobLogs.map((log) => {
-                            const startDate = new Date(log.started_at)
-                            const endDate = log.finished_at ? new Date(log.finished_at) : null
-                            const durationMs = endDate ? endDate.getTime() - startDate.getTime() : null
-                            const durationStr = durationMs !== null
-                              ? durationMs < 1000 ? '<1s' : `${Math.round(durationMs / 1000)}s`
-                              : '-'
-
-                            const statusColors: Record<string, string> = {
-                              success: 'bg-green-100 text-green-800',
-                              error: 'bg-red-100 text-red-800',
-                              warning: 'bg-yellow-100 text-yellow-800',
-                              skipped: 'bg-gray-100 text-gray-800',
-                            }
-
-                            return (
-                              <tr key={log.id}>
-                                <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                                  {startDate.toLocaleDateString(i18n.language)} {startDate.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
-                                </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[log.status] || 'bg-gray-100 text-gray-800'}`}>
-                                    {log.status_display}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
-                                  {log.reminders_sent}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-500 whitespace-nowrap">
-                                  {durationStr}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-500 max-w-xs truncate" title={log.message}>
-                                  {log.message}
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Simple Pagination */}
-                    {jobLogsTotalCount > jobLogsPageSize && (
-                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
-                        <span className="text-sm text-gray-500">
-                          {t('settings.jobLogShowing', 'Toont')} {((jobLogsPage - 1) * jobLogsPageSize) + 1}-{Math.min(jobLogsPage * jobLogsPageSize, jobLogsTotalCount)} {t('common.of', 'van')} {jobLogsTotalCount}
-                        </span>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => loadJobLogs(jobLogsPage - 1)}
-                            disabled={jobLogsPage <= 1}
-                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {t('common.previous', 'Vorige')}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => loadJobLogs(jobLogsPage + 1)}
-                            disabled={jobLogsPage * jobLogsPageSize >= jobLogsTotalCount}
-                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {t('common.next', 'Volgende')}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
               </div>
             </div>
           )}

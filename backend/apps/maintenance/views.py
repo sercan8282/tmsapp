@@ -16,7 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import IsAdminOrManager, IsAdminOnly
+from apps.core.permissions import IsAdminOrManager, IsAdminOnly, HasModulePermission
 
 from .models import (
     MaintenanceCategory,
@@ -73,7 +73,8 @@ class MaintenanceCategoryViewSet(viewsets.ModelViewSet):
     """CRUD voor onderhoudscategorieën."""
     queryset = MaintenanceCategory.objects.all()
     serializer_class = MaintenanceCategorySerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_maintenance'
     search_fields = ['name', 'name_en', 'description']
     ordering_fields = ['name', 'sort_order', 'created_at']
     ordering = ['sort_order', 'name']
@@ -91,7 +92,8 @@ class MaintenanceTypeViewSet(viewsets.ModelViewSet):
     """CRUD voor onderhoudstypes."""
     queryset = MaintenanceType.objects.select_related('category').all()
     serializer_class = MaintenanceTypeSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_maintenance'
     search_fields = ['name', 'name_en', 'description']
     filterset_fields = ['category', 'vehicle_type', 'is_mandatory', 'is_active']
     ordering_fields = ['name', 'sort_order', 'created_at']
@@ -124,7 +126,8 @@ class VehicleMaintenanceProfileViewSet(viewsets.ModelViewSet):
         'vehicle', 'vehicle__bedrijf', 'maintenance_type', 'maintenance_type__category'
     ).all()
     serializer_class = VehicleMaintenanceProfileSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_maintenance'
     filterset_fields = ['vehicle', 'maintenance_type', 'is_active']
     ordering_fields = ['next_due_date', 'vehicle__kenteken']
     ordering = ['next_due_date']
@@ -191,7 +194,8 @@ class APKRecordViewSet(viewsets.ModelViewSet):
         'vehicle', 'vehicle__bedrijf', 'created_by'
     ).all()
     serializer_class = APKRecordSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_maintenance'
     filterset_fields = ['vehicle', 'status', 'is_current', 'passed']
     search_fields = ['vehicle__kenteken', 'inspection_station']
     ordering_fields = ['expiry_date', 'inspection_date', 'created_at']
@@ -286,7 +290,8 @@ class MaintenanceTaskViewSet(viewsets.ModelViewSet):
         'vehicle', 'vehicle__bedrijf', 'maintenance_type',
         'maintenance_type__category', 'assigned_to', 'created_by', 'completed_by'
     ).prefetch_related('parts').all()
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_maintenance'
     search_fields = ['title', 'description', 'vehicle__kenteken', 'service_provider', 'invoice_number']
     filterset_fields = ['vehicle', 'maintenance_type', 'status', 'priority']
     ordering_fields = ['scheduled_date', 'completed_date', 'total_cost', 'created_at', 'priority']
@@ -418,7 +423,8 @@ class MaintenancePartViewSet(viewsets.ModelViewSet):
     """CRUD voor onderdelen bij een onderhoudstaak."""
     queryset = MaintenancePart.objects.select_related('task', 'task__vehicle').all()
     serializer_class = MaintenancePartSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_maintenance'
     filterset_fields = ['task']
     ordering = ['name']
 
@@ -447,7 +453,8 @@ class TireRecordViewSet(viewsets.ModelViewSet):
     """CRUD voor bandenregistratie."""
     queryset = TireRecord.objects.select_related('vehicle', 'vehicle__bedrijf').all()
     serializer_class = TireRecordSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_maintenance'
     filterset_fields = ['vehicle', 'tire_type', 'is_current', 'position']
     search_fields = ['brand', 'model', 'serial_number', 'vehicle__kenteken']
     ordering_fields = ['mounted_date', 'expected_replacement_date', 'vehicle__kenteken']
@@ -531,7 +538,8 @@ class MaintenanceAlertViewSet(viewsets.ModelViewSet):
         'vehicle', 'threshold', 'maintenance_task', 'apk_record', 'resolved_by'
     ).all()
     serializer_class = MaintenanceAlertSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_maintenance'
     filterset_fields = ['vehicle', 'severity', 'is_read', 'is_dismissed', 'is_resolved']
     ordering_fields = ['created_at', 'severity']
     ordering = ['-created_at']
@@ -588,7 +596,8 @@ class MaintenanceAlertViewSet(viewsets.ModelViewSet):
 class MaintenanceDashboardViewSet(viewsets.ModelViewSet):
     """Configureerbare dashboards."""
     serializer_class = MaintenanceDashboardSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, IsAdminOrManager, HasModulePermission]
+    module_permission = 'view_maintenance'
 
     def get_queryset(self):
         return MaintenanceDashboard.objects.filter(

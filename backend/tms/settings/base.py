@@ -279,5 +279,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.notifications.tasks.update_next_send_times',
         'schedule': crontab(hour=0, minute=0),  # Daily at midnight
     },
-    # Driver expiry reminders schedule is managed dynamically via cron_utils
+    'send-driver-expiry-reminders': {
+        'task': 'apps.drivers.tasks.send_driver_expiry_reminders',
+        'schedule': crontab(hour=8, minute=0),  # Daily at 08:00 -- command checks reminder_enabled & frequency
+    },
+    'sync-tachograph-hours': {
+        'task': 'apps.tracking.tasks.sync_tachograph_hours',
+        'schedule': crontab(hour=23, minute=0),  # Daily at 23:00 -- syncs today's data
+    },
 }

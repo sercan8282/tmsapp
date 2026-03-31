@@ -200,7 +200,7 @@ export default function ReportRequestForm({ reportTypes, users, drivers, vehicle
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="">Alle chauffeurs</option>
-                          {drivers.filter(d => d.actief).map((d) => (
+                          {drivers.map((d) => (
                             <option key={d.id} value={d.id}>
                               {d.naam}{d.voertuig_kenteken ? ` (${d.voertuig_kenteken})` : ''}
                             </option>

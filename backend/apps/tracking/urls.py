@@ -18,7 +18,17 @@ urlpatterns = [
     
     # Available vehicles
     path('vehicles/', views.TrackingVehiclesView.as_view(), name='tracking-vehicles'),
+
+    # Tachograph (FM-Track / Linqo)
+    path('tachograph/', views.TachographOverviewView.as_view(), name='tachograph-overview'),
+    path('tachograph/overtime/', views.TachographOvertimeWriteView.as_view(), name='tachograph-overtime-write'),
+    path('tachograph/overtime/list/', views.TachographOvertimeListView.as_view(), name='tachograph-overtime-list'),
+    path('tachograph/vehicles/', views.TachographVehiclesListView.as_view(), name='tachograph-vehicles'),
+    path('tachograph/sync/', views.TachographManualSyncView.as_view(), name='tachograph-sync'),
     
     # Assigned vehicle for current user
     path('my-vehicle/', views.AssignedVehicleView.as_view(), name='tracking-my-vehicle'),
+
+    # FM-Track vehicle positions
+    path('fm-positions/', views.FMTrackPositionsView.as_view(), name='fm-track-positions'),
 ]

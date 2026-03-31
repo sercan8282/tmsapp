@@ -141,7 +141,7 @@ class Command(BaseCommand):
         reminder_days = _get_reminder_days(settings)
         reminder_dates = {days: today + timedelta(days=days) for days in reminder_days}
 
-        drivers = Driver.objects.filter(actief=True)
+        drivers = Driver.objects.all()
         total_sent = 0
         errors = []
 
