@@ -155,6 +155,7 @@ export interface Driver {
   auto_uren: boolean
   tacho_kenteken: string
   standaard_begintijd: string | null
+  uren_per_dag: number | null
   created_at: string
   updated_at: string
 }

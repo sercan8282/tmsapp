@@ -317,12 +317,21 @@ export default function TachographComparisonPage() {
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {t('tachograph.comparison.colDifference')}
                     </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50 dark:bg-green-900/20">
+                      {t('tachograph.comparison.colHoursPerDay')}
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-red-50 dark:bg-red-900/20">
+                      {t('tachograph.comparison.colOvertimeHours')}
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-red-50 dark:bg-red-900/20">
+                      {t('tachograph.comparison.colOvertimeTacho')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
                         {t('tachograph.comparison.noData')}
                       </td>
                     </tr>
@@ -357,6 +366,19 @@ export default function TachographComparisonPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
                         {renderDiffBadge(row)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center text-gray-700 dark:text-gray-300 bg-green-50/50 dark:bg-green-900/10">
+                        {row.uren_per_dag !== null ? formatHours(row.uren_per_dag) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center font-medium whitespace-nowrap bg-red-50/50 dark:bg-red-900/10">
+                        {row.overwerk_uren !== null ? (
+                          <span className="text-red-600 dark:text-red-400">+{formatHours(row.overwerk_uren)}</span>
+                        ) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center font-medium whitespace-nowrap bg-red-50/50 dark:bg-red-900/10">
+                        {row.overwerk_tacho !== null ? (
+                          <span className="text-red-600 dark:text-red-400">+{formatHours(row.overwerk_tacho)}</span>
+                        ) : '-'}
                       </td>
                     </tr>
                   ))}
@@ -416,6 +438,26 @@ export default function TachographComparisonPage() {
                     </div>
                   </div>
                 </div>
+                {/* Overtime info */}
+                {row.uren_per_dag !== null && (
+                  <div className="flex items-center justify-between text-sm bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
+                    <span className="text-gray-500 dark:text-gray-400">
+                      {t('tachograph.comparison.colHoursPerDay')}: <span className="font-medium text-gray-700 dark:text-gray-300">{formatHours(row.uren_per_dag)}</span>
+                    </span>
+                    <div className="flex gap-3">
+                      {row.overwerk_uren !== null && (
+                        <span className="text-red-600 dark:text-red-400 font-medium">
+                          {t('tachograph.comparison.colOvertimeHoursShort')}: +{formatHours(row.overwerk_uren)}
+                        </span>
+                      )}
+                      {row.overwerk_tacho !== null && (
+                        <span className="text-red-600 dark:text-red-400 font-medium">
+                          {t('tachograph.comparison.colOvertimeTachoShort')}: +{formatHours(row.overwerk_tacho)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

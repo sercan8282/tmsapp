@@ -859,6 +859,19 @@ class TachographComparisonView(APIView):
                         verschil = abs(diff)
                         verschil_bron = 'chauffeur' if diff > 0 else 'tacho'
 
+                # Uren per dag + overwerk
+                uren_per_dag = None
+                overwerk_uren = None
+                overwerk_tacho = None
+                drv_upd = getattr(tms_driver, 'uren_per_dag', None) if tms_driver else None
+                if drv_upd is not None:
+                    upd = float(drv_upd)
+                    uren_per_dag = upd
+                    if chauffeur_total is not None and chauffeur_total > upd:
+                        overwerk_uren = round(chauffeur_total - upd, 2)
+                    if tacho_total is not None and tacho_total > upd:
+                        overwerk_tacho = round(tacho_total - upd, 2)
+
                 rows.append({
                     'datum': current.strftime('%Y-%m-%d'),
                     'kenteken': raw_kenteken,
@@ -871,6 +884,9 @@ class TachographComparisonView(APIView):
                     'tacho_totaal': tacho_total,
                     'verschil': verschil,
                     'verschil_bron': verschil_bron,
+                    'uren_per_dag': uren_per_dag,
+                    'overwerk_uren': overwerk_uren,
+                    'overwerk_tacho': overwerk_tacho,
                 })
 
             current += timedelta(days=1)
@@ -878,7 +894,15 @@ class TachographComparisonView(APIView):
         return rows, date_from_str, date_till_str
 
     def get(self, request):
-        result = self._build_rows(request)
+        try:
+            result = self._build_rows(request)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).exception('TachographComparison error')
+            return Response(
+                {'error': f'Interne fout: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         if isinstance(result, Response):
             return result
 
@@ -931,8 +955,9 @@ class TachographComparisonView(APIView):
             'Begin (uren)', 'Eind (uren)',
             'Begin (tacho)', 'Eind (tacho)',
             'Totaal (uren)', 'Totaal (tacho)', 'Verschil',
+            'Uren/dag', 'Overwerk (uren)', 'Overwerk (tacho)',
         ]
-        col_widths = [14, 20, 14, 13, 13, 13, 13, 14, 14, 16]
+        col_widths = [14, 20, 14, 13, 13, 13, 13, 14, 14, 16, 12, 16, 16]
 
         for col_idx, (header, width) in enumerate(zip(headers, col_widths), 1):
             cell = ws.cell(row=1, column=col_idx, value=header)
@@ -960,6 +985,9 @@ class TachographComparisonView(APIView):
                 self._format_hours(row['chauffeur_totaal']),
                 self._format_hours(row['tacho_totaal']),
                 verschil_text,
+                self._format_hours(row.get('uren_per_dag')),
+                self._format_hours(row.get('overwerk_uren')),
+                self._format_hours(row.get('overwerk_tacho')),
             ]
             for col_idx, val in enumerate(values, 1):
                 cell = ws.cell(row=row_idx, column=col_idx, value=val)
@@ -1004,6 +1032,9 @@ class TachographComparisonView(APIView):
                 <td class="c">{self._format_hours(row["chauffeur_totaal"]) or "-"}</td>
                 <td class="c">{self._format_hours(row["tacho_totaal"]) or "-"}</td>
                 <td class="c">{verschil_text or "\u2713"}</td>
+                <td class="c">{self._format_hours(row.get("uren_per_dag")) or "-"}</td>
+                <td class="c">{self._format_hours(row.get("overwerk_uren")) or "-"}</td>
+                <td class="c">{self._format_hours(row.get("overwerk_tacho")) or "-"}</td>
             </tr>'''
 
         html_content = f'''<!DOCTYPE html>
@@ -1029,6 +1060,7 @@ class TachographComparisonView(APIView):
     <th class="c">Begin (tacho)</th><th class="c">Eind (tacho)</th>
     <th class="c">Totaal (uren)</th><th class="c">Totaal (tacho)</th>
     <th class="c">Verschil</th>
+    <th class="c">Uren/dag</th><th class="c">Overwerk (uren)</th><th class="c">Overwerk (tacho)</th>
   </tr></thead>
   <tbody>{html_rows}</tbody>
 </table>

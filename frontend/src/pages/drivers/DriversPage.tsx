@@ -151,6 +151,7 @@ function DriverForm({
     auto_uren: driver?.auto_uren || false,
     tacho_kenteken: driver?.tacho_kenteken || '',
     standaard_begintijd: driver?.standaard_begintijd || '',
+    uren_per_dag: driver?.uren_per_dag?.toString() || '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [tachoVehicles, setTachoVehicles] = useState<TachoVehicle[]>([])
@@ -198,6 +199,7 @@ function DriverForm({
       auto_uren: formData.auto_uren,
       tacho_kenteken: formData.auto_uren ? formData.tacho_kenteken : '',
       standaard_begintijd: formData.auto_uren && formData.standaard_begintijd ? formData.standaard_begintijd : null,
+      uren_per_dag: formData.uren_per_dag ? parseFloat(formData.uren_per_dag) : null,
     }
     onSave(saveData)
   }
@@ -328,6 +330,25 @@ function DriverForm({
         />
         <p className="text-xs text-gray-500 mt-1">
           {t('drivers.minimumHoursHelp')}
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {t('drivers.hoursPerDay')}
+        </label>
+        <input
+          type="number"
+          name="uren_per_dag"
+          value={formData.uren_per_dag}
+          onChange={handleChange}
+          className="input"
+          step="0.5"
+          min="0"
+          placeholder={t('drivers.hoursPerDayPlaceholder')}
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          {t('drivers.hoursPerDayHelp')}
         </p>
       </div>
 

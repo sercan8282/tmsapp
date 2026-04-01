@@ -125,6 +125,9 @@ export interface TachographComparisonRow {
   tacho_totaal: number | null
   verschil: number | null
   verschil_bron: 'tacho' | 'chauffeur' | null
+  uren_per_dag: number | null
+  overwerk_uren: number | null
+  overwerk_tacho: number | null
 }
 
 export interface TachographComparisonResponse {

@@ -63,6 +63,12 @@ class Driver(models.Model):
         verbose_name='Standaard begintijd',
         help_text='Vaste begintijd voor automatische uren. Als ingesteld wordt deze altijd gebruikt als aanvangstijd in plaats van de tachograaf starttijd.'
     )
+    uren_per_dag = models.DecimalField(
+        max_digits=4, decimal_places=2,
+        null=True, blank=True,
+        verbose_name='Uren per dag',
+        help_text='Standaard werkuren per dag. Wordt gebruikt om overwerk te berekenen in het vergelijkingsrapport.'
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

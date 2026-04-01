@@ -3,6 +3,6 @@ from .models import Driver
 
 @admin.register(Driver)
 class DriverAdmin(admin.ModelAdmin):
-    list_display = ['naam', 'telefoon', 'bedrijf', 'adr', 'gekoppelde_gebruiker', 'standaard_pauze', 'standaard_begintijd', 'auto_uren', 'tacho_kenteken']
+    list_display = ['naam', 'telefoon', 'bedrijf', 'adr', 'gekoppelde_gebruiker', 'standaard_pauze', 'standaard_begintijd', 'uren_per_dag', 'auto_uren', 'tacho_kenteken']
     search_fields = ['naam', 'telefoon', 'tacho_kenteken']
     list_filter = ['adr', 'bedrijf', 'auto_uren']
