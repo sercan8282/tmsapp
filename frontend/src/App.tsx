@@ -97,6 +97,9 @@ import MaintenanceSettingsPage from '@/pages/maintenance/MaintenanceSettingsPage
 // Tachograph
 import TachographPage from '@/pages/tachograph/TachographPage'
 
+// Reports
+import ReportsPage from '@/pages/reports/ReportsPage'
+
 // Track & Trace
 import TrackingPage from '@/pages/tracking/TrackingPage'
 
@@ -342,6 +345,9 @@ function App() {
         <Route path="/spreadsheets/templates/new" element={<AdminRoute><SpreadsheetTemplateEditorPage /></AdminRoute>} />
         <Route path="/spreadsheets/templates/:id/edit" element={<AdminRoute><SpreadsheetTemplateEditorPage /></AdminRoute>} />
         <Route path="/spreadsheets/:id" element={<AdminRoute><SpreadsheetEditorPage /></AdminRoute>} />
+
+        {/* Reports (Rapport Agent) */}
+        <Route path="/reports" element={<AdminRoute><ReportsPage /></AdminRoute>} />
 
         {/* Documents (PDF Signing) */}
         <Route path="/documents" element={<DocumentsPage />} />

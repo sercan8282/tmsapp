@@ -29,6 +29,7 @@ import {
   WrenchScrewdriverIcon,
   ChartBarSquareIcon,
   MapPinIcon,
+  DocumentChartBarIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
@@ -73,6 +74,7 @@ const navigation: NavItem[] = [
   { name: 'nav.maintenance', href: '/maintenance', icon: WrenchScrewdriverIcon, roles: ['admin', 'gebruiker'], permission: 'view_maintenance' },
   { name: 'nav.trackTrace', href: '/track-trace', icon: MapPinIcon, roles: ['admin'] },
   { name: 'nav.tachograph', href: '/tachograph', icon: ChartBarSquareIcon, roles: ['admin'] },
+  { name: 'nav.reports', href: '/reports', icon: DocumentChartBarIcon, roles: ['admin'] },
 ]
 
 const adminNavigation: NavItem[] = [

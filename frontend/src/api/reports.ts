@@ -148,3 +148,68 @@ export async function downloadReportFile(id: string, format: 'excel' | 'pdf'): P
   })
   return response.data
 }
+
+// ---- SQL Query types ----
+
+export interface SqlColumnInfo {
+  name: string
+  type: string
+  nullable: boolean
+  max_length?: number
+}
+
+export interface SqlForeignKey {
+  column: string
+  references_table: string
+  references_column: string
+}
+
+export interface SqlTableInfo {
+  table: string
+  columns: SqlColumnInfo[]
+  foreign_keys: SqlForeignKey[]
+  estimated_rows: number
+}
+
+export interface SqlExampleQuery {
+  label: string
+  query: string
+}
+
+export interface SqlSchemaResponse {
+  tables: SqlTableInfo[]
+  example_queries: SqlExampleQuery[]
+}
+
+export interface SqlQueryResult {
+  columns: string[]
+  rows: (string | number | null)[][]
+  row_count: number
+  has_more: boolean
+  limit: number
+}
+
+// ---- SQL Query API functions ----
+
+/** Get database schema information for autocomplete */
+export async function getSqlSchema(): Promise<SqlSchemaResponse> {
+  const response = await api.get('/reports/sql/schema/')
+  return response.data
+}
+
+/** Execute a read-only SQL query */
+export async function executeSqlQuery(query: string, limit?: number): Promise<SqlQueryResult> {
+  const response = await api.post('/reports/sql/execute/', { query, limit }, {
+    timeout: 60000,
+  })
+  return response.data
+}
+
+/** Export SQL query results as CSV (returns blob) */
+export async function exportSqlQuery(query: string): Promise<Blob> {
+  const response = await api.post('/reports/sql/export/', { query }, {
+    responseType: 'blob',
+    timeout: 60000,
+  })
+  return response.data
+}

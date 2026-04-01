@@ -17,6 +17,7 @@ import {
   SparklesIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CommandLineIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import {
@@ -38,6 +39,7 @@ import { getAllVehicles } from '@/api/fleet'
 import { User, Driver, Vehicle } from '@/types'
 import ReportRequestForm from './ReportRequestForm'
 import ReportResultModal from './ReportResultModal'
+import SqlQueryTab from './SqlQueryTab'
 
 // ---- Status badge ----
 
@@ -138,9 +140,12 @@ function ReportActions({ req, executingId, onView, onExecute, onRetry, onDelete,
 
 // ---- Main page ----
 
+type ActiveTab = 'reports' | 'sql'
+
 const REPORTS_PAGE_SIZE = 10
 
 export default function ReportsPage() {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('reports')
   const [requests, setRequests] = useState<ReportRequest[]>([])
   const [reportTypes, setReportTypes] = useState<ReportTypeInfo[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -318,16 +323,52 @@ export default function ReportsPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setIsFormOpen(true)}
-          className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base flex-shrink-0"
-        >
-          <PlusIcon className="w-4 h-4" />
-          <span className="hidden xs:inline">Nieuw rapport</span>
-          <span className="xs:hidden">Nieuw</span>
-        </button>
+        {activeTab === 'reports' && (
+          <button
+            onClick={() => setIsFormOpen(true)}
+            className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base flex-shrink-0"
+          >
+            <PlusIcon className="w-4 h-4" />
+            <span className="hidden xs:inline">Nieuw rapport</span>
+            <span className="xs:hidden">Nieuw</span>
+          </button>
+        )}
       </div>
 
+      {/* Tab navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex gap-4" aria-label="Tabs">
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`flex items-center gap-1.5 px-1 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'reports'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <DocumentChartBarIcon className="w-4 h-4" />
+            Rapporten
+          </button>
+          <button
+            onClick={() => setActiveTab('sql')}
+            className={`flex items-center gap-1.5 px-1 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'sql'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <CommandLineIcon className="w-4 h-4" />
+            SQL Query
+          </button>
+        </nav>
+      </div>
+
+      {/* SQL Query Tab */}
+      {activeTab === 'sql' && <SqlQueryTab />}
+
+      {/* Reports Tab Content */}
+      {activeTab === 'reports' && (
+        <>
       {/* Report type quick-select cards */}
       {reportTypes.length > 0 && (
         <div>
@@ -498,6 +539,8 @@ export default function ReportsPage() {
           </>
         )}
       </div>
+        </>
+      )}
 
       {/* New report form modal */}
       {isFormOpen && (
