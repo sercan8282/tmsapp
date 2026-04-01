@@ -246,7 +246,7 @@ class LiveTrackingView(APIView):
             if hasattr(session.user, 'driver_profile') and session.user.driver_profile:
                 user_name = session.user.driver_profile.naam
             else:
-                user_name = session.user.get_full_name() or session.user.username
+                user_name = session.user.full_name or session.user.username
             
             results.append({
                 'session_id': session.id,
@@ -806,7 +806,7 @@ class TachographComparisonView(APIView):
 
                 driver_naam = tms_driver.naam if tms_driver else ''
                 if not driver_naam and entry and entry.user:
-                    driver_naam = entry.user.get_full_name()
+                    driver_naam = entry.user.full_name
 
                 # Tachograph times – calculate total as span (last_end − first_start)
                 tacho_begin = tacho_eind = None
