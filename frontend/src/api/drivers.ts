@@ -16,6 +16,7 @@ export interface DriverCreate {
   standaard_pauze?: number
   auto_uren?: boolean
   tacho_kenteken?: string
+  standaard_begintijd?: string | null
 }
 
 export interface DriverUpdate extends Partial<DriverCreate> {}

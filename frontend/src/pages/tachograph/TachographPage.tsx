@@ -138,13 +138,24 @@ export default function TachographPage() {
     }
   }
 
-  const handleManualSync = async () => {
+  const handleManualSync = async (force = false) => {
+    if (force && !window.confirm(t('tachograph.forceResyncConfirm'))) {
+      return
+    }
     setIsSyncing(true)
     setError(null)
     try {
-      const result = await triggerTachographSync()
+      const result = await triggerTachographSync(force)
       if (result.status === 'completed') {
-        setSaveSuccess(t('tachograph.syncComplete', { entries: result.entries_created, dates: result.dates_processed }))
+        if (result.force_resync) {
+          setSaveSuccess(t('tachograph.forceResyncComplete', {
+            deleted: result.deleted_entries,
+            entries: result.entries_created,
+            dates: result.dates_processed,
+          }))
+        } else {
+          setSaveSuccess(t('tachograph.syncComplete', { entries: result.entries_created, dates: result.dates_processed }))
+        }
       } else if (result.status === 'up_to_date') {
         setSaveSuccess(t('tachograph.syncUpToDate'))
       } else {
@@ -173,7 +184,16 @@ export default function TachographPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleManualSync}
+            onClick={() => handleManualSync(true)}
+            disabled={isSyncing}
+            className="btn-outline flex items-center gap-2 text-sm text-orange-600 border-orange-300 hover:bg-orange-50"
+            title={t('tachograph.forceResyncTooltip')}
+          >
+            <ArrowPathIcon className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            {t('tachograph.forceResync')}
+          </button>
+          <button
+            onClick={() => handleManualSync(false)}
             disabled={isSyncing}
             className="btn-primary flex items-center gap-2 text-sm"
             title={t('tachograph.syncTooltip')}

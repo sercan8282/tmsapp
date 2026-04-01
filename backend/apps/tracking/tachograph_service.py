@@ -8,6 +8,9 @@ import logging
 from datetime import datetime, timedelta
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from zoneinfo import ZoneInfo
+
+NL_TZ = ZoneInfo('Europe/Amsterdam')
 
 import requests
 from django.conf import settings
@@ -117,8 +120,11 @@ def get_tachograph_overview(date_str):
         list of vehicle summaries with trips, drivers, km, hours, overtime
     """
     target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-    date_from = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0)
-    date_till = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59)
+    # Use timezone-aware boundaries: local midnight → local 23:59:59, converted to UTC
+    local_start = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=NL_TZ)
+    local_end = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, tzinfo=NL_TZ)
+    date_from = local_start.astimezone(ZoneInfo('UTC'))
+    date_till = local_end.astimezone(ZoneInfo('UTC'))
 
     # Fetch objects and drivers
     objects = get_objects()

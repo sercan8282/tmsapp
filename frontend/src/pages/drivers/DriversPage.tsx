@@ -150,6 +150,7 @@ function DriverForm({
     standaard_pauze: driver?.standaard_pauze?.toString() || '30',
     auto_uren: driver?.auto_uren || false,
     tacho_kenteken: driver?.tacho_kenteken || '',
+    standaard_begintijd: driver?.standaard_begintijd || '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [tachoVehicles, setTachoVehicles] = useState<TachoVehicle[]>([])
@@ -196,6 +197,7 @@ function DriverForm({
       standaard_pauze: formData.standaard_pauze ? parseInt(formData.standaard_pauze) : 30,
       auto_uren: formData.auto_uren,
       tacho_kenteken: formData.auto_uren ? formData.tacho_kenteken : '',
+      standaard_begintijd: formData.auto_uren && formData.standaard_begintijd ? formData.standaard_begintijd : null,
     }
     onSave(saveData)
   }
@@ -373,6 +375,7 @@ function DriverForm({
         </p>
 
         {formData.auto_uren && (
+          <>
           <div className="mt-3 ml-6">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {t('drivers.tachoPlate')}
@@ -401,6 +404,23 @@ function DriverForm({
               {t('drivers.tachoPlateHelp')}
             </p>
           </div>
+
+          <div className="mt-3 ml-6">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('drivers.defaultStartTime')}
+            </label>
+            <input
+              type="time"
+              name="standaard_begintijd"
+              value={formData.standaard_begintijd}
+              onChange={handleChange}
+              className="input w-40"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {t('drivers.defaultStartTimeHelp')}
+            </p>
+          </div>
+          </>
         )}
       </div>
 

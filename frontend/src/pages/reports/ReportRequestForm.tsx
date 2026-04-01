@@ -3,6 +3,7 @@
  * Wizard-style form for creating a new report request.
  */
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   XMarkIcon,
   DocumentChartBarIcon,
@@ -26,6 +27,7 @@ const CURRENT_YEAR = new Date().getFullYear()
 const YEARS = Array.from({ length: 10 }, (_, i) => CURRENT_YEAR - i)
 
 export default function ReportRequestForm({ reportTypes, users, drivers, vehicles, companies, onSubmit, onClose, initialType }: Props) {
+  const { t } = useTranslation()
   const [step, setStep] = useState<'type' | 'params'>(initialType ? 'params' : 'type')
   const [selectedType, setSelectedType] = useState<ReportTypeInfo | null>(initialType ?? null)
   const [search, setSearch] = useState('')
@@ -156,12 +158,12 @@ export default function ReportRequestForm({ reportTypes, users, drivers, vehicle
               {/* Output format */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Uitvoer formaat
+                  {t('reports.outputFormat')}
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { value: 'all', label: 'Alle formaten' },
-                    { value: 'screen', label: 'Scherm' },
+                    { value: 'all', label: t('reports.allFormats') },
+                    { value: 'screen', label: t('reports.screen') },
                     { value: 'excel', label: 'Excel' },
                     { value: 'pdf', label: 'PDF' },
                   ].map((fmt) => (
@@ -199,7 +201,7 @@ export default function ReportRequestForm({ reportTypes, users, drivers, vehicle
                           required={param.required}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="">Alle chauffeurs</option>
+                          <option value="">{t('reports.allDrivers')}</option>
                           {drivers.map((d) => (
                             <option key={d.id} value={d.id}>
                               {d.naam}{d.voertuig_kenteken ? ` (${d.voertuig_kenteken})` : ''}
@@ -215,7 +217,7 @@ export default function ReportRequestForm({ reportTypes, users, drivers, vehicle
                           required={param.required}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="">Alle voertuigen</option>
+                          <option value="">{t('reports.allVehicles')}</option>
                           {[...vehicles].sort((a, b) => {
                             if (a.actief === b.actief) return a.kenteken.localeCompare(b.kenteken)
                             return a.actief ? -1 : 1
@@ -234,7 +236,7 @@ export default function ReportRequestForm({ reportTypes, users, drivers, vehicle
                           required={param.required}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="">Alle medewerkers</option>
+                          <option value="">{t('reports.allEmployees')}</option>
                           {[...users].sort((a, b) => {
                             if (a.is_active === b.is_active) return `${a.voornaam} ${a.achternaam}`.localeCompare(`${b.voornaam} ${b.achternaam}`)
                             return a.is_active ? -1 : 1
@@ -253,7 +255,7 @@ export default function ReportRequestForm({ reportTypes, users, drivers, vehicle
                           required={param.required}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="">Alle bedrijven</option>
+                          <option value="">{t('reports.allCompanies')}</option>
                           {companies.map((c) => (
                             <option key={c.id} value={c.id}>
                               {c.naam}
@@ -269,7 +271,7 @@ export default function ReportRequestForm({ reportTypes, users, drivers, vehicle
                           required={param.required}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="">Alle jaren</option>
+                          <option value="">{t('reports.allYears')}</option>
                           {YEARS.map((y) => (
                             <option key={y} value={y}>
                               {y}

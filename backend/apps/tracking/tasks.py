@@ -6,8 +6,11 @@ for matched drivers.
 """
 import logging
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from celery import shared_task
+
+NL_TZ = ZoneInfo('Europe/Amsterdam')
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +109,68 @@ def sync_tachograph_hours():
         'entries_created': total_entries,
         'overtime_created': total_overtime,
     }
+
+
+def force_resync_tachograph_hours():
+    """
+    Force re-sync of ALL tachograph data by clearing existing sync logs
+    and auto-created TimeEntries, then running a fresh sync.
+
+    This is needed when the sync logic has been fixed (e.g. timezone corrections)
+    and existing data needs to be re-processed.
+    """
+    from apps.core.models import AppSettings
+    from apps.drivers.models import Driver
+    from apps.timetracking.models import TimeEntry
+    from apps.tracking.models import TachographOvertime, TachographSyncLog
+
+    settings = AppSettings.get_settings()
+    start_datum = settings.tachograaf_start_datum
+
+    if not start_datum:
+        return {'status': 'skipped', 'reason': 'no_start_date'}
+
+    yesterday = date.today() - timedelta(days=1)
+
+    # Get all auto_uren drivers
+    auto_drivers = Driver.objects.filter(auto_uren=True).exclude(
+        gekoppelde_gebruiker__isnull=True,
+    )
+    auto_user_ids = [d.gekoppelde_gebruiker_id for d in auto_drivers]
+
+    # Delete auto-created TimeEntries (status='ingediend') for these drivers
+    # in the tachograph date range
+    deleted_entries, _ = TimeEntry.objects.filter(
+        user_id__in=auto_user_ids,
+        datum__gte=start_datum,
+        datum__lte=yesterday,
+        status='ingediend',
+    ).delete()
+
+    # Delete overtime records in the date range
+    deleted_overtime, _ = TachographOvertime.objects.filter(
+        date__gte=start_datum,
+        date__lte=yesterday,
+    ).delete()
+
+    # Clear all sync logs in the date range
+    deleted_logs, _ = TachographSyncLog.objects.filter(
+        date__gte=start_datum,
+        date__lte=yesterday,
+    ).delete()
+
+    logger.info(
+        'Force resync: verwijderd %d entries, %d overuren, %d sync logs',
+        deleted_entries, deleted_overtime, deleted_logs,
+    )
+
+    # Now run a fresh sync
+    result = sync_tachograph_hours()
+    result['force_resync'] = True
+    result['deleted_entries'] = deleted_entries
+    result['deleted_overtime'] = deleted_overtime
+    result['deleted_logs'] = deleted_logs
+    return result
 
 
 def _build_driver_lookup():
@@ -247,15 +312,18 @@ def _process_date(date_str, process_date, driver_lookup, plate_lookup):
             continue
 
         try:
-            aanvang = datetime.fromisoformat(
+            tacho_aanvang = datetime.fromisoformat(
                 first_start.replace('Z', '+00:00')
-            ).time().replace(microsecond=0)
+            ).astimezone(NL_TZ).time().replace(microsecond=0)
             eind = datetime.fromisoformat(
                 last_end.replace('Z', '+00:00')
-            ).time().replace(microsecond=0)
+            ).astimezone(NL_TZ).time().replace(microsecond=0)
         except (ValueError, AttributeError):
             errors.append(f'Ongeldige tijden voor {kenteken}: {first_start} - {last_end}')
             continue
+
+        # Use standaard_begintijd if set, otherwise use tachograph start time
+        aanvang = tms_driver.standaard_begintijd if tms_driver.standaard_begintijd else tacho_aanvang
 
         # Use standaard_pauze from driver
         pauze_minutes = tms_driver.standaard_pauze or 30

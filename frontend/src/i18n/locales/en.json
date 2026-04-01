@@ -237,6 +237,7 @@
     "roleGebruiker": "User",
     "roleChauffeur": "Driver",
     "leaveThisMonth": "Leave this month",
+    "noLeaveThisMonth": "No leave planned this month",
     "viewLeaveCalendar": "View leave calendar",
     "leaveHours": "Leave hours"
   },
@@ -281,7 +282,8 @@
     "contactCreated": "Contact successfully added",
     "contactUpdated": "Contact successfully updated",
     "contactDeleted": "Contact successfully deleted",
-    "contacts": "contacts"
+    "contacts": "contacts",
+    "addFirstCompany": "Add your first company"
   },
   "drivers": {
     "title": "Drivers",
@@ -320,7 +322,9 @@
     "autoHoursHelp": "Automatically create time entries based on tachograph data.",
     "tachoPlate": "Tachograph plate number",
     "selectTachoPlate": "Select plate from tachograph...",
-    "tachoPlateHelp": "Link a plate number from the tachograph list to this driver."
+    "tachoPlateHelp": "Link a plate number from the tachograph list to this driver.",
+    "defaultStartTime": "Default start time",
+    "defaultStartTimeHelp": "If set, this time will always be used as start time for auto-created hours instead of the tachograph start time."
   },
   "fleet": {
     "title": "Fleet",
@@ -778,7 +782,22 @@
     "lineAdded": "Line added",
     "notFound": "Invoice not found",
     "backToOverview": "Back to overview",
-    "noLines": "No invoice lines"
+    "noLines": "No invoice lines",
+    "driverHours": "Driver Hours",
+    "importedHoursTab": "Imported Hours",
+    "allWeeks": "All weeks",
+    "noSubmittedHoursFound": "No submitted hours found",
+    "onlySubmittedCanBeImported": "Only submitted hours can be imported",
+    "noHoursFoundForWeek": "No hours found for this week",
+    "groupsSelectedLines": "{{count}} groups selected ({{entries}} lines)",
+    "selectDriverWeekCombinations": "Select driver/week combinations to import",
+    "importCount": "Import ({{count}} lines)",
+    "noImportedHoursFound": "No imported hours found",
+    "importHoursFirst": "Import hours first via the Hours Import page",
+    "groupsSelectedTrips": "{{count}} groups selected ({{entries}} trips)",
+    "importTrips": "Import ({{count}} trips)",
+    "tripRegistrationSelected": "1 trip registration selected ({{count}} trips)",
+    "selectTripRegistration": "Select a trip registration to import"
   },
   "templates": {
     "title": "Invoice Templates",
@@ -936,7 +955,10 @@
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "permissionsUpdated": "Permissions updated successfully",
-    "autoEnabled": "Automatically enabled (dependency)"
+    "autoEnabled": "Automatically enabled (dependency)",
+    "block": "Block",
+    "activate": "Activate",
+    "disable2FA": "Disable 2FA"
   },
   "settings": {
     "title": "Settings",
@@ -1083,7 +1105,39 @@
     "couldNotLoadPushSettings": "Could not load push settings",
     "couldNotGenerateKeys": "Could not generate VAPID keys",
     "license": "License",
-    "licenseDescription": "Information about the active license of this installation."
+    "licenseDescription": "Information about the active license of this installation.",
+    "tachograafStartDatum": "Tachograph start date",
+    "tachograafStartDatumHint": "From this date, hours will be automatically submitted based on tachograph data.",
+    "reminders": "Reminders",
+    "remindersDescription": "Configure automatic reminders for expiring driver documents.",
+    "reminderEnabled": "Enable reminders",
+    "reminderEnabledHint": "Automatically send emails when driver documents are about to expire.",
+    "reminderSchedule": "Schedule",
+    "reminderTime": "Send time",
+    "reminderFrequency": "Frequency",
+    "frequencyDaily": "Daily",
+    "frequencyWeekdays": "Weekdays (Mon-Fri)",
+    "frequencyWeekly": "Weekly",
+    "frequencyCustom": "Custom",
+    "reminderWeeklyDay": "Day of the week",
+    "reminderCustomDays": "Select days",
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday",
+    "reminderWeeksBefore": "Weeks in advance",
+    "reminderWeeksBeforeHint": "How many weeks before the expiry date should reminders be sent?",
+    "week": "week",
+    "weeks": "weeks",
+    "reminderEmailSettings": "Email settings",
+    "reminderEmail": "Recipient email",
+    "reminderEmailPlaceholder": "Leave empty to use the company email address",
+    "reminderEmailHint": "Optional. The company email address is used by default.",
+    "reminderSignature": "Signature",
+    "reminderSignaturePlaceholder": "Optional signature at the bottom of reminder emails..."
   },
   "license": {
     "activation": "License Activation",
@@ -1117,6 +1171,10 @@
     "renewLicense": "Renew license",
     "newLicenseKey": "New license key",
     "renewSuccess": "License renewed successfully!"
+  },
+  "chat": {
+    "exportToExcel": "Export to Excel",
+    "exportToPdf": "Export to PDF"
   },
   "notifications": {
     "title": "Notifications",
@@ -1933,6 +1991,10 @@
     "syncUpToDate": "Everything is already synced, no new data",
     "syncSkipped": "Sync skipped ({{reason}})",
     "syncError": "Error syncing tachograph hours",
+    "forceResync": "Re-sync all",
+    "forceResyncTooltip": "Delete all existing auto-created entries and re-sync from start date",
+    "forceResyncConfirm": "Are you sure you want to delete all auto-created entries and re-sync? This cannot be undone.",
+    "forceResyncComplete": "Re-sync complete: {{deleted}} old entries deleted, {{entries}} new entries created over {{dates}} days",
     "today": "Today",
     "previousDay": "Previous day",
     "nextDay": "Next day",
@@ -1975,7 +2037,15 @@
     "rows": "Rows",
     "requestedAt": "Requested",
     "actions": "Actions",
-    "page": "Page {{page}} of {{total}}"
+    "page": "Page {{page}} of {{total}}",
+    "outputFormat": "Output format",
+    "allFormats": "All formats",
+    "screen": "Screen",
+    "allDrivers": "All drivers",
+    "allVehicles": "All vehicles",
+    "allEmployees": "All employees",
+    "allCompanies": "All companies",
+    "allYears": "All years"
   },
   "tracking": {
     "title": "Track & Trace",

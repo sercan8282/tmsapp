@@ -98,13 +98,17 @@ export async function getTachographVehicles(): Promise<{ vehicles: TachoVehicle[
   return response.data
 }
 
-export async function triggerTachographSync(): Promise<{
+export async function triggerTachographSync(force = false): Promise<{
   status: string
   reason?: string
   dates_processed?: number
   entries_created?: number
   overtime_created?: number
+  force_resync?: boolean
+  deleted_entries?: number
+  deleted_overtime?: number
+  deleted_logs?: number
 }> {
-  const response = await api.post('/tracking/tachograph/sync/')
+  const response = await api.post('/tracking/tachograph/sync/', { force })
   return response.data
 }

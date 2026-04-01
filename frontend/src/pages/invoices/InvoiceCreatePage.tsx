@@ -19,10 +19,8 @@ import {
   XCircleIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  PaperClipIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { getTemplates, createInvoice, createInvoiceLine, getNextInvoiceNumber, uploadInvoiceBijlage } from '@/api/invoices'
+import { getTemplates, createInvoice, createInvoiceLine, getNextInvoiceNumber } from '@/api/invoices'
 import { getCompanies } from '@/api/companies'
 import { getTimeEntries } from '@/api/timetracking'
 import { getSpreadsheets } from '@/api/spreadsheets'
@@ -177,14 +175,13 @@ function TemplateCard({
   onSelect: () => void 
 }) {
   return (
-    <button
-      type="button"
+    <div
       onClick={onSelect}
       className={`
-        w-full box-border overflow-hidden border-2 rounded-lg p-4 cursor-pointer min-h-[100px] text-left transition-colors
-        ${selected
-          ? 'border-primary-600 bg-primary-50'
-          : 'border-gray-300 hover:bg-gray-50 bg-white'}
+        border-2 rounded-lg p-4 cursor-pointer transition-all
+        ${selected 
+          ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200' 
+          : 'border-gray-200 hover:border-gray-300 bg-white'}
       `}
     >
       <div className="flex items-start justify-between">
@@ -194,14 +191,16 @@ function TemplateCard({
             <p className="text-sm text-gray-500 mt-1">{template.beschrijving}</p>
           )}
         </div>
-        <CheckCircleIcon className={`h-6 w-6 flex-shrink-0 ${selected ? 'text-primary-500' : 'invisible'}`} />
+        {selected && (
+          <CheckCircleIcon className="h-6 w-6 text-primary-500 flex-shrink-0" />
+        )}
       </div>
       {template.layout && (
         <div className="mt-3 text-xs text-gray-400">
           {(template.layout as TemplateLayout).columns?.length || 0} kolommen
         </div>
       )}
-    </button>
+    </div>
   )
 }
 
@@ -307,6 +306,7 @@ function TimeEntryImportModal({
   onImportImported: (entries: ImportedTimeEntry[], chauffeurEntries: TimeEntry[]) => void
 }) {
   const [activeTab, setActiveTab] = useState<'chauffeur' | 'imported'>('chauffeur')
+  const { t } = useTranslation()
   // Chauffeur tab state
   const [chauffeurGroups, setChauffeurGroups] = useState<ChauffeurWeekGroup[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -531,7 +531,7 @@ function TimeEntryImportModal({
           {/* Header with tabs */}
           <div className="border-b">
             <div className="px-6 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Uren Importeren</h3>
+              <h3 className="text-lg font-semibold">{t('invoices.importHours')}</h3>
               <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
                 <XCircleIcon className="h-5 w-5 text-gray-400" />
               </button>
@@ -545,7 +545,7 @@ function TimeEntryImportModal({
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Chauffeur Uren
+                {t('invoices.driverHours')}
               </button>
               <button
                 onClick={() => setActiveTab('imported')}
@@ -555,7 +555,7 @@ function TimeEntryImportModal({
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Geïmporteerde Uren
+                {t('invoices.importedHoursTab')}
               </button>
             </div>
           </div>
@@ -566,13 +566,13 @@ function TimeEntryImportModal({
               {/* Filter bar */}
               {availableWeeks.length > 0 && (
                 <div className="px-6 py-2 border-b bg-gray-50 flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Filter:</span>
+                  <span className="text-sm text-gray-500">{t('common.filter')}:</span>
                   <select
                     value={weekFilter}
                     onChange={(e) => setWeekFilter(e.target.value)}
                     className="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-primary-500 focus:border-primary-500"
                   >
-                    <option value="">Alle weken</option>
+                    <option value="">{t('invoices.allWeeks')}</option>
                     {availableWeeks.map(week => (
                       <option key={week} value={week}>{week.replace('-W', ' Week ')}</option>
                     ))}
@@ -587,8 +587,8 @@ function TimeEntryImportModal({
                 ) : chauffeurGroups.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     <ClockIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Geen ingediende uren gevonden</p>
-                    <p className="text-sm mt-1">Alleen ingediende uren kunnen worden geïmporteerd</p>
+                    <p>{t('invoices.noSubmittedHoursFound')}</p>
+                    <p className="text-sm mt-1">{t('invoices.onlySubmittedCanBeImported')}</p>
                   </div>
                 ) : filteredGroups.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
@@ -695,8 +695,8 @@ function TimeEntryImportModal({
                       <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between">
                         <div className="text-sm text-gray-500">Pagina {currentPage} van {totalPages} ({chauffeurGroups.length} groepen)</div>
                         <div className="flex gap-2">
-                          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 text-sm border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">Vorige</button>
-                          <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 text-sm border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">Volgende</button>
+                          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 text-sm border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">{t('common.previous')}</button>
+                          <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 text-sm border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">{t('common.next')}</button>
                         </div>
                       </div>
                     )}
@@ -705,12 +705,12 @@ function TimeEntryImportModal({
               </div>
               <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
                 <span className="text-sm text-gray-600">
-                  {selectedCount > 0 ? <>{selectedCount} groepen geselecteerd ({totalEntries} regels)</> : 'Selecteer chauffeur/week combinaties om te importeren'}
+                  {selectedCount > 0 ? <>{t('invoices.groupsSelectedLines', { count: selectedCount, entries: totalEntries })}</> : t('invoices.selectDriverWeekCombinations')}
                 </span>
                 <div className="flex gap-3">
-                  <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Annuleren</button>
+                  <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">{t('common.cancel')}</button>
                   <button onClick={handleImport} disabled={totalEntries === 0} className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Importeren ({totalEntries} regels)
+                    {t('invoices.importCount', { count: totalEntries })}
                   </button>
                 </div>
               </div>
@@ -723,13 +723,13 @@ function TimeEntryImportModal({
               {/* Filter bar */}
               {availableImportedWeeks.length > 0 && (
                 <div className="px-6 py-2 border-b bg-gray-50 flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Filter:</span>
+                  <span className="text-sm text-gray-500">{t('common.filter')}:</span>
                   <select
                     value={importedWeekFilter}
                     onChange={(e) => setImportedWeekFilter(e.target.value)}
                     className="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-primary-500 focus:border-primary-500"
                   >
-                    <option value="">Alle weken</option>
+                    <option value="">{t('invoices.allWeeks')}</option>
                     {availableImportedWeeks.map(week => (
                       <option key={week} value={week}>{week.replace('-W', ' Week ')}</option>
                     ))}
@@ -744,13 +744,13 @@ function TimeEntryImportModal({
                 ) : importedGroups.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     <ClockIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Geen geïmporteerde uren gevonden</p>
-                    <p className="text-sm mt-1">Importeer eerst uren via de Uren Import pagina</p>
+                    <p>{t('invoices.noImportedHoursFound')}</p>
+                    <p className="text-sm mt-1">{t('invoices.importHoursFirst')}</p>
                   </div>
                 ) : filteredImportedGroups.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     <ClockIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Geen uren gevonden voor deze week</p>
+                    <p>{t('invoices.noHoursFoundForWeek')}</p>
                   </div>
                 ) : (
                   <>
@@ -848,8 +848,8 @@ function TimeEntryImportModal({
                       <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between">
                         <div className="text-sm text-gray-500">Pagina {importedPage} van {totalImportedPages} ({filteredImportedGroups.length} groepen)</div>
                         <div className="flex gap-2">
-                          <button onClick={() => setImportedPage(p => Math.max(1, p - 1))} disabled={importedPage === 1} className="px-3 py-1 text-sm border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">Vorige</button>
-                          <button onClick={() => setImportedPage(p => Math.min(totalImportedPages, p + 1))} disabled={importedPage === totalImportedPages} className="px-3 py-1 text-sm border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">Volgende</button>
+                          <button onClick={() => setImportedPage(p => Math.max(1, p - 1))} disabled={importedPage === 1} className="px-3 py-1 text-sm border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">{t('common.previous')}</button>
+                          <button onClick={() => setImportedPage(p => Math.min(totalImportedPages, p + 1))} disabled={importedPage === totalImportedPages} className="px-3 py-1 text-sm border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">{t('common.next')}</button>
                         </div>
                       </div>
                     )}
@@ -858,12 +858,12 @@ function TimeEntryImportModal({
               </div>
               <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
                 <span className="text-sm text-gray-600">
-                  {selectedImportedCount > 0 ? <>{selectedImportedCount} groepen geselecteerd ({totalImportedEntries} ritten)</> : 'Selecteer chauffeur/week combinaties om te importeren'}
+                  {selectedImportedCount > 0 ? <>{t('invoices.groupsSelectedTrips', { count: selectedImportedCount, entries: totalImportedEntries })}</> : t('invoices.selectDriverWeekCombinations')}
                 </span>
                 <div className="flex gap-3">
-                  <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Annuleren</button>
+                  <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">{t('common.cancel')}</button>
                   <button onClick={handleImportImported} disabled={totalImportedEntries === 0} className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Importeren ({totalImportedEntries} ritten)
+                    {t('invoices.importTrips', { count: totalImportedEntries })}
                   </button>
                 </div>
               </div>
@@ -889,6 +889,7 @@ function SpreadsheetImportModal({
   onImport: (spreadsheet: Spreadsheet) => void
 }) {
   const [spreadsheets, setSpreadsheets] = useState<Spreadsheet[]>([])
+  const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -1179,9 +1180,9 @@ function SpreadsheetImportModal({
           <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
             <span className="text-sm text-gray-600">
               {selectedId ? (
-                <>1 ritregistratie geselecteerd ({spreadsheets.find(s => s.id === selectedId)?.rijen.length || 0} ritten)</>
+                <>{t('invoices.tripRegistrationSelected', { count: spreadsheets.find(s => s.id === selectedId)?.rijen.length || 0 })}</>
               ) : (
-                'Selecteer een ritregistratie om te importeren'
+                t('invoices.selectTripRegistration')
               )}
             </span>
             <div className="flex gap-3">
@@ -1189,14 +1190,14 @@ function SpreadsheetImportModal({
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
-                Annuleren
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleImport}
                 disabled={!selectedId}
                 className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Importeren
+                {t('common.import')}
               </button>
             </div>
           </div>
@@ -1230,7 +1231,6 @@ export default function InvoiceCreatePage() {
     return d.toISOString().split('T')[0]
   })
   const [opmerkingen, setOpmerkingen] = useState('')
-  const [bijlage, setBijlage] = useState<File | null>(null)
   const [lines, setLines] = useState<InvoiceLineData[]>([])
   
   // Week/Chauffeur tracking (from imported time entries)
@@ -1706,21 +1706,16 @@ export default function InvoiceCreatePage() {
     // Find the totaal/berekend column
     const totaalColumn = columns.find(c => c.type === 'berekend') || columns[columns.length - 1]
     
-    let subtotaal = lines.reduce((sum, line) => {
+    const subtotaal = lines.reduce((sum, line) => {
       const val = totaalColumn ? (line.values[totaalColumn.id] as number || 0) : 0
       return sum + val
     }, 0)
-    
-    // Creditfacturen: bedragen negatief tonen
-    if (invoiceType === 'credit') {
-      subtotaal = -Math.abs(subtotaal)
-    }
     
     const btw = subtotaal * (totalsConfig.btwPercentage / 100)
     const totaal = subtotaal + btw
     
     return { subtotaal, btw, totaal }
-  }, [lines, columns, totalsConfig, invoiceType])
+  }, [lines, columns, totalsConfig])
 
   // Save invoice
   const handleSave = async () => {
@@ -1765,22 +1760,17 @@ export default function InvoiceCreatePage() {
       
       const invoice = await createInvoice(invoiceData)
 
-      // Upload bijlage if provided
-      if (bijlage) {
-        await uploadInvoiceBijlage(invoice.id, bijlage)
-      }
-
       // Create invoice lines
       const totaalColumn = columns.find(c => c.type === 'berekend') || columns[columns.length - 1]
       
-      // Find columns once outside the loop for efficiency
-      const omschrijvingCol = columns.find(c => c.type === 'text' || c.id === 'omschrijving')
-      const aantalCol = columns.find(c => c.type === 'aantal' || c.id === 'aantal')
-      const prijsCol = columns.find(c => c.type === 'prijs' || c.id.includes('prijs') || c.id.includes('tarief'))
-      const roundTo2 = (n: number) => Math.round(n * 100) / 100
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]
+      for (const line of lines) {
+        // Find omschrijving column
+        const omschrijvingCol = columns.find(c => c.type === 'text' || c.id === 'omschrijving')
+        const aantalCol = columns.find(c => c.type === 'aantal' || c.id === 'aantal')
+        const prijsCol = columns.find(c => c.type === 'prijs' || c.id.includes('prijs') || c.id.includes('tarief'))
+        
+        // Round values to 2 decimals to prevent backend validation errors
+        const roundTo2 = (n: number) => Math.round(n * 100) / 100
         
         const lineData: any = {
           invoice: invoice.id,
@@ -1791,7 +1781,6 @@ export default function InvoiceCreatePage() {
             : totaalColumn 
               ? Number(line.values[totaalColumn.id]) || 0 
               : 0),
-          volgorde: i,
         }
         
         // Only add time_entry if it exists
@@ -1839,9 +1828,9 @@ export default function InvoiceCreatePage() {
   }
 
   return (
-    <div className="space-y-6 overflow-hidden">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/invoices')}
@@ -1903,15 +1892,16 @@ export default function InvoiceCreatePage() {
       </div>
 
       {/* Step 2: Invoice Details */}
-      <div className={`bg-white rounded-lg shadow p-6${!selectedTemplate ? ' hidden' : ''}`}>
+      {selectedTemplate && (
+        <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-4">2. {t('invoices.invoiceDetails')}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="min-w-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('invoices.company')} *</label>
               <select
                 value={selectedCompany}
                 onChange={(e) => setSelectedCompany(e.target.value)}
-                className="w-full min-w-0 truncate rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
               >
                 <option value="">{t('invoices.selectCompany')}...</option>
                 {companies.map((company) => (
@@ -1919,7 +1909,7 @@ export default function InvoiceCreatePage() {
                 ))}
               </select>
             </div>
-            <div className="min-w-0">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('invoices.type')}</label>
               <select
                 value={invoiceType}
@@ -1928,7 +1918,7 @@ export default function InvoiceCreatePage() {
                   setInvoiceType(newType)
                   loadNextInvoiceNumber(newType)
                 }}
-                className="w-full min-w-0 truncate rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
               >
                 <option value="verkoop">{t('invoices.salesInvoice')} (F-)</option>
                 <option value="credit">{t('invoices.creditInvoice')} (C-)</option>
@@ -1974,41 +1964,15 @@ export default function InvoiceCreatePage() {
               placeholder={t('invoices.optionalNotes')}
             />
           </div>
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('invoices.attachment')}</label>
-            {bijlage ? (
-              <div className="flex items-center gap-2 p-2 border rounded-md bg-gray-50">
-                <PaperClipIcon className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                <span className="text-sm text-gray-700 truncate flex-1">{bijlage.name}</span>
-                <button
-                  type="button"
-                  onClick={() => setBijlage(null)}
-                  className="text-gray-400 hover:text-gray-600 flex-shrink-0"
-                  title={t('invoices.removeAttachment')}
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <label className="flex items-center gap-2 p-2 border border-dashed rounded-md cursor-pointer hover:bg-gray-50 text-sm text-gray-500">
-                <PaperClipIcon className="h-4 w-4" />
-                {t('invoices.addAttachment')}
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => setBijlage(e.target.files?.[0] ?? null)}
-                />
-              </label>
-            )}
-          </div>
         </div>
+      )}
 
       {/* Step 3: Invoice Lines */}
-      <div className={`bg-white rounded-lg shadow p-6${!selectedTemplate ? ' hidden' : ''}`}>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+      {selectedTemplate && columns.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">3. {t('invoices.lines')}</h2>
-            {columns.length > 0 && (
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex gap-2">
               <button
                 onClick={() => setShowImportModal(true)}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
@@ -2031,20 +1995,11 @@ export default function InvoiceCreatePage() {
                 {t('invoices.addLine')}
               </button>
             </div>
-            )}
           </div>
-
-          {columns.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 border-2 border-dashed rounded-lg">
-              <p className="mb-2">Deze template heeft geen kolommen geconfigureerd.</p>
-              <p className="text-sm">Bewerk de template om kolommen toe te voegen.</p>
-            </div>
-          ) : (
-          <>
 
           {/* Invoice Header Preview */}
           <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+            <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wide">Factuurnummer</p>
                 <p className="text-lg font-bold font-mono text-gray-900">{factuurnummer || '-'}</p>
@@ -2084,7 +2039,7 @@ export default function InvoiceCreatePage() {
 
           {/* Template columns info */}
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-800 text-sm flex-wrap">
+            <div className="flex items-center gap-2 text-blue-800 text-sm">
               <CalculatorIcon className="h-4 w-4" />
               <span className="font-medium">Template kolommen:</span>
               {columns.map((col, i) => (
@@ -2144,7 +2099,7 @@ export default function InvoiceCreatePage() {
           {/* Totals */}
           {lines.length > 0 && (
             <div className="mt-6 flex justify-end">
-              <div className="w-full sm:w-72 bg-gray-50 rounded-lg p-4">
+              <div className="w-72 bg-gray-50 rounded-lg p-4">
                 {totalsConfig.showSubtotaal && (
                   <div className="flex justify-between py-1">
                     <span className="text-gray-600">{t('invoices.subtotalExclVat')}:</span>
@@ -2166,9 +2121,8 @@ export default function InvoiceCreatePage() {
               </div>
             </div>
           )}
-          </>
-          )}
         </div>
+      )}
 
       {/* Time Entry Import Modal */}
       <TimeEntryImportModal

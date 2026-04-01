@@ -599,14 +599,21 @@ class TachographManualSyncView(APIView):
     POST /api/tracking/tachograph/sync/
     Manually trigger the tachograph hours sync task.
     Returns the task result directly (synchronous).
+
+    Pass {"force": true} to clear existing sync data and re-sync everything.
     """
     permission_classes = [IsAdminOrManager]
 
     def post(self, request):
-        from apps.tracking.tasks import sync_tachograph_hours
+        force = request.data.get('force', False)
 
         try:
-            result = sync_tachograph_hours()
+            if force:
+                from apps.tracking.tasks import force_resync_tachograph_hours
+                result = force_resync_tachograph_hours()
+            else:
+                from apps.tracking.tasks import sync_tachograph_hours
+                result = sync_tachograph_hours()
             return Response(result)
         except Exception as e:
             logger.exception('Manual tachograph sync failed')

@@ -1022,21 +1022,21 @@ export default function UsersPage() {
                         <button
                           onClick={() => { setSelectedUser(user); setShowEditModal(true) }}
                           className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
-                          title="Bewerken"
+                          title={t('common.edit')}
                         >
                           <PencilSquareIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => { setSelectedUser(user); setShowPasswordModal(true) }}
                           className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-yellow-600 hover:bg-gray-100 rounded"
-                          title="Wachtwoord resetten"
+                          title={t('users.resetPassword')}
                         >
                           <KeyIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => { setSelectedUser(user); setShowBlockModal(true) }}
                           className={`p-2 min-w-[40px] min-h-[40px] hover:bg-gray-100 rounded ${user.is_active ? 'text-gray-500 hover:text-orange-600' : 'text-gray-500 hover:text-green-600'}`}
-                          title={user.is_active ? 'Blokkeren' : 'Activeren'}
+                          title={user.is_active ? t('users.block') : t('users.activate')}
                         >
                           {user.is_active ? <NoSymbolIcon className="w-5 h-5" /> : <CheckCircleIcon className="w-5 h-5" />}
                         </button>
@@ -1044,7 +1044,7 @@ export default function UsersPage() {
                           <button
                             onClick={() => { setSelectedUser(user); setShowMfaModal(true) }}
                             className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded"
-                            title="2FA uitschakelen"
+                            title={t('users.disable2FA')}
                           >
                             <ShieldCheckIcon className="w-5 h-5" />
                           </button>
@@ -1052,7 +1052,7 @@ export default function UsersPage() {
                         <button
                           onClick={() => { setSelectedUser(user); setShowDeleteModal(true) }}
                           className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
-                          title="Verwijderen"
+                          title={t('common.delete')}
                         >
                           <TrashIcon className="w-5 h-5" />
                         </button>

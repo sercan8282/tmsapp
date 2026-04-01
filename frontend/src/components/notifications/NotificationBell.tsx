@@ -13,6 +13,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   pushApi,
   type UserNotification,
@@ -41,6 +42,7 @@ interface NotificationBellProps {
 }
 
 export default function NotificationBell({ className = '' }: NotificationBellProps) {
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<NotificationInboxResponse | null>(null)
@@ -256,7 +258,7 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
           <div className="max-h-96 overflow-y-auto">
             {loading && !data ? (
               <div className="px-4 py-8 text-center text-gray-500 text-sm">
-                Laden...
+                {t('common.loading')}
               </div>
             ) : error ? (
               <div className="px-4 py-8 text-center text-red-500 text-sm">
@@ -265,7 +267,7 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
             ) : !hasNotifications ? (
               <div className="px-4 py-8 text-center text-gray-500">
                 <BellIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                <p className="text-sm">Geen notificaties</p>
+                <p className="text-sm">{t('notifications.noNotifications')}</p>
               </div>
             ) : (
               <ul className="divide-y divide-gray-100">

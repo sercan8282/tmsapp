@@ -18,6 +18,7 @@ import {
   ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
 import {
   getChatSessions,
   getChatSession,
@@ -33,6 +34,7 @@ import {
 function DataTable({ data }: { data: ChatData }) {
   const [collapsed, setCollapsed] = useState(false)
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
+  const { t } = useTranslation()
 
   if (!data.columns || !data.rows) return null
 
@@ -77,7 +79,7 @@ function DataTable({ data }: { data: ChatData }) {
           <button
             onClick={() => handleExport('excel')}
             disabled={exporting !== null}
-            title="Exporteer naar Excel"
+            title={t('chat.exportToExcel')}
             className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
           >
             <ArrowDownTrayIcon className="w-3.5 h-3.5" />
@@ -86,7 +88,7 @@ function DataTable({ data }: { data: ChatData }) {
           <button
             onClick={() => handleExport('pdf')}
             disabled={exporting !== null}
-            title="Exporteer naar PDF"
+            title={t('chat.exportToPdf')}
             className="flex items-center gap-1 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
           >
             <ArrowDownTrayIcon className="w-3.5 h-3.5" />

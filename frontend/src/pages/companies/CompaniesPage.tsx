@@ -476,24 +476,24 @@ function MailingListPanel({
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => handleToggleActive(contact)}
-                    className={`p-1.5 rounded text-xs font-medium min-w-[36px] min-h-[36px] flex items-center justify-center ${
+                    className={`p-1.5 rounded text-xs font-medium min-w-[44px] min-h-[44px] flex items-center justify-center ${
                       contact.is_active
                         ? 'text-green-600 hover:bg-green-50'
                         : 'text-gray-400 hover:bg-gray-100'
                     }`}
                     title={contact.is_active ? 'Deactiveren' : 'Activeren'}
                   >
-                    <CheckCircleIcon className="w-4 h-4" />
+                    <CheckCircleIcon className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => startEdit(contact)}
-                    className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-gray-100 rounded min-w-[36px] min-h-[36px] flex items-center justify-center"
+                    className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-gray-100 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
                   >
                     <PencilSquareIcon className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setDeleteTarget(contact)}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded min-w-[36px] min-h-[36px] flex items-center justify-center"
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
                   >
                     <TrashIcon className="w-4 h-4" />
                   </button>
@@ -836,27 +836,27 @@ export default function CompaniesPage() {
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th 
-                  className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('naam')}
                 >
                   {t('companies.companyName')} <SortIcon field="naam" />
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   {t('companies.kvkNumber')}
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   {t('companies.contactPerson')}
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                   {t('companies.contact')}
                 </th>
                 <th 
-                  className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('stad')}
                 >
                   {t('companies.location')} <SortIcon field="stad" />
                 </th>
-                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-600 uppercase">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">
                   {t('common.actions')}
                 </th>
               </tr>
@@ -873,7 +873,7 @@ export default function CompaniesPage() {
                 </tr>
               ) : companies.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-12 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
                     <BuildingOfficeIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
                     <p>{t('companies.noCompanies')}</p>
                     <button
@@ -887,50 +887,50 @@ export default function CompaniesPage() {
               ) : (
                 companies.map(company => (
                   <tr key={company.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2.5">
-                      <div className="font-medium text-sm text-gray-900">{company.naam}</div>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900">{company.naam}</div>
                     </td>
-                    <td className="px-3 py-2.5 text-sm text-gray-600">{company.kvk || '-'}</td>
-                    <td className="px-3 py-2.5 text-sm text-gray-600">{company.contactpersoon || '-'}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-4 py-3 text-gray-600">{company.kvk || '-'}</td>
+                    <td className="px-4 py-3 text-gray-600">{company.contactpersoon || '-'}</td>
+                    <td className="px-4 py-3">
                       <div className="text-sm">
                         {company.telefoon && <div className="text-gray-600">{company.telefoon}</div>}
-                        {company.email && <div className="text-gray-500 truncate max-w-[200px]">{company.email}</div>}
+                        {company.email && <div className="text-gray-500">{company.email}</div>}
                         {!company.telefoon && !company.email && <span className="text-gray-400">-</span>}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-4 py-3">
                       <div className="text-sm">
                         {company.stad && <div className="text-gray-600">{company.stad}</div>}
                         {company.postcode && <div className="text-gray-500">{company.postcode}</div>}
                         {!company.stad && !company.postcode && <span className="text-gray-400">-</span>}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center justify-end gap-0.5">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => { setSelectedCompany(company); setShowMailingModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
                           title={t('companies.mailingList')}
                         >
-                          <EnvelopeIcon className="w-4 h-4" />
+                          <EnvelopeIcon className="w-5 h-5" />
                           {(company.mailing_contacts_count > 0) && (
                             <span className="sr-only">{company.mailing_contacts_count}</span>
                           )}
                         </button>
                         <button
                           onClick={() => { setSelectedCompany(company); setShowEditModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
-                          title="Bewerken"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded"
+                          title={t('common.edit')}
                         >
-                          <PencilSquareIcon className="w-4 h-4" />
+                          <PencilSquareIcon className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => { setSelectedCompany(company); setShowDeleteModal(true) }}
-                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
-                          title="Verwijderen"
+                          className="p-2 min-w-[40px] min-h-[40px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
+                          title={t('common.delete')}
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <TrashIcon className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
@@ -947,58 +947,58 @@ export default function CompaniesPage() {
             <div className="px-4 py-12 text-center text-gray-500">
               <div className="flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                <span className="ml-3">Laden...</span>
+                <span className="ml-3">{t('common.loading')}</span>
               </div>
             </div>
           ) : companies.length === 0 ? (
             <div className="px-4 py-12 text-center text-gray-500">
               <BuildingOfficeIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-              <p>Geen bedrijven gevonden</p>
+              <p>{t('companies.noCompanies')}</p>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="mt-2 text-primary-600 hover:text-primary-700"
               >
-                Voeg je eerste bedrijf toe
+                {t('companies.addFirstCompany')}
               </button>
             </div>
           ) : (
             companies.map(company => (
-              <div key={company.id} className="p-3 hover:bg-gray-50">
+              <div key={company.id} className="p-4 hover:bg-gray-50">
                 {/* Card Header */}
-                <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm text-gray-900 truncate">{company.naam}</h3>
+                    <h3 className="font-semibold text-gray-900 truncate">{company.naam}</h3>
                     {company.contactpersoon && (
-                      <p className="text-xs text-gray-500">{company.contactpersoon}</p>
+                      <p className="text-sm text-gray-500">{company.contactpersoon}</p>
                     )}
                   </div>
-                  <div className="flex items-center gap-0.5 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => { setSelectedCompany(company); setShowMailingModal(true) }}
-                      className="p-1.5 min-w-[36px] min-h-[36px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg flex items-center justify-center"
+                      className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg"
                       title={t('companies.mailingList')}
                     >
-                      <EnvelopeIcon className="w-4 h-4" />
+                      <EnvelopeIcon className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => { setSelectedCompany(company); setShowEditModal(true) }}
-                      className="p-1.5 min-w-[36px] min-h-[36px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg flex items-center justify-center"
-                      title="Bewerken"
+                      className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg"
+                      title={t('common.edit')}
                     >
-                      <PencilSquareIcon className="w-4 h-4" />
+                      <PencilSquareIcon className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => { setSelectedCompany(company); setShowDeleteModal(true) }}
-                      className="p-1.5 min-w-[36px] min-h-[36px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-lg flex items-center justify-center"
-                      title="Verwijderen"
+                      className="p-2 min-w-[44px] min-h-[44px] text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-lg"
+                      title={t('common.delete')}
                     >
-                      <TrashIcon className="w-4 h-4" />
+                      <TrashIcon className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
 
                 {/* Card Details */}
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   {company.kvk && (
                     <div>
                       <span className="text-gray-500">KVK: </span>

@@ -98,6 +98,15 @@ export interface AppSettingsAdmin extends AppSettings {
   // Linqo / FM-Track
   linqo_api_key?: string // Write-only
   tachograaf_start_datum?: string | null
+  // Reminder settings
+  reminder_enabled: boolean
+  reminder_time: string
+  reminder_frequency: 'daily' | 'weekdays' | 'weekly' | 'custom'
+  reminder_weekly_day: number
+  reminder_custom_days: number[]
+  reminder_weeks_before: number[]
+  reminder_email: string
+  reminder_signature: string
 }
 
 // Company types
@@ -145,6 +154,7 @@ export interface Driver {
   standaard_pauze: number
   auto_uren: boolean
   tacho_kenteken: string
+  standaard_begintijd: string | null
   created_at: string
   updated_at: string
 }

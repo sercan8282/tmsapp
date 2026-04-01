@@ -237,6 +237,7 @@
     "roleGebruiker": "Gebruiker",
     "roleChauffeur": "Chauffeur",
     "leaveThisMonth": "Verlof deze maand",
+    "noLeaveThisMonth": "Geen verlof gepland deze maand",
     "viewLeaveCalendar": "Bekijk verlofkalender",
     "leaveHours": "Verlofuren"
   },
@@ -281,7 +282,8 @@
     "contactCreated": "Contact succesvol toegevoegd",
     "contactUpdated": "Contact succesvol bijgewerkt",
     "contactDeleted": "Contact succesvol verwijderd",
-    "contacts": "contacten"
+    "contacts": "contacten",
+    "addFirstCompany": "Voeg je eerste bedrijf toe"
   },
   "drivers": {
     "title": "Chauffeurs",
@@ -320,7 +322,9 @@
     "autoHoursHelp": "Tijdregistratie automatisch aanmaken op basis van tachograaf gegevens.",
     "tachoPlate": "Tachograaf kenteken",
     "selectTachoPlate": "Selecteer kenteken uit tachograaf...",
-    "tachoPlateHelp": "Koppel een kenteken uit de tachograaf lijst aan deze chauffeur."
+    "tachoPlateHelp": "Koppel een kenteken uit de tachograaf lijst aan deze chauffeur.",
+    "defaultStartTime": "Standaard begintijd",
+    "defaultStartTimeHelp": "Indien ingesteld wordt deze tijd altijd als aanvangstijd gebruikt bij automatische uren in plaats van de tachograaf starttijd."
   },
   "fleet": {
     "title": "Vloot",
@@ -778,7 +782,22 @@
     "lineAdded": "Regel toegevoegd",
     "notFound": "Factuur niet gevonden",
     "backToOverview": "Terug naar overzicht",
-    "noLines": "Geen factuurregels"
+    "noLines": "Geen factuurregels",
+    "driverHours": "Chauffeur Uren",
+    "importedHoursTab": "Geïmporteerde Uren",
+    "allWeeks": "Alle weken",
+    "noSubmittedHoursFound": "Geen ingediende uren gevonden",
+    "onlySubmittedCanBeImported": "Alleen ingediende uren kunnen worden geïmporteerd",
+    "noHoursFoundForWeek": "Geen uren gevonden voor deze week",
+    "groupsSelectedLines": "{{count}} groepen geselecteerd ({{entries}} regels)",
+    "selectDriverWeekCombinations": "Selecteer chauffeur/week combinaties om te importeren",
+    "importCount": "Importeren ({{count}} regels)",
+    "noImportedHoursFound": "Geen geïmporteerde uren gevonden",
+    "importHoursFirst": "Importeer eerst uren via de Uren Import pagina",
+    "groupsSelectedTrips": "{{count}} groepen geselecteerd ({{entries}} ritten)",
+    "importTrips": "Importeren ({{count}} ritten)",
+    "tripRegistrationSelected": "1 ritregistratie geselecteerd ({{count}} ritten)",
+    "selectTripRegistration": "Selecteer een ritregistratie om te importeren"
   },
   "templates": {
     "title": "Factuur Templates",
@@ -936,7 +955,10 @@
     "selectAll": "Alles selecteren",
     "deselectAll": "Alles deselecteren",
     "permissionsUpdated": "Rechten succesvol bijgewerkt",
-    "autoEnabled": "Automatisch ingeschakeld (afhankelijkheid)"
+    "autoEnabled": "Automatisch ingeschakeld (afhankelijkheid)",
+    "block": "Blokkeren",
+    "activate": "Activeren",
+    "disable2FA": "2FA uitschakelen"
   },
   "settings": {
     "title": "Instellingen",
@@ -1083,7 +1105,39 @@
     "couldNotLoadPushSettings": "Kon push instellingen niet laden",
     "couldNotGenerateKeys": "Kon VAPID keys niet genereren",
     "license": "Licentie",
-    "licenseDescription": "Informatie over de actieve licentie van deze installatie."
+    "licenseDescription": "Informatie over de actieve licentie van deze installatie.",
+    "tachograafStartDatum": "Startdatum tachograaf",
+    "tachograafStartDatumHint": "Vanaf deze datum worden automatisch uren ingediend op basis van tachograaf gegevens.",
+    "reminders": "Herinneringen",
+    "remindersDescription": "Configureer automatische herinneringen voor verlopen chauffeursdocumenten.",
+    "reminderEnabled": "Herinneringen inschakelen",
+    "reminderEnabledHint": "Stuur automatisch e-mails wanneer chauffeursdocumenten bijna verlopen.",
+    "reminderSchedule": "Planning",
+    "reminderTime": "Verzendtijdstip",
+    "reminderFrequency": "Frequentie",
+    "frequencyDaily": "Dagelijks",
+    "frequencyWeekdays": "Werkdagen (ma-vr)",
+    "frequencyWeekly": "Wekelijks",
+    "frequencyCustom": "Aangepast",
+    "reminderWeeklyDay": "Dag van de week",
+    "reminderCustomDays": "Selecteer dagen",
+    "monday": "Maandag",
+    "tuesday": "Dinsdag",
+    "wednesday": "Woensdag",
+    "thursday": "Donderdag",
+    "friday": "Vrijdag",
+    "saturday": "Zaterdag",
+    "sunday": "Zondag",
+    "reminderWeeksBefore": "Weken van tevoren",
+    "reminderWeeksBeforeHint": "Hoeveel weken voor de verloopdatum moeten herinneringen verstuurd worden?",
+    "week": "week",
+    "weeks": "weken",
+    "reminderEmailSettings": "E-mail instellingen",
+    "reminderEmail": "Ontvanger e-mail",
+    "reminderEmailPlaceholder": "Laat leeg om het bedrijfse-mailadres te gebruiken",
+    "reminderEmailHint": "Optioneel. Standaard wordt het e-mailadres van het bedrijf gebruikt.",
+    "reminderSignature": "Handtekening",
+    "reminderSignaturePlaceholder": "Optionele handtekening onderaan herinneringsmails..."
   },
   "license": {
     "activation": "Licentie Activatie",
@@ -1117,6 +1171,10 @@
     "renewLicense": "Licentie vernieuwen",
     "newLicenseKey": "Nieuwe licentiesleutel",
     "renewSuccess": "Licentie succesvol vernieuwd!"
+  },
+  "chat": {
+    "exportToExcel": "Exporteer naar Excel",
+    "exportToPdf": "Exporteer naar PDF"
   },
   "notifications": {
     "title": "Notificaties",
@@ -1933,6 +1991,10 @@
     "syncUpToDate": "Alles is al gesynchroniseerd, geen nieuwe data",
     "syncSkipped": "Synchronisatie overgeslagen ({{reason}})",
     "syncError": "Fout bij synchroniseren tachograaf uren",
+    "forceResync": "Opnieuw synchroniseren",
+    "forceResyncTooltip": "Verwijder alle bestaande automatische uren en synchroniseer opnieuw vanaf de startdatum",
+    "forceResyncConfirm": "Weet je zeker dat je alle automatisch aangemaakte uren wilt verwijderen en opnieuw wilt synchroniseren? Dit kan niet ongedaan worden gemaakt.",
+    "forceResyncComplete": "Hernieuwde synchronisatie voltooid: {{deleted}} oude entries verwijderd, {{entries}} nieuwe uren aangemaakt over {{dates}} dagen",
     "today": "Vandaag",
     "previousDay": "Vorige dag",
     "nextDay": "Volgende dag",
@@ -1975,7 +2037,15 @@
     "rows": "Rijen",
     "requestedAt": "Aangevraagd",
     "actions": "Acties",
-    "page": "Pagina {{page}} van {{total}}"
+    "page": "Pagina {{page}} van {{total}}",
+    "outputFormat": "Uitvoer formaat",
+    "allFormats": "Alle formaten",
+    "screen": "Scherm",
+    "allDrivers": "Alle chauffeurs",
+    "allVehicles": "Alle voertuigen",
+    "allEmployees": "Alle medewerkers",
+    "allCompanies": "Alle bedrijven",
+    "allYears": "Alle jaren"
   },
   "tracking": {
     "title": "Track & Trace",

@@ -24,6 +24,7 @@ import {
   Legend,
 } from 'recharts'
 import { settingsApi } from '@/api/settings'
+import { useTranslation } from 'react-i18next'
 import type {
   ServerStats,
   MetricsPoint,
@@ -164,6 +165,7 @@ function ContainerRow({
 }
 
 export default function ServerMonitoringPanel() {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<MonitoringTab>('overview')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -643,7 +645,7 @@ export default function ServerMonitoringPanel() {
               </p>
             </div>
           ) : containers.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-8">Geen containers gevonden.</p>
+            <p className="text-sm text-gray-500 text-center py-8">{t('common.noResults')}</p>
           ) : (
             containers.map((c) => (
               <ContainerRow key={c.id} container={c} onViewLogs={handleViewLogs} />
@@ -702,7 +704,7 @@ export default function ServerMonitoringPanel() {
           ) : (
             <div className="bg-gray-900 rounded-lg p-3 overflow-x-auto max-h-[500px] overflow-y-auto font-mono text-xs">
               {logs.length === 0 ? (
-                <p className="text-gray-500">Geen logs beschikbaar.</p>
+                <p className="text-gray-500">{t('common.noData')}</p>
               ) : (
                 logs.map((line, i) => (
                   <div

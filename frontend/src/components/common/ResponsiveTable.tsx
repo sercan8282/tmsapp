@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 
 // Types for the responsive table
 export interface Column<T> {
@@ -55,6 +56,7 @@ export default function ResponsiveTable<T>({
   // Note: visibleColumns used in desktop table rendering
   const _visibleColumns = columns.filter(col => col.mobilePriority !== 'hidden')
   void _visibleColumns // Suppress unused variable warning
+  const { t } = useTranslation()
 
   const SortIcon = ({ field }: { field: string }) => {
     if (sortField !== field) return null
@@ -75,7 +77,7 @@ export default function ResponsiveTable<T>({
       <div className="px-4 py-12 text-center text-gray-500">
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <span className="ml-3">Laden...</span>
+          <span className="ml-3">{t('common.loading')}</span>
         </div>
       </div>
     )
@@ -84,7 +86,7 @@ export default function ResponsiveTable<T>({
   if (data.length === 0) {
     return (
       <div className="px-4 py-12 text-center text-gray-500">
-        {emptyState || <p>Geen resultaten gevonden</p>}
+        {emptyState || <p>{t('common.noResults')}</p>}
       </div>
     )
   }

@@ -57,6 +57,12 @@ class Driver(models.Model):
         verbose_name='Tachograaf kenteken',
         help_text='Kenteken uit de tachograaf lijst om deze chauffeur aan te koppelen.'
     )
+    standaard_begintijd = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name='Standaard begintijd',
+        help_text='Vaste begintijd voor automatische uren. Als ingesteld wordt deze altijd gebruikt als aanvangstijd in plaats van de tachograaf starttijd.'
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -4,15 +4,14 @@ Input sanitization, XSS prevention, and validation helpers.
 """
 import re
 import html
-import bleach
+import nh3
 from typing import Optional, List
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 
 
 # Allowed HTML tags for rich text fields (e.g., invoice notes)
-ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li']
-ALLOWED_ATTRIBUTES = {}
+ALLOWED_TAGS = {'p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li'}
 
 
 def sanitize_html(value: str) -> str:
@@ -23,11 +22,9 @@ def sanitize_html(value: str) -> str:
     if not value:
         return value
     
-    return bleach.clean(
+    return nh3.clean(
         value,
         tags=ALLOWED_TAGS,
-        attributes=ALLOWED_ATTRIBUTES,
-        strip=True
     )
 
 
