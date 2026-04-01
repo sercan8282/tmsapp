@@ -347,7 +347,7 @@ function App() {
         <Route path="/spreadsheets/:id" element={<AdminRoute><SpreadsheetEditorPage /></AdminRoute>} />
 
         {/* Reports (Rapport Agent) */}
-        <Route path="/reports" element={<AdminRoute><ReportsPage /></AdminRoute>} />
+        <Route path="/reports" element={<ReportsPage />} />
 
         {/* Documents (PDF Signing) */}
         <Route path="/documents" element={<DocumentsPage />} />

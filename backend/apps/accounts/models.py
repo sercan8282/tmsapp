@@ -30,6 +30,7 @@ AVAILABLE_MODULE_PERMISSIONS = [
     ('view_spreadsheet_templates', 'Spreadsheet templates'),
     ('view_maintenance', 'Onderhoud'),
     ('view_notifications', 'Notificaties'),
+    ('view_reports', 'Rapport Agent'),
 ]
 
 # Dependencies: enabling a permission also requires these permissions

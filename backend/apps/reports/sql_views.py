@@ -17,7 +17,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from apps.core.permissions import IsAdminOnly
+from rest_framework.permissions import IsAuthenticated
+from apps.core.permissions import IsAdminOnly, HasModulePermission
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,7 @@ def _make_serializable(value):
 
 
 @api_view(['GET'])
-@permission_classes([IsAdminOnly])
+@permission_classes([IsAuthenticated, IsAdminOnly])
 def sql_schema(request):
     """
     Return database schema information: tables, columns, types, and sample queries.
@@ -258,7 +259,7 @@ def _generate_example_queries(schema_data: list) -> list:
 
 
 @api_view(['POST'])
-@permission_classes([IsAdminOnly])
+@permission_classes([IsAuthenticated, IsAdminOnly])
 def sql_execute(request):
     """
     Execute a read-only SQL query and return the results.
@@ -321,7 +322,7 @@ def sql_execute(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAdminOnly])
+@permission_classes([IsAuthenticated, IsAdminOnly])
 def sql_export(request):
     """
     Execute a read-only SQL query and return results as CSV download.
