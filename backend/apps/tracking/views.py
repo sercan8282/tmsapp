@@ -262,6 +262,7 @@ class LiveTrackingView(APIView):
                 'accuracy': last_point.accuracy,
                 'recorded_at': last_point.recorded_at,
                 'is_active': True,
+                'vehicle_status': 'driving' if last_point.speed and last_point.speed > 3 else ('driving' if session.is_active else 'parked'),
             })
         
         serializer = LiveVehicleSerializer(results, many=True)
@@ -626,7 +627,7 @@ class VehicleDetailView(APIView):
     def get(self, request, object_id):
         from datetime import datetime as dt, date as date_type
         from apps.tracking.tachograph_service import (
-            get_trips, get_objects, get_vehicle_locations, FMTrackError,
+            get_trips, get_raw_data, get_objects, get_vehicle_locations, FMTrackError,
             _format_address, _format_duration,
         )
 
@@ -670,6 +671,8 @@ class VehicleDetailView(APIView):
 
             # Get vehicle info from objects
             vehicle_info = None
+            fuel_tank_capacity = 0
+            avg_fuel_consumption = 0
             try:
                 objects = get_objects()
                 for obj in objects:
@@ -681,12 +684,15 @@ class VehicleDetailView(APIView):
                             'make': vp.get('make', ''),
                             'model': vp.get('model', ''),
                         }
+                        fuel_tank_capacity = vp.get('fuel_tank_capacity') or 0
+                        avg_fuel_consumption = vp.get('average_fuel_consumption') or 0
                         break
             except FMTrackError:
                 pass
 
             # Build trip details
             trip_details = []
+            fuel_chart_data = []
             total_distance = 0
             total_duration_seconds = 0
             max_speed_overall = 0
@@ -711,11 +717,23 @@ class VehicleDetailView(APIView):
                 # Speed limit check: >130 km/h is considered speeding in NL
                 is_speeding = trip_max_speed > 130
 
+                # Fuel levels from trip start/end
+                start_fuel = start_info.get('fuel_level', 0) or 0
+                end_fuel = end_info.get('fuel_level', 0) or 0
+
+                # Calculate fuel in liters
+                start_fuel_liters = round(fuel_tank_capacity * start_fuel / 100, 1) if fuel_tank_capacity and start_fuel else None
+                end_fuel_liters = round(fuel_tank_capacity * end_fuel / 100, 1) if fuel_tank_capacity and end_fuel else None
+
                 trip_details.append({
                     'start_time': start_info.get('datetime', ''),
                     'end_time': end_info.get('datetime', ''),
                     'start_address': _format_address(start_info.get('address')),
                     'end_address': _format_address(end_info.get('address')),
+                    'start_lat': start_info.get('latitude'),
+                    'start_lng': start_info.get('longitude'),
+                    'end_lat': end_info.get('latitude'),
+                    'end_lng': end_info.get('longitude'),
                     'start_km': round(start_mileage / 1000, 1) if start_mileage else 0,
                     'end_km': round(end_mileage / 1000, 1) if end_mileage else 0,
                     'distance_km': distance_km,
@@ -723,7 +741,26 @@ class VehicleDetailView(APIView):
                     'duration_display': _format_duration(duration),
                     'max_speed': round(trip_max_speed),
                     'is_speeding': is_speeding,
+                    'start_fuel_level': round(start_fuel),
+                    'end_fuel_level': round(end_fuel),
+                    'fuel_used_liters': round(start_fuel_liters - end_fuel_liters, 1) if start_fuel_liters is not None and end_fuel_liters is not None else None,
                 })
+
+                # Build fuel chart data points (timestamp + fuel %)
+                if start_fuel > 0 and start_info.get('datetime'):
+                    fuel_chart_data.append({
+                        'timestamp': start_info['datetime'],
+                        'fuel_level': round(start_fuel),
+                        'fuel_liters': start_fuel_liters,
+                        'event': 'trip_start',
+                    })
+                if end_fuel > 0 and end_info.get('datetime'):
+                    fuel_chart_data.append({
+                        'timestamp': end_info['datetime'],
+                        'fuel_level': round(end_fuel),
+                        'fuel_liters': end_fuel_liters,
+                        'event': 'trip_end',
+                    })
 
             # Current odometer from last trip or position
             current_km = 0
@@ -732,21 +769,111 @@ class VehicleDetailView(APIView):
             elif current_position and current_position.get('mileage'):
                 current_km = round(current_position['mileage'] / 1000, 1)
 
-            result = {
-                'object_id': object_id,
-                'date': date_str,
-                'vehicle': vehicle_info,
-                'current_position': {
+            # Fuel consumption stats
+            total_fuel_used_liters = None
+            total_fuel_used_pct = None
+            avg_fuel_consumption = None  # L/100km
+            avg_fuel_consumption_pct = None  # %/100km
+            fuel_per_hour = None
+            fuel_per_hour_pct = None
+            if fuel_chart_data and len(fuel_chart_data) >= 2:
+                first_fuel = fuel_chart_data[0].get('fuel_level', 0)
+                last_fuel = fuel_chart_data[-1].get('fuel_level', 0)
+                if first_fuel > 0:
+                    fuel_diff_pct = max(0, first_fuel - last_fuel)
+                    total_fuel_used_pct = round(fuel_diff_pct, 1)
+                    if fuel_tank_capacity > 0:
+                        total_fuel_used_liters = round(fuel_tank_capacity * fuel_diff_pct / 100, 1)
+                    if total_distance > 0 and fuel_diff_pct > 0:
+                        avg_fuel_consumption_pct = round(fuel_diff_pct / total_distance * 100, 1)
+                        if fuel_tank_capacity > 0 and total_fuel_used_liters:
+                            avg_fuel_consumption = round(total_fuel_used_liters / total_distance * 100, 1)
+                    if total_duration_seconds > 0 and fuel_diff_pct > 0:
+                        fuel_per_hour_pct = round(fuel_diff_pct / (total_duration_seconds / 3600), 1)
+                        if fuel_tank_capacity > 0 and total_fuel_used_liters:
+                            fuel_per_hour = round(total_fuel_used_liters / (total_duration_seconds / 3600), 1)
+
+            # Remaining driving time (EU 561/2006: max 9h daily)
+            max_daily_drive_seconds = 9 * 3600
+            remaining_drive_seconds = max(0, max_daily_drive_seconds - total_duration_seconds)
+
+            # Fetch GPS route track for the day (raw_data gives actual GPS points)
+            route_coordinates = []
+            if trips_filtered:
+                try:
+                    raw_points = get_raw_data(object_id, date_from, date_till)
+                    for pt in raw_points:
+                        lat = pt.get('latitude') or pt.get('lat')
+                        lng = pt.get('longitude') or pt.get('lng') or pt.get('lon')
+                        if lat and lng:
+                            route_coordinates.append({
+                                'lat': float(lat),
+                                'lng': float(lng),
+                                'speed': pt.get('speed', 0),
+                                'timestamp': pt.get('datetime') or pt.get('timestamp', ''),
+                            })
+                except (FMTrackError, Exception) as e:
+                    logger.warning('Failed to fetch raw GPS data for route: %s', e)
+                    # Fallback: build route from trip start/end coordinates
+                    for trip_d in trip_details:
+                        if trip_d.get('start_lat') and trip_d.get('start_lng'):
+                            route_coordinates.append({
+                                'lat': float(trip_d['start_lat']),
+                                'lng': float(trip_d['start_lng']),
+                                'speed': 0,
+                                'timestamp': trip_d.get('start_time', ''),
+                            })
+                        if trip_d.get('end_lat') and trip_d.get('end_lng'):
+                            route_coordinates.append({
+                                'lat': float(trip_d['end_lat']),
+                                'lng': float(trip_d['end_lng']),
+                                'speed': 0,
+                                'timestamp': trip_d.get('end_time', ''),
+                            })
+
+            # Build current_position with smart speed
+            cur_pos = None
+            if current_position:
+                live_speed = current_position.get('speed', 0) or 0
+                vehicle_status = current_position.get('vehicle_status', 'parked')
+                speed_source = 'live'
+
+                # When live GPS speed is 0 but vehicle is driving (e.g. between
+                # GPS polls, at traffic light), derive a useful speed value from
+                # the most recent trip so the UI isn't contradictory.
+                if live_speed == 0 and vehicle_status == 'driving' and trip_details:
+                    last_trip = trips_filtered[-1] if trips_filtered else None
+                    if last_trip:
+                        # Use average speed from last trip
+                        lt_dur = last_trip.get('trip_duration', 0)
+                        lt_dist = last_trip.get('mileage', 0) / 1000  # m -> km
+                        if lt_dur > 0 and lt_dist > 0:
+                            live_speed = round(lt_dist / (lt_dur / 3600))
+                            speed_source = 'trip_avg'
+
+                # If still 0 but driving, fall back to day average
+                if live_speed == 0 and vehicle_status == 'driving' and total_distance > 0 and total_duration_seconds > 0:
+                    live_speed = round(total_distance / (total_duration_seconds / 3600))
+                    speed_source = 'day_avg'
+
+                cur_pos = {
                     'latitude': current_position.get('latitude'),
                     'longitude': current_position.get('longitude'),
-                    'speed': current_position.get('speed', 0),
+                    'speed': live_speed,
+                    'speed_source': speed_source,
                     'address': current_position.get('address', ''),
-                    'vehicle_status': current_position.get('vehicle_status', 'parked'),
+                    'vehicle_status': vehicle_status,
                     'fuel_level': current_position.get('fuel_level', 0),
                     'fuel_remaining_km': current_position.get('fuel_remaining_km'),
                     'heading': current_position.get('heading'),
                     'timestamp': current_position.get('timestamp', ''),
-                } if current_position else None,
+                }
+
+            result = {
+                'object_id': object_id,
+                'date': date_str,
+                'vehicle': vehicle_info,
+                'current_position': cur_pos,
                 'odometer_km': current_km,
                 'total_distance_km': round(total_distance, 1),
                 'total_duration_seconds': total_duration_seconds,
@@ -754,6 +881,17 @@ class VehicleDetailView(APIView):
                 'max_speed': round(max_speed_overall),
                 'trip_count': len(trip_details),
                 'trips': trip_details,
+                'fuel_tank_capacity': fuel_tank_capacity,
+                'total_fuel_used_liters': total_fuel_used_liters,
+                'total_fuel_used_pct': total_fuel_used_pct,
+                'avg_fuel_consumption': avg_fuel_consumption,
+                'avg_fuel_consumption_pct': avg_fuel_consumption_pct,
+                'fuel_per_hour': fuel_per_hour,
+                'fuel_per_hour_pct': fuel_per_hour_pct,
+                'remaining_drive_seconds': remaining_drive_seconds,
+                'remaining_drive_display': _format_duration(remaining_drive_seconds),
+                'fuel_chart_data': fuel_chart_data,
+                'route_coordinates': route_coordinates,
             }
 
             return Response(result)

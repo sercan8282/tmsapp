@@ -139,6 +139,10 @@ class LiveVehicleSerializer(serializers.Serializer):
     accuracy = serializers.FloatField(allow_null=True)
     recorded_at = serializers.DateTimeField()
     is_active = serializers.BooleanField()
+    vehicle_status = serializers.ChoiceField(
+        choices=['driving', 'idle', 'parked'],
+        default='parked',
+    )
 
 
 class RouteHistorySerializer(serializers.Serializer):

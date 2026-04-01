@@ -3,6 +3,7 @@
  * Allows users to request reports, view queue status, and open completed reports.
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   DocumentChartBarIcon,
   PlusIcon,
@@ -145,6 +146,7 @@ type ActiveTab = 'reports' | 'sql'
 const REPORTS_PAGE_SIZE = 10
 
 export default function ReportsPage() {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<ActiveTab>('reports')
   const [requests, setRequests] = useState<ReportRequest[]>([])
   const [reportTypes, setReportTypes] = useState<ReportTypeInfo[]>([])
@@ -173,7 +175,7 @@ export default function ReportsPage() {
       setTotalCount(paginatedData.count)
       setReportTypes(typesData)
     } catch {
-      toast.error('Fout bij laden van rapporten')
+      toast.error(t('reports.errorLoading'))
     } finally {
       setIsLoading(false)
     }
@@ -219,14 +221,14 @@ export default function ReportsPage() {
   const handleCreate = async (data: CreateReportRequest) => {
     try {
       const created = await createReportRequest(data)
-      toast.success('Rapport verzoek aangemaakt')
+      toast.success(t('reports.created'))
       setIsFormOpen(false)
       // Reset to page 1 so the new report is visible, then auto-execute
       setCurrentPage(1)
       await fetchData(1)
       handleExecute(created.id)
     } catch {
-      toast.error('Fout bij aanmaken rapport verzoek')
+      toast.error(t('reports.errorCreating'))
     }
   }
 
@@ -246,14 +248,14 @@ export default function ReportsPage() {
       const updated = await executeReportRequest(id)
       setRequests((prev) => prev.map((r) => (r.id === id ? updated : r)))
       if (updated.status === 'completed') {
-        toast.success(`Rapport klaar: ${updated.row_count} rijen gevonden`)
+        toast.success(t('reports.completed', { count: updated.row_count ?? 0 }))
       } else if (updated.status === 'failed') {
-        toast.error(`Rapport mislukt: ${updated.error_message}`)
+        toast.error(t('reports.failed', { message: updated.error_message }))
       }
       // Refresh list so the queue reflects the latest state
       await fetchData()
     } catch {
-      toast.error('Fout bij uitvoeren rapport')
+      toast.error(t('reports.errorExecuting'))
       await fetchData()
     } finally {
       setExecutingId(null)
@@ -263,18 +265,18 @@ export default function ReportsPage() {
   const handleRetry = async (id: string) => {
     try {
       await retryReportRequest(id)
-      toast.success('Rapport opnieuw gestart')
+      toast.success(t('reports.retryStarted'))
       handleExecute(id)
     } catch {
-      toast.error('Fout bij opnieuw starten')
+      toast.error(t('reports.errorRetry'))
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Weet u zeker dat u dit rapport wilt verwijderen?')) return
+    if (!window.confirm(t('reports.confirmDelete'))) return
     try {
       await deleteReportRequest(id)
-      toast.success('Rapport verwijderd')
+      toast.success(t('reports.deleted'))
       // If deleting the last item on this page, go back one page
       if (requests.length === 1 && currentPage > 1) {
         const newPage = currentPage - 1
@@ -284,7 +286,7 @@ export default function ReportsPage() {
         await fetchData()
       }
     } catch {
-      toast.error('Fout bij verwijderen rapport')
+      toast.error(t('reports.errorDeleting'))
     }
   }
 
@@ -298,7 +300,7 @@ export default function ReportsPage() {
       a.click()
       URL.revokeObjectURL(url)
     } catch {
-      toast.error('Fout bij downloaden bestand')
+      toast.error(t('reports.errorDownloading'))
     }
   }
 
@@ -317,9 +319,9 @@ export default function ReportsPage() {
         <div className="flex items-center gap-3 min-w-0">
           <SparklesIcon className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Rapport Agent</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('reports.title')}</h1>
             <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">
-              Genereer rapporten en exports op basis van uw vragen
+              {t('reports.subtitle')}
             </p>
           </div>
         </div>
@@ -329,8 +331,8 @@ export default function ReportsPage() {
             className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base flex-shrink-0"
           >
             <PlusIcon className="w-4 h-4" />
-            <span className="hidden xs:inline">Nieuw rapport</span>
-            <span className="xs:hidden">Nieuw</span>
+            <span className="hidden xs:inline">{t('reports.newReport')}</span>
+            <span className="xs:hidden">{t('reports.new')}</span>
           </button>
         )}
       </div>
@@ -347,7 +349,7 @@ export default function ReportsPage() {
             }`}
           >
             <DocumentChartBarIcon className="w-4 h-4" />
-            Rapporten
+            {t('reports.reportsTab')}
           </button>
           <button
             onClick={() => setActiveTab('sql')}
@@ -358,7 +360,7 @@ export default function ReportsPage() {
             }`}
           >
             <CommandLineIcon className="w-4 h-4" />
-            SQL Query
+            {t('reports.sqlTab')}
           </button>
         </nav>
       </div>
@@ -373,7 +375,7 @@ export default function ReportsPage() {
       {reportTypes.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
-            Snel starten
+            {t('reports.quickStart')}
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
             {reportTypes.slice(0, 8).map((rt) => (
@@ -396,26 +398,26 @@ export default function ReportsPage() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-            Rapport wachtrij ({totalCount})
+            {t('reports.reportQueue')} ({totalCount})
           </h2>
           <button
             onClick={() => fetchData()}
             className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
           >
             <ArrowPathIcon className="w-4 h-4" />
-            <span className="hidden sm:inline">Vernieuwen</span>
+            <span className="hidden sm:inline">{t('reports.refresh')}</span>
           </button>
         </div>
 
         {requests.length === 0 ? (
           <div className="text-center py-12 sm:py-16 bg-white rounded-lg border border-dashed border-gray-300">
             <DocumentChartBarIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm">Nog geen rapporten aangevraagd.</p>
+            <p className="text-gray-500 text-sm">{t('reports.noReports')}</p>
             <button
               onClick={() => setIsFormOpen(true)}
               className="mt-3 text-blue-600 hover:underline text-sm"
             >
-              Maak uw eerste rapport aan
+              {t('reports.createFirst')}
             </button>
           </div>
         ) : (
@@ -425,12 +427,12 @@ export default function ReportsPage() {
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Titel</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">Type</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">Status</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">Rijen</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">Aangevraagd</th>
-                    <th className="text-right px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">Acties</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">{t('reports.title_col')}</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">{t('reports.type')}</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">{t('reports.status')}</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">{t('reports.rows')}</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">{t('reports.requestedAt')}</th>
+                    <th className="text-right px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">{t('reports.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -494,7 +496,7 @@ export default function ReportsPage() {
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>
                       {new Date(req.created_at).toLocaleString('nl-NL')}
-                      {req.row_count != null && ` · ${req.row_count} rijen`}
+                      {req.row_count != null && ` · ${req.row_count} ${t('reports.rows').toLowerCase()}`}
                     </span>
                     <div className="flex items-center gap-1">
                       <ReportActions
@@ -516,7 +518,7 @@ export default function ReportsPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-3 mt-3">
                 <span className="text-sm text-gray-500">
-                  Pagina {currentPage} van {totalPages}
+                  {t('reports.page', { page: currentPage, total: totalPages })}
                 </span>
                 <div className="flex items-center gap-1">
                   <button

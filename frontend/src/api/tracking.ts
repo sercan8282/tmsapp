@@ -44,6 +44,7 @@ export interface LiveVehicle {
   accuracy: number | null
   recorded_at: string
   is_active: boolean
+  vehicle_status?: 'driving' | 'idle' | 'parked'
 }
 
 export interface RouteHistory {
@@ -96,11 +97,22 @@ export interface LocationSubmitResult {
   rejected: number
 }
 
+export interface RouteCoordinate {
+  lat: number
+  lng: number
+  speed: number
+  timestamp: string
+}
+
 export interface VehicleDetailTrip {
   start_time: string
   end_time: string
   start_address: string
   end_address: string
+  start_lat: number | null
+  start_lng: number | null
+  end_lat: number | null
+  end_lng: number | null
   start_km: number
   end_km: number
   distance_km: number
@@ -108,6 +120,16 @@ export interface VehicleDetailTrip {
   duration_display: string
   max_speed: number
   is_speeding: boolean
+  start_fuel_level: number
+  end_fuel_level: number
+  fuel_used_liters: number | null
+}
+
+export interface FuelChartPoint {
+  timestamp: string
+  fuel_level: number
+  fuel_liters: number | null
+  event: 'trip_start' | 'trip_end'
 }
 
 export interface VehicleDetail {
@@ -123,6 +145,7 @@ export interface VehicleDetail {
     latitude: number
     longitude: number
     speed: number
+    speed_source: 'live' | 'trip_avg' | 'day_avg'
     address: string
     vehicle_status: 'driving' | 'idle' | 'parked'
     fuel_level: number
@@ -137,6 +160,17 @@ export interface VehicleDetail {
   max_speed: number
   trip_count: number
   trips: VehicleDetailTrip[]
+  fuel_tank_capacity: number
+  total_fuel_used_liters: number | null
+  total_fuel_used_pct: number | null
+  avg_fuel_consumption: number | null
+  avg_fuel_consumption_pct: number | null
+  fuel_per_hour: number | null
+  fuel_per_hour_pct: number | null
+  remaining_drive_seconds: number
+  remaining_drive_display: string
+  fuel_chart_data: FuelChartPoint[]
+  route_coordinates: RouteCoordinate[]
 }
 
 // ============ API Functions ============

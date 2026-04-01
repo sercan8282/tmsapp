@@ -9,7 +9,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons/*.png', 'screenshots/*.png'],
+      includeAssets: ['favicon.png', 'icons/*.png', 'screenshots/*.png'],
       manifest: {
         name: 'TMS - Transport Management Systeem',
         short_name: 'TMS',
@@ -97,7 +97,12 @@ export default defineConfig({
         // Cache strategieën
         runtimeCaching: [
           {
-            // API calls - Network first, fallback to cache
+            // Tracking/live API calls - Network only, never cache (real-time data)
+            urlPattern: /^https?:\/\/.*\/api\/(tracking|fm-positions)\/.*/i,
+            handler: 'NetworkOnly',
+          },
+          {
+            // Other API calls - Network first, fallback to cache
             urlPattern: /^https?:\/\/.*\/api\/.*/i,
             handler: 'NetworkFirst',
             options: {
@@ -109,7 +114,7 @@ export default defineConfig({
               cacheableResponse: {
                 statuses: [0, 200],
               },
-              networkTimeoutSeconds: 10, // Fallback to cache after 10s
+              networkTimeoutSeconds: 30, // Fallback to cache after 30s
             },
           },
           {

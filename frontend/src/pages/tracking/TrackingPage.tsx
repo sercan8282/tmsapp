@@ -23,7 +23,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
-import { trackingApi, type LiveVehicle, type TrackingSession, type TrackingVehicle, type RouteHistory, type FMTrackPosition } from '@/api/tracking'
+import { trackingApi, type LiveVehicle, type TrackingSession, type TrackingVehicle, type RouteHistory, type FMTrackPosition, type RouteCoordinate } from '@/api/tracking'
 import { useGPSTracking } from '@/hooks/useGPSTracking'
 import { useLocationPermission } from '@/hooks/useLocationPermission'
 import { LocationPermissionDialog, LocationDeniedBanner } from '@/components/tracking/LocationPermission'
@@ -71,15 +71,18 @@ function TrackingMap({
   vehicles,
   selectedRoute,
   focusVehicleId,
+  fmRoute,
 }: {
   vehicles: LiveVehicle[]
   selectedRoute: RouteHistory | null
   focusVehicleId?: string | null
+  fmRoute?: RouteCoordinate[]
 }) {
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
   const routeLayerRef = useRef<L.Polyline | null>(null)
+  const fmRouteLayerRef = useRef<L.LayerGroup | null>(null)
   const initialFitDoneRef = useRef(false)
 
   // Initialize map
@@ -128,12 +131,10 @@ function TrackingMap({
 
       const getMarkerColor = () => {
         if (focusVehicleId && v.vehicle_id === focusVehicleId) return '#2563eb'
-        if (isFMTrack) {
-          const fmStatus = (v as any).vehicle_status
-          if (fmStatus === 'driving') return '#22c55e'
-          if (fmStatus === 'idle') return '#f59e0b'
-          return '#9ca3af'
-        }
+        const status = v.vehicle_status || (v.is_active ? 'driving' : 'parked')
+        if (status === 'driving') return '#22c55e'
+        if (status === 'idle') return '#f59e0b'
+        if (isFMTrack) return '#9ca3af'
         return v.is_active ? '#1e3a5f' : '#9ca3af'
       }
 
@@ -211,6 +212,49 @@ function TrackingMap({
     }
   }, [selectedRoute])
 
+  // Draw FM-Track vehicle route (green polyline)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    // Clear previous FM route layer
+    if (fmRouteLayerRef.current) {
+      fmRouteLayerRef.current.remove()
+      fmRouteLayerRef.current = null
+    }
+
+    if (fmRoute && fmRoute.length >= 2) {
+      const layerGroup = L.layerGroup().addTo(map)
+      const latlngs = fmRoute.map(p => [p.lat, p.lng] as L.LatLngExpression)
+
+      // Draw the route line
+      L.polyline(latlngs, {
+        color: '#22c55e',
+        weight: 4,
+        opacity: 0.85,
+        lineJoin: 'round',
+        lineCap: 'round',
+      }).addTo(layerGroup)
+
+      // Start marker (green)
+      L.circleMarker(latlngs[0], {
+        radius: 8, fillColor: '#16a34a', fillOpacity: 1, color: 'white', weight: 2,
+      }).bindPopup(`<strong>Start</strong><br/>${fmRoute[0].timestamp ? new Date(fmRoute[0].timestamp).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : ''}`).addTo(layerGroup)
+
+      // End marker (red)
+      const last = fmRoute[fmRoute.length - 1]
+      L.circleMarker(latlngs[latlngs.length - 1], {
+        radius: 8, fillColor: '#ef4444', fillOpacity: 1, color: 'white', weight: 2,
+      }).bindPopup(`<strong>Einde</strong><br/>${last.timestamp ? new Date(last.timestamp).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : ''}`).addTo(layerGroup)
+
+      fmRouteLayerRef.current = layerGroup
+
+      // Zoom map to fit the route with padding
+      const bounds = L.latLngBounds(latlngs)
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 })
+    }
+  }, [fmRoute])
+
   return (
     <div
       ref={mapContainerRef}
@@ -227,23 +271,19 @@ function createPopupContent(v: LiveVehicle): string {
   const isFMTrack = v.session_id.startsWith('fm-')
   const source = isFMTrack ? '<span style="color:#d97706;font-size:10px">FM-Track</span>' : ''
 
-  // Vehicle status for FM-Track
-  let statusHtml = ''
-  if (isFMTrack) {
-    const fmData = v as any
-    const status = fmData.vehicle_status || 'parked'
-    const statusColors: Record<string, string> = {
-      driving: '#22c55e',
-      idle: '#f59e0b',
-      parked: '#9ca3af',
-    }
-    const statusLabels: Record<string, string> = {
-      driving: 'Rijdend',
-      idle: 'Stationair',
-      parked: 'Geparkeerd',
-    }
-    statusHtml = `<span style="color:${statusColors[status]};font-weight:600">\u25CF ${statusLabels[status]}</span><br/>`
+  // Vehicle status
+  const status = v.vehicle_status || (v.is_active ? 'driving' : 'parked')
+  const statusColors: Record<string, string> = {
+    driving: '#22c55e',
+    idle: '#f59e0b',
+    parked: '#9ca3af',
   }
+  const statusLabels: Record<string, string> = {
+    driving: 'Rijdend',
+    idle: 'Stationair',
+    parked: 'Geparkeerd',
+  }
+  const statusHtml = `<span style="color:${statusColors[status]};font-weight:600">\u25CF ${statusLabels[status]}</span><br/>`
 
   return `
     <div style="min-width:180px">
@@ -537,6 +577,7 @@ export default function TrackingPage() {
   const [selectedRoute, setSelectedRoute] = useState<RouteHistory | null>(null)
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
   const [selectedFMObject, setSelectedFMObject] = useState<{ objectId: string; plateNumber: string } | null>(null)
+  const [fmRouteCoords, setFmRouteCoords] = useState<RouteCoordinate[]>([])
   const [loading, setLoading] = useState(true)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -618,10 +659,10 @@ export default function TrackingPage() {
     }
   }, [pollLivePositions])
 
-  // FM-Track positions poll (every 30s)
+  // FM-Track positions poll (every 30 min)
   const fmPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   useEffect(() => {
-    fmPollRef.current = setInterval(pollFMPositions, 30000)
+    fmPollRef.current = setInterval(pollFMPositions, 30 * 60 * 1000)
     return () => {
       if (fmPollRef.current) clearInterval(fmPollRef.current)
     }
@@ -727,6 +768,7 @@ export default function TrackingPage() {
             vehicles={allMapVehicles}
             selectedRoute={selectedRoute}
             focusVehicleId={selectedVehicleId}
+            fmRoute={fmRouteCoords}
           />
         </div>
 
@@ -756,7 +798,7 @@ export default function TrackingPage() {
               <div className="divide-y max-h-[300px] sm:max-h-[400px] overflow-y-auto">
                 {allMapVehicles.map(v => {
                   const isFM = v.session_id.startsWith('fm-')
-                  const status = (v as any).vehicle_status || (v.is_active ? 'driving' : 'parked')
+                  const status = v.vehicle_status || (v.is_active ? 'driving' : 'parked')
                   const isSelected = selectedVehicleId && (v.vehicle_id === selectedVehicleId || v.session_id === `fm-${selectedVehicleId}`)
 
                   const statusConfig: Record<string, { color: string; label: string; dot: string }> = {
@@ -850,7 +892,9 @@ export default function TrackingPage() {
           onClose={() => {
             setSelectedFMObject(null)
             setSelectedVehicleId(null)
+            setFmRouteCoords([])
           }}
+          onRouteChange={setFmRouteCoords}
         />
       )}
     </div>

@@ -89,6 +89,23 @@ def get_trips(object_id, date_from, date_till):
     return []
 
 
+def get_raw_data(object_id, date_from, date_till):
+    """
+    Fetch raw GPS track data for a vehicle in a time range.
+
+    Returns list of dicts with latitude, longitude, speed, timestamp etc.
+    """
+    data = _api_get(f'/objects/{object_id}/raw_data', {
+        'from_datetime': date_from.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'till_datetime': date_till.strftime('%Y-%m-%dT%H:%M:%SZ'),
+    })
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        return data.get('raw_data', data.get('items', data.get('value', [])))
+    return []
+
+
 def get_tachograph_overview(date_str):
     """
     Get a full tachograph overview for all vehicles on a given date.
@@ -344,15 +361,22 @@ def get_vehicle_locations():
             liters_remaining = fuel_tank_capacity * (fuel_level / 100.0)
             fuel_remaining_km = round(liters_remaining / avg_consumption * 100)
 
-        # Try real-time GPS data from object
-        gps = obj.get('gps') or obj.get('position') or {}
+        # Try real-time GPS data from object — FM-Track API can nest it under
+        # various keys depending on API version / firmware
+        gps = obj.get('gps') or obj.get('position') or obj.get('last_position') or {}
         lat = gps.get('latitude') or gps.get('lat')
         lon = gps.get('longitude') or gps.get('lng') or gps.get('lon')
 
+        # Some FM-Track versions put lat/lon directly on the object
+        if lat is None:
+            lat = obj.get('latitude') or obj.get('lat')
+        if lon is None:
+            lon = obj.get('longitude') or obj.get('lng') or obj.get('lon')
+
         if lat is not None and lon is not None:
-            speed = gps.get('speed', 0) or 0
-            heading = gps.get('direction') or gps.get('heading') or gps.get('course', 0)
-            timestamp = gps.get('datetime') or gps.get('timestamp', '')
+            speed = gps.get('speed', 0) or obj.get('speed', 0) or 0
+            heading = gps.get('direction') or gps.get('heading') or gps.get('course', 0) or obj.get('heading', 0)
+            timestamp = gps.get('datetime') or gps.get('timestamp', '') or obj.get('datetime', '')
 
             # IO data for ignition status
             io_data = obj.get('io') or obj.get('inputs') or {}
@@ -405,9 +429,39 @@ def get_vehicle_locations():
                 )
                 if not last_trip:
                     return None
-                end_info = last_trip.get('trip_end', {})
-                lat = end_info.get('latitude')
-                lon = end_info.get('longitude')
+
+                # Determine status from trip timing:
+                # - If trip has no end time, or end time is very recent → driving
+                # - If trip ended recently (< 5 min) → idle
+                # - Otherwise → parked
+                trip_end = last_trip.get('trip_end', {})
+                trip_start = last_trip.get('trip_start', {})
+                end_dt_str = trip_end.get('datetime', '')
+                vehicle_status = 'parked'
+                trip_speed = 0
+
+                if end_dt_str:
+                    try:
+                        end_dt = datetime.fromisoformat(end_dt_str.replace('Z', '+00:00'))
+                        from django.utils import timezone
+                        now = timezone.now()
+                        elapsed = (now - end_dt).total_seconds()
+                        if elapsed < 120:  # Trip ended < 2 min ago
+                            vehicle_status = 'driving'
+                            trip_speed = last_trip.get('max_speed', 0) or 0
+                        elif elapsed < 300:  # Trip ended < 5 min ago
+                            vehicle_status = 'idle'
+                    except (ValueError, TypeError):
+                        pass
+                else:
+                    # No end time — trip is still active
+                    vehicle_status = 'driving'
+                    trip_speed = last_trip.get('max_speed', 0) or 0
+
+                # Use last known position from trip end (or start if driving)
+                pos_info = trip_end if end_dt_str else trip_start
+                lat = pos_info.get('latitude')
+                lon = pos_info.get('longitude')
                 if lat is None or lon is None:
                     return None
                 vp = obj.get('vehicle_params', {})
@@ -417,12 +471,12 @@ def get_vehicle_locations():
                     'plate_number': vp.get('plate_number') or obj.get('name', ''),
                     'latitude': lat,
                     'longitude': lon,
-                    'address': _format_address(end_info.get('address')),
-                    'timestamp': end_info.get('datetime', ''),
-                    'speed': 0,
+                    'address': _format_address(pos_info.get('address')),
+                    'timestamp': pos_info.get('datetime', ''),
+                    'speed': trip_speed,
                     'heading': 0,
                     'ignition': None,
-                    'vehicle_status': 'parked',
+                    'vehicle_status': vehicle_status,
                     'fuel_level': fuel_data.get(obj['id'], {}).get('fuel_level', 0),
                     'fuel_remaining_km': _calc_remaining_km(fuel_data.get(obj['id'], {})),
                 }
