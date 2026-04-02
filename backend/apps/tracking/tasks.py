@@ -350,16 +350,14 @@ def _process_date(date_str, process_date, driver_lookup, plate_lookup):
 
         user = tms_driver.gekoppelde_gebruiker
 
-        # Check if entry already exists for this user+date+kenteken
-        # Only skip if an auto_import entry exists; manual entries are preserved
-        existing_auto = TimeEntry.objects.filter(
+        # Check if entry already exists for this user+date+kenteken (any bron)
+        existing_entry = TimeEntry.objects.filter(
             user=user,
             datum=process_date,
             kenteken=kenteken,
-            bron='auto_import',
         ).exists()
 
-        if existing_auto:
+        if existing_entry:
             continue
 
         # Extract trip data
