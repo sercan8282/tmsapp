@@ -13,7 +13,11 @@ import {
   TruckIcon,
   MapPinIcon,
   CheckCircleIcon,
+  DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import toast from 'react-hot-toast'
 import { getTachographOverview, writeOvertime, triggerTachographSync, getTachographSyncInfo, TachographVehicle, TachographTrip } from '@/api/tachograph'
 import { getAllDrivers } from '@/api/drivers'
 import { Driver } from '@/types'
@@ -388,6 +392,7 @@ export default function TachographPage() {
             <VehicleCard
               key={vehicle.object_id}
               vehicle={vehicle}
+              date={date}
               isExpanded={expandedIds.has(vehicle.object_id)}
               onToggle={() => toggleExpand(vehicle.object_id)}
               onWriteOvertime={(fmDriverName) => {
@@ -524,6 +529,7 @@ export default function TachographPage() {
 
 interface VehicleCardProps {
   vehicle: TachographVehicle
+  date: string
   isExpanded: boolean
   onToggle: () => void
   onWriteOvertime: (fmDriverName: string) => void
@@ -532,7 +538,101 @@ interface VehicleCardProps {
   t: any
 }
 
-function VehicleCard({ vehicle, isExpanded, onToggle, onWriteOvertime, formatTime, t }: VehicleCardProps) {
+function VehicleCard({ vehicle, date, isExpanded, onToggle, onWriteOvertime, formatTime, t }: VehicleCardProps) {
+  const handleExportPDF = () => {
+    const plate = vehicle.plate_number || vehicle.vehicle_name
+    const dateFmt = new Date(date + 'T12:00:00').toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+
+    // Title
+    doc.setFontSize(16)
+    doc.text(`Tachograaf - ${plate}`, 14, 15)
+    doc.setFontSize(11)
+    doc.text(dateFmt, 14, 22)
+
+    // Vehicle info
+    doc.setFontSize(9)
+    doc.setTextColor(100)
+    const vehicleInfo = [
+      `${vehicle.vehicle_make} ${vehicle.vehicle_model}`.trim(),
+      `Start KM: ${formatKm(vehicle.first_km)}`,
+      `Eind KM: ${formatKm(vehicle.last_km)}`,
+      `Gereden: ${formatKm(vehicle.total_km)} km`,
+    ].filter(Boolean).join('  |  ')
+    doc.text(vehicleInfo, 14, 28)
+
+    // Driver info
+    if (vehicle.drivers.length > 0) {
+      doc.text(`Chauffeur(s): ${vehicle.drivers.map(d => d.name).join(', ')}`, 14, 33)
+    }
+    doc.setTextColor(0)
+
+    // Trips table
+    const tableData = vehicle.trips.map((trip: TachographTrip) => [
+      formatTime(trip.start_time),
+      formatTime(trip.end_time),
+      trip.duration_display,
+      `${trip.distance_km.toFixed(1)} km`,
+      trip.drivers.map(d => d.name).join(', ') || '-',
+      trip.start_address && trip.end_address
+        ? `${trip.start_address} \u2192 ${trip.end_address}`
+        : trip.start_address || trip.end_address || '-',
+    ])
+
+    const footRow = [
+      'Totaal', '', vehicle.total_hours_display + (vehicle.has_overtime ? ` (+${vehicle.overtime_display})` : ''),
+      `${formatKm(vehicle.total_km)} km`, '', '',
+    ]
+
+    autoTable(doc, {
+      head: [['Start', 'Eind', 'Duur', 'Afstand', 'Chauffeur', 'Route']],
+      body: tableData,
+      foot: [footRow],
+      startY: vehicle.drivers.length > 0 ? 38 : 33,
+      styles: { fontSize: 9, cellPadding: 2.5 },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
+      footStyles: { fillColor: [243, 244, 246], textColor: [0, 0, 0], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      columnStyles: {
+        5: { cellWidth: 80 },
+      },
+    })
+
+    // Overtime calculation breakdown
+    const calc = vehicle.overtime_calculation
+    if (calc) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const finalY = (doc as any).lastAutoTable?.finalY || 120
+      doc.setFontSize(10)
+      doc.setTextColor(0)
+      doc.text('Overuren berekening:', 14, finalY + 8)
+      doc.setFontSize(9)
+      doc.text(
+        `${calc.driver_name}  |  Start: ${calc.start_time}  |  Eind: ${calc.end_time}  |  Totaal: ${calc.total_work_display}  |  Pauze: ${calc.pauze_display}  |  Netto: ${calc.netto_display}  |  Contract: ${calc.uren_per_dag_display}  |  Overuren: ${calc.overtime_display}`,
+        14, finalY + 14
+      )
+      doc.setFontSize(8)
+      doc.setTextColor(100)
+      doc.text(calc.formula, 14, finalY + 19)
+      doc.setTextColor(0)
+    }
+
+    // Footer
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setTextColor(128)
+      doc.text(
+        `Gegenereerd op ${new Date().toLocaleDateString('nl-NL')} om ${new Date().toLocaleTimeString('nl-NL')}`,
+        14, doc.internal.pageSize.height - 10
+      )
+    }
+
+    doc.save(`tachograaf_${plate.replace(/[\s-]/g, '_')}_${date}.pdf`)
+    toast.success('PDF geëxporteerd')
+  }
+
   return (
     <div className={clsx(
       'bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden',
@@ -600,11 +700,21 @@ function VehicleCard({ vehicle, isExpanded, onToggle, onWriteOvertime, formatTim
             </div>
           )}
 
-          {/* KM summary */}
-          <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-200 dark:border-gray-700 flex items-center gap-4 text-xs text-gray-600 dark:text-gray-300">
-            <span>{t('tachograph.startKm')}: <strong>{formatKm(vehicle.first_km)}</strong></span>
-            <span>{t('tachograph.endKm')}: <strong>{formatKm(vehicle.last_km)}</strong></span>
-            <span>{t('tachograph.drivenKm')}: <strong>{formatKm(vehicle.total_km)} km</strong></span>
+          {/* Actions bar */}
+          <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-300">
+              <span>{t('tachograph.startKm')}: <strong>{formatKm(vehicle.first_km)}</strong></span>
+              <span>{t('tachograph.endKm')}: <strong>{formatKm(vehicle.last_km)}</strong></span>
+              <span>{t('tachograph.drivenKm')}: <strong>{formatKm(vehicle.total_km)} km</strong></span>
+            </div>
+            <button
+              onClick={handleExportPDF}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600 shadow-sm"
+              title="Exporteer naar PDF"
+            >
+              <DocumentArrowDownIcon className="h-4 w-4" />
+              PDF
+            </button>
           </div>
 
           {/* Trips table */}
