@@ -425,25 +425,25 @@ export default function TachographComparisonPage() {
                 </div>
                 {/* Times grid */}
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2">
-                    <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">{t('tachograph.comparison.colDriver')}</div>
+                  <div className="bg-blue-100 dark:bg-blue-900/40 rounded-lg p-2 border border-blue-200 dark:border-blue-800">
+                    <div className="text-xs text-blue-700 dark:text-blue-300 font-medium mb-1">{t('tachograph.comparison.colDriver')}</div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">{row.chauffeur_begin || '-'}</span>
-                      <span className="text-gray-400">→</span>
-                      <span className="text-gray-600 dark:text-gray-400">{row.chauffeur_eind || '-'}</span>
+                      <span className="text-blue-900 dark:text-blue-200">{row.chauffeur_begin || '-'}</span>
+                      <span className="text-blue-400 dark:text-blue-500">→</span>
+                      <span className="text-blue-900 dark:text-blue-200">{row.chauffeur_eind || '-'}</span>
                     </div>
-                    <div className="text-center font-semibold text-gray-900 dark:text-white mt-1">
+                    <div className="text-center font-semibold text-blue-900 dark:text-white mt-1">
                       {row.chauffeur_totaal !== null ? formatHours(row.chauffeur_totaal) : '-'}
                     </div>
                   </div>
-                  <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2">
-                    <div className="text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">{t('tachograph.comparison.colTachoTotal', 'Tacho')}</div>
+                  <div className="bg-amber-100 dark:bg-amber-900/40 rounded-lg p-2 border border-amber-200 dark:border-amber-800">
+                    <div className="text-xs text-amber-700 dark:text-amber-300 font-medium mb-1">{t('tachograph.comparison.colTachoTotal', 'Totaal (tacho)')}</div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">{row.tacho_begin || '-'}</span>
-                      <span className="text-gray-400">→</span>
-                      <span className="text-gray-600 dark:text-gray-400">{row.tacho_eind || '-'}</span>
+                      <span className="text-amber-900 dark:text-amber-200">{row.tacho_begin || '-'}</span>
+                      <span className="text-amber-400 dark:text-amber-500">→</span>
+                      <span className="text-amber-900 dark:text-amber-200">{row.tacho_eind || '-'}</span>
                     </div>
-                    <div className="text-center font-semibold text-gray-900 dark:text-white mt-1">
+                    <div className="text-center font-semibold text-amber-900 dark:text-white mt-1">
                       {formatHours(row.tacho_totaal)}
                     </div>
                   </div>

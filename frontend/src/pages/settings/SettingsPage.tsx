@@ -125,6 +125,7 @@ export default function SettingsPage() {
         ai_model: data.ai_model || 'gpt-4o-mini',
         // Integrations
         linqo_api_key: '',
+        tachograaf_start_datum: data.tachograaf_start_datum || '',
         // Reminder settings
         reminder_enabled: data.reminder_enabled ?? false,
         reminder_time: data.reminder_time || '08:00',
@@ -1104,11 +1105,13 @@ export default function SettingsPage() {
                       type="password"
                       value={formData.linqo_api_key || ''}
                       onChange={(e) => handleInputChange('linqo_api_key', e.target.value)}
-                      placeholder={t('settings.linqoApiKeyPlaceholder', 'Voer de FM-Track API key in...')}
+                      placeholder={settings?.has_linqo_api_key ? '••••••••••••••••' : t('settings.linqoApiKeyPlaceholder', 'Voer de FM-Track API key in...')}
                       className="input"
                     />
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      {t('settings.linqoApiKeyHint', 'De API key is beschikbaar in het FM-Track / Linqo dashboard.')}
+                      {settings?.has_linqo_api_key 
+                        ? t('settings.linqoApiKeySaved', 'API key is opgeslagen. Laat leeg om de huidige key te behouden.')
+                        : t('settings.linqoApiKeyHint', 'De API key is beschikbaar in het FM-Track / Linqo dashboard.')}
                     </p>
                   </div>
                   <div>

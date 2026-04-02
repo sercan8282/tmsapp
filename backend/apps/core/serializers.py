@@ -112,6 +112,7 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
     primary_font_data = CustomFontSerializer(source='primary_font', read_only=True)
     secondary_font_data = CustomFontSerializer(source='secondary_font', read_only=True)
     ai_status = serializers.SerializerMethodField()
+    has_linqo_api_key = serializers.SerializerMethodField()
     
     class Meta:
         model = AppSettings
@@ -137,10 +138,11 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
             'reminder_email', 'reminder_signature',
             # Linqo / Tachograaf
             'linqo_api_key',
+            'has_linqo_api_key',
             'tachograaf_start_datum',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'ai_status']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'ai_status', 'has_linqo_api_key']
         extra_kwargs = {
             'smtp_password': {'write_only': True},
             'oauth_client_secret': {'write_only': True},
@@ -151,6 +153,10 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
             'linqo_api_key': {'write_only': True},
         }
     
+    def get_has_linqo_api_key(self, obj):
+        """Return whether a Linqo API key is configured."""
+        return bool(obj.linqo_api_key)
+
     def get_ai_status(self, obj):
         """Check if AI is properly configured and working."""
         if obj.ai_provider == 'none':
@@ -191,6 +197,9 @@ class AppSettingsAdminSerializer(serializers.ModelSerializer):
             data['smtp_username'] = safe_str(data['smtp_username'])
         if 'smtp_from_email' in data and data['smtp_from_email']:
             data['smtp_from_email'] = safe_str(data['smtp_from_email'])
+        # Don't overwrite linqo_api_key with empty string
+        if 'linqo_api_key' in data and not data['linqo_api_key']:
+            del data['linqo_api_key']
         return data
 
 

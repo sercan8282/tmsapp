@@ -49,6 +49,7 @@ export interface WeekSummary {
   totaal_km: number
   totaal_uren: string
   kan_indienen: boolean
+  concept_users?: { id: string; naam: string }[]
 }
 
 export interface WeekHistory {
@@ -124,11 +125,10 @@ export async function deleteTimeEntry(id: string): Promise<void> {
 /**
  * Submit all concept entries for a week
  */
-export async function submitWeek(weeknummer: number, jaar?: number): Promise<{ message: string; count: number }> {
-  const response = await api.post('/time-entries/submit_week/', { 
-    weeknummer,
-    jaar 
-  })
+export async function submitWeek(weeknummer: number, jaar?: number, userId?: string): Promise<{ message: string; count: number }> {
+  const payload: Record<string, any> = { weeknummer, jaar }
+  if (userId) payload.user_id = userId
+  const response = await api.post('/time-entries/submit_week/', payload)
   return response.data
 }
 
@@ -148,11 +148,10 @@ export async function getWeekSummary(weeknummer: number, jaar?: number, userId?:
 /**
  * Get history grouped by week
  */
-export async function getWeekHistory(userId?: string, status?: string, jaar?: number): Promise<WeekHistory[]> {
+export async function getWeekHistory(userId?: string, status?: string): Promise<WeekHistory[]> {
   const params = new URLSearchParams()
   if (userId) params.append('user', userId)
   if (status) params.append('status', status)
-  if (jaar) params.append('jaar', jaar.toString())
   
   const response = await api.get(`/time-entries/history/?${params.toString()}`)
   return response.data
@@ -348,43 +347,6 @@ export async function getMonthlyHoursOverview(jaar?: number, userId?: string): P
   if (userId) params.append('user', userId)
   
   const response = await api.get(`/time-entries/monthly_hours_overview/?${params.toString()}`)
-  return response.data
-}
-
-// ============================================
-// Ritnummer Hours Overview API
-// ============================================
-
-export interface RitnummerHoursOverview {
-  ritnummer: string
-  vehicle_id: string
-  kenteken: string
-  type_wagen: string
-  bedrijf_naam: string
-  jaar: number
-  weeknummer: number
-  gewerkte_uren: number
-  totaal_km: number
-  entries_count: number
-  minimum_weken_per_jaar: number | null
-}
-
-/**
- * Get available years that have TimeEntry or ImportedTimeEntry data (admin only)
- */
-export async function getAvailableYears(): Promise<number[]> {
-  const response = await api.get('/time-entries/available_years/')
-  return response.data
-}
-
-/**
- * Get ritnummer hours overview grouped by fleet ritnummer (admin only)
- */
-export async function getRitnummerHoursOverview(jaar?: number): Promise<RitnummerHoursOverview[]> {
-  const params = new URLSearchParams()
-  if (jaar) params.append('jaar', jaar.toString())
-  
-  const response = await api.get(`/time-entries/ritnummer_hours_overview/?${params.toString()}`)
   return response.data
 }
 
