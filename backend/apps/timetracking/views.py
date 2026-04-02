@@ -124,51 +124,71 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         """Submit all concept entries for a specific week."""
         weeknummer = request.data.get('weeknummer')
         jaar = request.data.get('jaar')
-        
+        user_id = request.data.get('user_id')
+
         if not weeknummer:
             return Response({'error': 'Weeknummer is verplicht.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        entries = TimeEntry.objects.filter(
-            user=request.user,
-            weeknummer=weeknummer,
-            status=TimeEntryStatus.CONCEPT
-        )
-        
+
+        is_admin = request.user.is_superuser or request.user.rol == 'admin'
+
+        if user_id and is_admin:
+            entries = TimeEntry.objects.filter(
+                user_id=user_id,
+                weeknummer=weeknummer,
+                status=TimeEntryStatus.CONCEPT
+            )
+        elif is_admin:
+            entries = TimeEntry.objects.filter(
+                weeknummer=weeknummer,
+                status=TimeEntryStatus.CONCEPT
+            )
+        else:
+            entries = TimeEntry.objects.filter(
+                user=request.user,
+                weeknummer=weeknummer,
+                status=TimeEntryStatus.CONCEPT
+            )
+
         if jaar:
             entries = entries.filter(datum__year=int(jaar))
-        
+
         if not entries.exists():
             return Response(
                 {'error': 'Geen concept uren gevonden voor deze week.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        affected_user_ids = list(entries.values_list('user_id', flat=True).distinct())
         count = entries.update(status=TimeEntryStatus.INGEDIEND)
-        
+
         logger.info(
             f"Week {weeknummer} submitted: {count} entries by {request.user.email}"
         )
-        
-        # Calculate and add overtime to leave balance
+
+        # Calculate and add overtime to leave balance for each affected user
         overtime_added = None
         try:
             from apps.leave.signals import update_user_overtime
-            jaar_int = int(jaar) if jaar else entries.first().datum.year
-            overtime = update_user_overtime(request.user, weeknummer, jaar_int)
-            if overtime > 0:
-                overtime_added = str(overtime)
-                logger.info(f"Overtime added: {overtime}h for {request.user.email}")
+            from apps.accounts.models import User
+            from datetime import datetime
+            jaar_int = int(jaar) if jaar else datetime.now().year
+            for uid in affected_user_ids:
+                u = User.objects.get(id=uid)
+                overtime = update_user_overtime(u, weeknummer, jaar_int)
+                if overtime and overtime > 0:
+                    logger.info(f"Overtime added: {overtime}h for {u.email}")
         except Exception as e:
             logger.warning(f"Could not calculate overtime: {e}")
-        
+
         response_data = {
             'message': f'{count} uren ingediend voor week {weeknummer}.',
             'count': count
         }
         if overtime_added:
             response_data['overtime_added'] = overtime_added
-        
+
         return Response(response_data)
+
     
     @action(detail=False, methods=['get'])
     def week_summary(self, request):
@@ -206,8 +226,23 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
         
         concept_count = sum(1 for e in entries if e.status == TimeEntryStatus.CONCEPT)
         ingediend_count = sum(1 for e in entries if e.status == TimeEntryStatus.INGEDIEND)
-        
-        return Response({
+
+        # For admins: list users with concept entries
+        concept_users = []
+        is_admin = request.user.is_superuser or request.user.rol == 'admin'
+        if is_admin and concept_count > 0:
+            concept_entries = [e for e in entries if e.status == TimeEntryStatus.CONCEPT]
+            user_ids = set(e.user_id for e in concept_entries)
+            from apps.accounts.models import User
+            for uid in user_ids:
+                u = User.objects.filter(id=uid).first()
+                if u:
+                    concept_users.append({
+                        'id': str(u.id),
+                        'naam': u.full_name or u.email
+                    })
+
+        response_data = {
             'weeknummer': weeknummer,
             'totaal_entries': len(entries),
             'concept_count': concept_count,
@@ -215,7 +250,11 @@ class TimeEntryViewSet(viewsets.ModelViewSet):
             'totaal_km': totaal_km,
             'totaal_uren': f"{hours}:{minutes:02d}",
             'kan_indienen': concept_count > 0,
-        })
+        }
+        if concept_users:
+            response_data['concept_users'] = concept_users
+
+        return Response(response_data)
     
     @action(detail=False, methods=['get'])
     def driver_report(self, request):

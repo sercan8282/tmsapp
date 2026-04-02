@@ -833,12 +833,13 @@ export default function TimeEntriesPage() {
   }
 
   // Handle submit week
-  const handleSubmitWeek = async () => {
+  const handleSubmitWeek = async (userId?: string) => {
     setIsActionLoading(true)
     try {
-      await submitWeek(selectedWeek, selectedYear)
+      const weekToSubmit = searchWeek !== null ? searchWeek : selectedWeek
+      const result = await submitWeek(weekToSubmit, selectedYear, userId)
       setShowSubmitModal(false)
-      showSuccess(t('timeEntries.weekSubmitted'))
+      showSuccess(t('timeEntries.weekSubmittedCount', { count: result.count }))
       fetchEntries()
     } catch (err: any) {
       setError(getErrorMessage(err, t('timeEntries.submitError')))
@@ -1441,18 +1442,62 @@ export default function TimeEntriesPage() {
       />
 
       {/* Submit Week Modal */}
-      <ConfirmDialog
-        isOpen={showSubmitModal}
-        onClose={() => setShowSubmitModal(false)}
-        onConfirm={handleSubmitWeek}
-        title={t('timeEntries.submitWeek')}
-        message={t('timeEntries.submitWeekMessage', { week: selectedWeek })}
-        confirmText={t('common.submit')}
-        cancelText={t('common.cancel')}
-        loadingText={t('common.saving')}
-        confirmColor="green"
-        isLoading={isActionLoading}
-      />
+      {isAdmin && weekSummary?.concept_users && weekSummary.concept_users.length > 0 ? (
+        <Modal isOpen={showSubmitModal} onClose={() => setShowSubmitModal(false)} title={t('timeEntries.submitWeek')} size="md">
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {t('timeEntries.submitWeekAdminMessage', { 
+                week: searchWeek !== null ? searchWeek : selectedWeek, 
+                count: weekSummary.concept_count 
+              })}
+            </p>
+            <div className="space-y-2">
+              {weekSummary.concept_users.map((cu) => (
+                <div key={cu.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/30 rounded-lg px-3 py-2">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{cu.naam}</span>
+                  <button
+                    onClick={() => handleSubmitWeek(cu.id)}
+                    disabled={isActionLoading}
+                    className="btn btn-secondary text-xs px-3 py-1"
+                  >
+                    <PaperAirplaneIcon className="w-3.5 h-3.5 mr-1 inline" />
+                    {t('timeEntries.submitForUser', 'Indienen')}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between pt-2 border-t">
+              <button
+                onClick={() => setShowSubmitModal(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={() => handleSubmitWeek()}
+                disabled={isActionLoading}
+                className="btn-primary text-sm px-4 py-2"
+              >
+                <PaperAirplaneIcon className="w-4 h-4 mr-2 inline" />
+                {isActionLoading ? t('common.saving') : t('timeEntries.submitAll', 'Alles indienen')}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : (
+        <ConfirmDialog
+          isOpen={showSubmitModal}
+          onClose={() => setShowSubmitModal(false)}
+          onConfirm={() => handleSubmitWeek()}
+          title={t('timeEntries.submitWeek')}
+          message={t('timeEntries.submitWeekMessage', { week: searchWeek !== null ? searchWeek : selectedWeek })}
+          confirmText={t('common.submit')}
+          cancelText={t('common.cancel')}
+          loadingText={t('common.saving')}
+          confirmColor="green"
+          isLoading={isActionLoading}
+        />
+      )}
     </div>
   )
 }
