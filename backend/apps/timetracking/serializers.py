@@ -8,6 +8,7 @@ class TimeEntrySerializer(serializers.ModelSerializer):
     user_bedrijf = serializers.CharField(source='user.bedrijf', read_only=True, allow_blank=True)
     totaal_uren_display = serializers.SerializerMethodField()
     pauze_display = serializers.SerializerMethodField()
+    overtime_info = serializers.SerializerMethodField()
     
     class Meta:
         model = TimeEntry
@@ -17,7 +18,8 @@ class TimeEntrySerializer(serializers.ModelSerializer):
             'km_start', 'km_eind', 'totaal_km',
             'aanvang', 'eind', 'pauze', 'pauze_display',
             'totaal_uren', 'totaal_uren_display',
-            'status', 'bron', 'created_at', 'updated_at'
+            'status', 'bron', 'created_at', 'updated_at',
+            'overtime_info',
         ]
         read_only_fields = ['id', 'user', 'weeknummer', 'totaal_km', 'totaal_uren', 'created_at', 'updated_at']
     
@@ -39,6 +41,43 @@ class TimeEntrySerializer(serializers.ModelSerializer):
             return f"{minutes} min"
         return "0 min"
     
+    def get_overtime_info(self, obj):
+        """Calculate overtime info for auto_import entries based on driver settings."""
+        if obj.bron != 'auto_import' or not obj.totaal_uren:
+            return None
+
+        from apps.drivers.models import Driver
+
+        try:
+            driver = Driver.objects.get(gekoppelde_gebruiker=obj.user)
+        except Driver.DoesNotExist:
+            return None
+
+        uren_per_dag = float(driver.uren_per_dag) if driver.uren_per_dag is not None else 8.0
+        total_seconds = obj.totaal_uren.total_seconds()
+        total_hours = total_seconds / 3600
+        overtime = max(0, round(total_hours - uren_per_dag, 2))
+
+        def _fmt(h):
+            hrs = int(h)
+            mins = int(round((h - hrs) * 60))
+            return f"{hrs:02d}:{mins:02d}"
+
+        pauze_seconds = obj.pauze.total_seconds() if obj.pauze else 0
+        pauze_hours = pauze_seconds / 3600
+
+        return {
+            'start_time': obj.aanvang.strftime('%H:%M') if obj.aanvang else None,
+            'end_time': obj.eind.strftime('%H:%M') if obj.eind else None,
+            'pauze_display': _fmt(pauze_hours),
+            'netto_display': _fmt(total_hours),
+            'uren_per_dag': uren_per_dag,
+            'uren_per_dag_display': _fmt(uren_per_dag),
+            'overtime_hours': overtime,
+            'overtime_display': _fmt(overtime),
+            'formula': f"{_fmt(total_hours)} - {_fmt(uren_per_dag)} = {_fmt(overtime)} overuren",
+        }
+
     def validate(self, attrs):
         # Validate km_eind > km_start
         km_start = attrs.get('km_start')

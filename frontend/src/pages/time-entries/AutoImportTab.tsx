@@ -42,6 +42,18 @@ function calcTotalMinutes(entries: TimeEntry[]): number {
   }, 0)
 }
 
+// Calculate total overtime hours from entries
+function calcTotalOvertime(entries: TimeEntry[]): number {
+  return entries.reduce((sum, e) => sum + (e.overtime_info?.overtime_hours || 0), 0)
+}
+
+// Format overtime hours to display string
+function formatOvertime(hours: number): string {
+  const h = Math.floor(hours)
+  const m = Math.round((hours - h) * 60)
+  return `${h}u ${m}m`
+}
+
 // Format minutes to display string
 function formatMinutes(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60)
@@ -54,6 +66,7 @@ interface UserGroup {
   userName: string
   entries: TimeEntry[]
   totalMinutes: number
+  totalOvertime: number
   totalKm: number
 }
 
@@ -123,6 +136,7 @@ export default function AutoImportTab() {
         userName: userEntries[0]?.user_naam || 'Onbekend',
         entries: userEntries.sort((a, b) => a.datum.localeCompare(b.datum)),
         totalMinutes: calcTotalMinutes(userEntries),
+        totalOvertime: calcTotalOvertime(userEntries),
         totalKm: userEntries.reduce((sum, e) => sum + (e.totaal_km || 0), 0),
       }))
       .sort((a, b) => a.userName.localeCompare(b.userName))
@@ -228,8 +242,12 @@ export default function AutoImportTab() {
                     <div className="text-right">
                       <p className="text-xs text-gray-500">Uren</p>
                       <p className="font-bold text-purple-600">{formatMinutes(group.totalMinutes)}</p>
-                    </div>
-                    <div className="text-right">
+                    </div>                    {group.totalOvertime > 0 && (
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">Overuren</p>
+                        <p className="font-bold text-orange-600">{formatOvertime(group.totalOvertime)}</p>
+                      </div>
+                    )}                    <div className="text-right">
                       <p className="text-xs text-gray-500">KM</p>
                       <p className="font-bold text-gray-900">{group.totalKm}</p>
                     </div>
@@ -256,6 +274,7 @@ export default function AutoImportTab() {
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('timeEntries.startTime')}</th>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('timeEntries.endTime')}</th>
                             <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">{t('timeEntries.hours')}</th>
+                            <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Overuren</th>
                             <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">{t('timeEntries.km')}</th>
                           </tr>
                         </thead>
@@ -268,6 +287,11 @@ export default function AutoImportTab() {
                               <td className="px-4 py-2 text-sm">{entry.aanvang || '-'}</td>
                               <td className="px-4 py-2 text-sm">{entry.eind || '-'}</td>
                               <td className="px-4 py-2 text-sm text-right font-medium text-purple-600">{formatDuration(entry.totaal_uren)}</td>
+                              <td className="px-4 py-2 text-sm text-right font-medium text-orange-600">
+                                {entry.overtime_info ? (
+                                  <span title={entry.overtime_info.formula}>{entry.overtime_info.overtime_display}</span>
+                                ) : '-'}
+                              </td>
                               <td className="px-4 py-2 text-sm text-right">{entry.totaal_km}</td>
                             </tr>
                           ))}
@@ -276,6 +300,7 @@ export default function AutoImportTab() {
                           <tr>
                             <td colSpan={5} className="px-4 py-2 text-sm font-semibold text-right">Totaal:</td>
                             <td className="px-4 py-2 text-sm text-right font-bold text-purple-600">{formatMinutes(group.totalMinutes)}</td>
+                            <td className="px-4 py-2 text-sm text-right font-bold text-orange-600">{group.totalOvertime > 0 ? formatOvertime(group.totalOvertime) : '-'}</td>
                             <td className="px-4 py-2 text-sm text-right font-bold">{group.totalKm}</td>
                           </tr>
                         </tfoot>
@@ -288,7 +313,12 @@ export default function AutoImportTab() {
                         <div key={entry.id} className="p-3 hover:bg-purple-50/30">
                           <div className="flex justify-between items-start mb-1">
                             <h4 className="font-medium text-gray-900 text-sm">{formatDate(entry.datum)}</h4>
-                            <span className="font-bold text-purple-600 text-sm">{formatDuration(entry.totaal_uren)}</span>
+                            <div className="text-right">
+                              <span className="font-bold text-purple-600 text-sm">{formatDuration(entry.totaal_uren)}</span>
+                              {entry.overtime_info && entry.overtime_info.overtime_hours > 0 && (
+                                <span className="ml-2 text-xs font-medium text-orange-600">+{entry.overtime_info.overtime_display}</span>
+                              )}
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 gap-x-4 text-xs">
                             <div>

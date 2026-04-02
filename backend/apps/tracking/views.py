@@ -420,9 +420,109 @@ class TachographOverviewView(APIView):
 
         try:
             data = get_tachograph_overview(date_str)
+
+            # Enrich with driver-based overtime calculation
+            self._enrich_with_driver_overtime(data, date_str)
+
             return Response({'date': date_str, 'vehicles': data, 'count': len(data)})
         except FMTrackError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def _enrich_with_driver_overtime(self, vehicles, date_str):
+        """
+        Recalculate overtime using driver settings (standaard_begintijd, uren_per_dag, standaard_pauze)
+        instead of the hardcoded 8-hour threshold from the tachograph service.
+        Adds a calculation breakdown string to each vehicle.
+        """
+        from apps.drivers.models import Driver
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+
+        NL_TZ = ZoneInfo('Europe/Amsterdam')
+
+        # Build plate -> driver lookup
+        plate_lookup = {}
+        for driver in Driver.objects.filter(auto_uren=True).exclude(tacho_kenteken=''):
+            normalized = driver.tacho_kenteken.upper().replace('-', '').replace(' ', '')
+            plate_lookup[normalized] = driver
+
+        for vehicle in vehicles:
+            plate = vehicle.get('plate_number', '')
+            normalized_plate = plate.upper().replace('-', '').replace(' ', '')
+            driver = plate_lookup.get(normalized_plate)
+
+            if not driver:
+                vehicle['overtime_calculation'] = None
+                continue
+
+            last_end_str = vehicle.get('last_end')
+            if not last_end_str:
+                vehicle['overtime_calculation'] = None
+                continue
+
+            try:
+                tacho_end = datetime.fromisoformat(
+                    last_end_str.replace('Z', '+00:00')
+                ).astimezone(NL_TZ).time()
+                tacho_start_str = vehicle.get('first_start', '')
+                tacho_start = datetime.fromisoformat(
+                    tacho_start_str.replace('Z', '+00:00')
+                ).astimezone(NL_TZ).time() if tacho_start_str else None
+            except (ValueError, AttributeError):
+                vehicle['overtime_calculation'] = None
+                continue
+
+            # Use driver's start time if set, otherwise tachograph start
+            start_time = driver.standaard_begintijd or tacho_start
+            if not start_time:
+                vehicle['overtime_calculation'] = None
+                continue
+
+            end_time = tacho_end
+            pauze_minutes = driver.standaard_pauze or 30
+            uren_per_dag = float(driver.uren_per_dag) if driver.uren_per_dag is not None else 8.0
+
+            # Calculate total work hours
+            from datetime import date as date_cls
+            start_dt = datetime.combine(date_cls.today(), start_time)
+            end_dt = datetime.combine(date_cls.today(), end_time)
+            if end_dt < start_dt:
+                end_dt += timedelta(days=1)
+
+            total_work_seconds = (end_dt - start_dt).total_seconds()
+            total_work_hours = total_work_seconds / 3600
+            pauze_hours = pauze_minutes / 60
+            netto_hours = total_work_hours - pauze_hours
+            overtime = max(0, round(netto_hours - uren_per_dag, 2))
+
+            # Update vehicle overtime fields
+            vehicle['overtime_hours'] = overtime
+            vehicle['has_overtime'] = overtime > 0
+
+            def _fmt(h):
+                hrs = int(h)
+                mins = int(round((h - hrs) * 60))
+                return f"{hrs:02d}:{mins:02d}"
+
+            vehicle['overtime_display'] = _fmt(overtime) if overtime > 0 else None
+
+            # Build calculation breakdown
+            vehicle['overtime_calculation'] = {
+                'driver_name': driver.naam,
+                'start_time': start_time.strftime('%H:%M'),
+                'end_time': end_time.strftime('%H:%M'),
+                'total_work_hours': round(total_work_hours, 2),
+                'total_work_display': _fmt(total_work_hours),
+                'pauze_minutes': pauze_minutes,
+                'pauze_display': _fmt(pauze_hours),
+                'netto_hours': round(netto_hours, 2),
+                'netto_display': _fmt(netto_hours),
+                'uren_per_dag': uren_per_dag,
+                'uren_per_dag_display': _fmt(uren_per_dag),
+                'overtime_hours': overtime,
+                'overtime_display': _fmt(overtime) if overtime > 0 else '00:00',
+                'formula': f"{_fmt(netto_hours)} - {_fmt(uren_per_dag)} = {_fmt(overtime)} overuren",
+            }
 
 
 class TachographOvertimeWriteView(APIView):

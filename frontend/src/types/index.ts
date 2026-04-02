@@ -195,6 +195,17 @@ export interface TimeEntry {
   totaal_uren_display: string
   status: 'concept' | 'ingediend'
   bron: 'handmatig' | 'auto_import'
+  overtime_info?: {
+    start_time: string | null
+    end_time: string | null
+    pauze_display: string
+    netto_display: string
+    uren_per_dag: number
+    uren_per_dag_display: string
+    overtime_hours: number
+    overtime_display: string
+    formula: string
+  } | null
   created_at: string
   updated_at: string
 }

@@ -674,6 +674,27 @@ function VehicleCard({ vehicle, isExpanded, onToggle, onWriteOvertime, formatTim
             </table>
           </div>
 
+          {/* Overtime calculation breakdown */}
+          {vehicle.overtime_calculation && (
+            <div className="px-4 py-2 bg-gray-100 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-600">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-700 dark:text-gray-300">
+                <span className="font-medium text-gray-900 dark:text-white">{vehicle.overtime_calculation.driver_name}</span>
+                <span>Start: <strong>{vehicle.overtime_calculation.start_time}</strong></span>
+                <span>Eind: <strong>{vehicle.overtime_calculation.end_time}</strong></span>
+                <span>Totaal: <strong>{vehicle.overtime_calculation.total_work_display}</strong></span>
+                <span>Pauze: <strong>{vehicle.overtime_calculation.pauze_display}</strong></span>
+                <span>Netto: <strong>{vehicle.overtime_calculation.netto_display}</strong></span>
+                <span>Contract: <strong>{vehicle.overtime_calculation.uren_per_dag_display}</strong></span>
+                <span className={vehicle.overtime_calculation.overtime_hours > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}>
+                  Overuren: <strong>{vehicle.overtime_calculation.overtime_display}</strong>
+                </span>
+              </div>
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 font-mono">
+                {vehicle.overtime_calculation.formula}
+              </div>
+            </div>
+          )}
+
           {/* Overtime action */}
           {vehicle.has_overtime && (
             <div className="px-4 py-3 bg-red-50 dark:bg-red-900/10 border-t border-red-200 dark:border-red-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

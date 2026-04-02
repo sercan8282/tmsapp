@@ -17,6 +17,23 @@ export interface TachographTrip {
   end_address: string
 }
 
+export interface OvertimeCalculation {
+  driver_name: string
+  start_time: string
+  end_time: string
+  total_work_hours: number
+  total_work_display: string
+  pauze_minutes: number
+  pauze_display: string
+  netto_hours: number
+  netto_display: string
+  uren_per_dag: number
+  uren_per_dag_display: string
+  overtime_hours: number
+  overtime_display: string
+  formula: string
+}
+
 export interface TachographVehicle {
   object_id: string
   vehicle_name: string
@@ -34,6 +51,7 @@ export interface TachographVehicle {
   overtime_hours: number
   overtime_display: string | null
   has_overtime: boolean
+  overtime_calculation: OvertimeCalculation | null
   drivers: { id: string; name: string }[]
   trips: TachographTrip[]
   trip_count: number
