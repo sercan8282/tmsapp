@@ -350,15 +350,30 @@ def _process_date(date_str, process_date, driver_lookup, plate_lookup):
 
         user = tms_driver.gekoppelde_gebruiker
 
-        # Check if entry already exists for this user+date+kenteken (any bron)
-        existing_entry = TimeEntry.objects.filter(
+        # Check if auto_import entry already exists — skip if so
+        existing_auto = TimeEntry.objects.filter(
             user=user,
             datum=process_date,
             kenteken=kenteken,
+            bron='auto_import',
         ).exists()
 
-        if existing_entry:
+        if existing_auto:
             continue
+
+        # Delete any older entries (e.g. handmatig) for same user+date+kenteken
+        # so the fresh auto_import entry replaces them
+        old_entries = TimeEntry.objects.filter(
+            user=user,
+            datum=process_date,
+            kenteken=kenteken,
+        )
+        if old_entries.exists():
+            deleted_count, _ = old_entries.delete()
+            logger.info(
+                'Replaced %d old entry(ies) for %s on %s (%s)',
+                deleted_count, user.email, process_date, kenteken,
+            )
 
         # Extract trip data
         first_start = vehicle.get('first_start')
