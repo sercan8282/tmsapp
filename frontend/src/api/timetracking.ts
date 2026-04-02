@@ -175,6 +175,29 @@ export function getCurrentYear(): number {
   return new Date().getFullYear()
 }
 
+// Ritnummer Hours Overview
+export interface RitnummerHoursOverview {
+  ritnummer: string
+  weeknummer: number
+  gewerkte_uren: number
+  totaal_km: number
+  entries_count: number
+  kenteken: string
+  type_wagen: string
+  bedrijf_naam: string
+  minimum_weken_per_jaar: number | null
+}
+
+export async function getRitnummerHoursOverview(jaar: number): Promise<RitnummerHoursOverview[]> {
+  const response = await api.get(`/time-entries/ritnummer_hours_overview/?jaar=${jaar}`)
+  return response.data
+}
+
+export async function getAvailableYears(): Promise<number[]> {
+  const response = await api.get('/time-entries/available_years/')
+  return response.data
+}
+
 // Driver Report Types
 export interface DriverReportDay {
   ritnummer: string
