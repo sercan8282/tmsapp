@@ -82,3 +82,52 @@ def update_user_overtime(user, weeknummer: int, jaar: int):
         return overtime
     
     return Decimal('0')
+
+
+def recalculate_user_overtime(user):
+    """
+    Recalculate user's overtime balance from TachographOvertime records.
+
+    This is idempotent - can be called multiple times safely.
+    Uses daily overtime records (hours worked - uren_per_dag) as source of truth,
+    minus any overtime already used in approved leave requests.
+    """
+    import logging
+    from django.db.models import Sum
+    from apps.tracking.models import TachographOvertime
+    from apps.drivers.models import Driver
+    from .models import LeaveBalance, LeaveRequest, LeaveType, LeaveRequestStatus
+
+    logger = logging.getLogger(__name__)
+
+    # Sum all daily overtime from tachograph records for this user's driver(s)
+    drivers = Driver.objects.filter(gekoppelde_gebruiker=user)
+    total_earned = TachographOvertime.objects.filter(
+        driver__in=drivers
+    ).aggregate(total=Sum('overtime_hours'))['total'] or Decimal('0')
+    total_earned = Decimal(str(total_earned))
+
+    # Sum all overtime already used in approved leave requests
+    total_used = LeaveRequest.objects.filter(
+        user=user,
+        leave_type=LeaveType.OVERUREN,
+        status=LeaveRequestStatus.APPROVED,
+    ).aggregate(total=Sum('hours_requested'))['total'] or Decimal('0')
+
+    # Set the balance
+    balance, _ = LeaveBalance.objects.get_or_create(
+        user=user,
+        defaults={'vacation_hours': Decimal('216.00')}
+    )
+    new_overtime = max(Decimal('0'), total_earned - total_used)
+
+    if balance.overtime_hours != new_overtime:
+        old_overtime = balance.overtime_hours
+        balance.overtime_hours = new_overtime
+        balance.save(update_fields=['overtime_hours', 'updated_at'])
+        logger.info(
+            'Overuren herberekend voor %s: %s → %s (verdiend: %s, gebruikt: %s)',
+            user.full_name, old_overtime, new_overtime, total_earned, total_used,
+        )
+
+    return new_overtime

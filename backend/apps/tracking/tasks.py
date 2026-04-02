@@ -102,6 +102,7 @@ def sync_tachograph_hours():
 
     total_entries = 0
     total_overtime = 0
+    all_affected_users = set()
     results = []
 
     for process_date in dates_to_process:
@@ -112,6 +113,7 @@ def sync_tachograph_hours():
             )
             total_entries += result['entries_created']
             total_overtime += result['overtime_created']
+            all_affected_users.update(result.get('users_with_new_entries', set()))
             results.append(result)
         except FMTrackError as e:
             logger.error('Tachograaf sync fout voor %s: %s', date_str, e)
@@ -125,6 +127,20 @@ def sync_tachograph_hours():
                 date=process_date,
                 errors=str(e),
             )
+
+    # Recalculate overtime/leave balance for all affected users (idempotent)
+    if all_affected_users:
+        from apps.leave.signals import recalculate_user_overtime
+
+        for user in all_affected_users:
+            try:
+                new_overtime = recalculate_user_overtime(user)
+                logger.info(
+                    'Overuren saldo voor %s: %s uur',
+                    user.full_name, new_overtime,
+                )
+            except Exception as e:
+                logger.error('Fout bij overuren berekening voor %s: %s', user, e)
 
     logger.info(
         'Tachograaf sync voltooid: %d datums, %d uren, %d overuren',
@@ -196,8 +212,17 @@ def force_resync_tachograph_hours():
         deleted_entries, deleted_overtime, deleted_logs,
     )
 
-    # Now run a fresh sync
+    # Now run a fresh sync (which will also recalculate overtime for affected users)
     result = sync_tachograph_hours()
+
+    # Recalculate overtime for ALL auto_uren users (in case some dates failed to sync)
+    from apps.leave.signals import recalculate_user_overtime
+    for driver in auto_drivers:
+        try:
+            recalculate_user_overtime(driver.gekoppelde_gebruiker)
+        except Exception as e:
+            logger.error('Fout bij overuren herberekening voor %s: %s', driver.naam, e)
+
     result['force_resync'] = True
     result['deleted_entries'] = deleted_entries
     result['deleted_overtime'] = deleted_overtime
@@ -295,6 +320,7 @@ def _process_date(date_str, process_date, driver_lookup, plate_lookup):
     entries_created = 0
     overtime_created = 0
     errors = []
+    users_with_new_entries = set()
 
     for vehicle in overview:
         kenteken = vehicle.get('plate_number', vehicle.get('vehicle_name', ''))
@@ -393,6 +419,7 @@ def _process_date(date_str, process_date, driver_lookup, plate_lookup):
             )
             entry.save()  # save() auto-calculates weeknummer, totaal_km, totaal_uren
             entries_created += 1
+            users_with_new_entries.add(user)
         except Exception as e:
             errors.append(f'Fout bij aanmaken entry voor {kenteken}/{fm_driver_name}: {e}')
             continue
@@ -424,33 +451,6 @@ def _process_date(date_str, process_date, driver_lookup, plate_lookup):
             )
             overtime_created += 1
 
-    # Update overtime/leave balance for users who got new entries
-    if entries_created > 0:
-        from apps.leave.signals import update_user_overtime
-
-        weeknummer = process_date.isocalendar()[1]
-        jaar = process_date.isocalendar()[0]
-
-        # Collect unique users who got entries this date
-        users_with_entries = set()
-        for vehicle in overview:
-            kenteken = vehicle.get('plate_number', vehicle.get('vehicle_name', ''))
-            normalized_plate = kenteken.upper().replace('-', '').replace(' ', '')
-            tms_driver = plate_lookup.get(normalized_plate)
-            if tms_driver and tms_driver.auto_uren and tms_driver.gekoppelde_gebruiker:
-                users_with_entries.add(tms_driver.gekoppelde_gebruiker)
-
-        for user in users_with_entries:
-            try:
-                overtime = update_user_overtime(user, weeknummer, jaar)
-                if overtime > 0:
-                    logger.info(
-                        'Overuren bijgewerkt voor %s: week %d/%d = %s uur',
-                        user.get_full_name(), weeknummer, jaar, overtime,
-                    )
-            except Exception as e:
-                errors.append(f'Fout bij overuren berekening voor {user}: {e}')
-
     # Log this date as processed
     TachographSyncLog.objects.create(
         date=process_date,
@@ -466,4 +466,5 @@ def _process_date(date_str, process_date, driver_lookup, plate_lookup):
         'entries_created': entries_created,
         'overtime_created': overtime_created,
         'errors': errors,
+        'users_with_new_entries': users_with_new_entries,
     }
