@@ -48,13 +48,13 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-// Get current week number
+// Get current ISO 8601 week number (matches backend Python isocalendar)
 function getCurrentWeekNumber(): number {
   const now = new Date()
-  const start = new Date(now.getFullYear(), 0, 1)
-  const diff = now.getTime() - start.getTime()
-  const oneWeek = 604800000
-  return Math.ceil((diff + start.getDay() * 86400000) / oneWeek)
+  const date = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
 }
 
 export default function MyHoursPage() {

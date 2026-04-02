@@ -166,10 +166,20 @@ export async function getWeekHistory(userId?: string, status?: string): Promise<
  */
 export function getCurrentWeekNumber(): number {
   const now = new Date()
-  const start = new Date(now.getFullYear(), 0, 1)
-  const diff = now.getTime() - start.getTime()
-  const oneWeek = 604800000 // milliseconds in a week
-  return Math.ceil((diff + start.getDay() * 86400000) / oneWeek)
+  return getISOWeekNumber(now)
+}
+
+/**
+ * ISO 8601 week number calculation — matches Python's date.isocalendar()[1]
+ */
+export function getISOWeekNumber(d: Date): number {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  // Set to nearest Thursday: current date + 4 - current day number (Monday=1, Sunday=7)
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
+  // Get first day of year
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  // Calculate full weeks to nearest Thursday
+  return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
 }
 
 /**
