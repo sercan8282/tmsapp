@@ -202,7 +202,7 @@ export default function LeaveRequestPage() {
     if (name === 'leave_type' && NO_DEDUCT_TYPES.includes(value)) {
       setFormData((prev) => ({
         ...prev,
-        [name]: value,
+        leave_type: value as LeaveRequestCreate['leave_type'],
         hours_requested: 0,
       }))
       setIsManualHours(false)
@@ -213,7 +213,7 @@ export default function LeaveRequestPage() {
         : 0
       setFormData((prev) => ({
         ...prev,
-        [name]: value,
+        leave_type: value as LeaveRequestCreate['leave_type'],
         hours_requested: workDays * HOURS_PER_DAY || prev.hours_requested,
       }))
       setIsManualHours(false)
