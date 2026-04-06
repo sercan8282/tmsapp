@@ -187,6 +187,16 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Route wrapper that allows admin OR users with a specific module permission
+function PermissionRoute({ children, permission }: { children: React.ReactNode; permission: string }) {
+  const { user } = useAuthStore()
+  
+  if (user?.rol === 'admin') return <>{children}</>
+  if (user?.module_permissions?.includes(permission)) return <>{children}</>
+  
+  return <Navigate to="/" replace />
+}
+
 function App() {
   const { isAuthenticated } = useAuthStore()
   const { isConfigured, setServerUrl } = useServerConfigStore()
@@ -337,7 +347,7 @@ function App() {
         <Route path="/leave" element={<LeaveOverviewPage />} />
         <Route path="/leave/request" element={<LeaveRequestPage />} />
         <Route path="/leave/calendar" element={<LeaveCalendarPage />} />
-        <Route path="/leave/admin" element={<AdminRoute><LeaveRequestsAdminPage /></AdminRoute>} />
+        <Route path="/leave/admin" element={<PermissionRoute permission="can_manage_leave_for_all"><LeaveRequestsAdminPage /></PermissionRoute>} />
         <Route path="/settings/leave" element={<AdminRoute><LeaveSettingsPage /></AdminRoute>} />
 
         {/* Spreadsheets (Ritregistratie) */}
