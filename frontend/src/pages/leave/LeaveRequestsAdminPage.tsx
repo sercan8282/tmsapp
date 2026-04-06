@@ -16,6 +16,9 @@ import {
   PlusIcon,
   UserIcon,
   CalendarDaysIcon,
+  MagnifyingGlassIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline'
 import LeaveBalanceTab from './LeaveBalanceTab'
 import {
@@ -83,6 +86,9 @@ export default function LeaveRequestsAdminPage() {
   const [requests, setRequests] = useState<LeaveRequest[]>([])
   const [filteredRequests, setFilteredRequests] = useState<LeaveRequest[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 15
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -125,12 +131,25 @@ export default function LeaveRequestsAdminPage() {
   }, [])
 
   useEffect(() => {
-    if (statusFilter === 'all') {
-      setFilteredRequests(requests)
-    } else {
-      setFilteredRequests(requests.filter(r => r.status === statusFilter))
+    let filtered = requests
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(r => r.status === statusFilter)
     }
-  }, [requests, statusFilter])
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter(r =>
+        (r.user_naam || '').toLowerCase().includes(q)
+      )
+    }
+    setFilteredRequests(filtered)
+    setCurrentPage(1)
+  }, [requests, statusFilter, searchQuery])
+
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / ITEMS_PER_PAGE))
+  const paginatedRequests = filteredRequests.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
 
   const fetchRequests = async () => {
     setIsLoading(true)
@@ -339,9 +358,21 @@ export default function LeaveRequestsAdminPage() {
         </div>
       )}
 
-      {/* Filter */}
+      {/* Search & Filter */}
       <div className="card p-4">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          {/* Search */}
+          <div className="relative w-full sm:w-64">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('leave.searchEmployee', 'Zoek medewerker...')}
+              className="input w-full pl-9 py-1.5 text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-4">
           <FunnelIcon className="w-5 h-5 text-gray-400" />
           <div className="flex flex-wrap gap-2">
             {[
@@ -372,6 +403,7 @@ export default function LeaveRequestsAdminPage() {
               </button>
             ))}
           </div>
+          </div>
         </div>
       </div>
 
@@ -380,11 +412,13 @@ export default function LeaveRequestsAdminPage() {
         {filteredRequests.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <ClockIcon className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">{t('leave.noRequests')}</p>
+            <p className="text-gray-500">
+              {searchQuery.trim() ? t('leave.noSearchResults', 'Geen resultaten gevonden.') : t('leave.noRequests')}
+            </p>
           </div>
         ) : (
           <div className="divide-y">
-            {filteredRequests.map((request) => {
+            {paginatedRequests.map((request) => {
               const STATUS_BADGES = getStatusBadges(t)
               const statusInfo = STATUS_BADGES[request.status as keyof typeof STATUS_BADGES] || STATUS_BADGES.pending
               const StatusIcon = statusInfo.icon
@@ -489,6 +523,55 @@ export default function LeaveRequestsAdminPage() {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t px-6 py-3">
+            <p className="text-sm text-gray-500">
+              {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredRequests.length)} van {filteredRequests.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeftIcon className="w-4 h-4" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                .reduce<(number | 'dots')[]>((acc, page, idx, arr) => {
+                  if (idx > 0 && page - (arr[idx - 1]) > 1) acc.push('dots')
+                  acc.push(page)
+                  return acc
+                }, [])
+                .map((item, idx) =>
+                  item === 'dots' ? (
+                    <span key={`dots-${idx}`} className="px-2 text-gray-400 text-sm">…</span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => setCurrentPage(item)}
+                      className={`min-w-[2rem] h-8 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === item
+                          ? 'bg-primary-600 text-white'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronRightIcon className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
