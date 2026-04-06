@@ -251,6 +251,7 @@ class LeaveRequestAdminCreateSerializer(serializers.Serializer):
         ('overuren', 'Verlof overuren'),
         ('bijzonder_tandarts', 'Bijzonder verlof tandarts'),
         ('bijzonder_huisarts', 'Bijzonder verlof huisarts'),
+        ('ziekteverzuim', 'Ziekteverzuim'),
     ])
     start_date = serializers.DateField()
     end_date = serializers.DateField()
@@ -263,7 +264,10 @@ class LeaveRequestAdminCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError({
                 'end_date': 'Einddatum moet na startdatum liggen.'
             })
-        if data['hours_requested'] <= 0:
+        no_deduct_types = ['ziekteverzuim', 'bijzonder_tandarts', 'bijzonder_huisarts']
+        if data['leave_type'] in no_deduct_types:
+            data['hours_requested'] = Decimal('0')
+        elif data['hours_requested'] <= 0:
             raise serializers.ValidationError({
                 'hours_requested': 'Aantal uren moet groter zijn dan 0.'
             })
