@@ -2039,7 +2039,7 @@ export default function InvoiceCreatePage() {
 
           {/* Template columns info */}
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-800 text-sm">
+            <div className="flex flex-wrap items-center gap-2 text-blue-800 text-sm">
               <CalculatorIcon className="h-4 w-4" />
               <span className="font-medium">Template kolommen:</span>
               {columns.map((col, i) => (
