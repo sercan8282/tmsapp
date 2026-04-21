@@ -835,13 +835,22 @@ class TachographArchiveSyncView(APIView):
         try:
             result = upsert_tachograph_archive_for_date(date_str)
             return Response(result, status=status.HTTP_200_OK)
-        except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except FMTrackError as e:
-            return Response({'error': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
-        except Exception as e:
+        except ValueError:
+            return Response(
+                {'error': 'Ongeldig datumformaat. Gebruik YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except FMTrackError:
+            return Response(
+                {'error': 'FM-Track gegevens konden niet worden opgehaald voor deze dag.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        except Exception:
             logger.exception('Tachograaf archief sync mislukt voor %s', date_str)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {'error': 'Synchronisatie van tachograaf archief is mislukt.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class TachographComparisonView(APIView):
