@@ -778,7 +778,29 @@ class TachographArchiveListView(APIView):
     """
     permission_classes = [IsAdminOrManager]
 
-    def get(self, request):
+    @staticmethod
+    def _format_dt(value):
+        from datetime import datetime
+
+        if not value:
+            return ''
+        try:
+            dt = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+            return dt.strftime('%Y-%m-%d %H:%M')
+        except (TypeError, ValueError):
+            return str(value)
+
+    @staticmethod
+    def _drivers_text(drivers):
+        if not isinstance(drivers, list):
+            return ''
+        return ', '.join(
+            d.get('name', '')
+            for d in drivers
+            if isinstance(d, dict) and d.get('name')
+        )
+
+    def _build_rows(self, request):
         from datetime import date as date_type
         from .tachograph_archive_service import get_tachograph_archive
 
@@ -807,6 +829,167 @@ class TachographArchiveListView(APIView):
             date_from=date_from,
             date_till=date_till,
         )
+        return rows, date_str
+
+    def _export_csv(self, rows):
+        import csv
+        from django.http import HttpResponse
+
+        response = HttpResponse(content_type='text/csv')
+        filename = timezone.now().strftime('tachograaf_archief_%Y%m%d.csv')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        writer = csv.writer(response)
+        writer.writerow([
+            'Datum', 'Object ID', 'Voertuig', 'Merk', 'Model', 'Kenteken',
+            'Chauffeurs', 'Eerste start', 'Laatste einde',
+            'Start KM', 'Eind KM', 'Totaal KM', 'Totale uren', 'Overuren', 'Aantal ritten',
+        ])
+        for row in rows:
+            writer.writerow([
+                row.get('date', ''),
+                row.get('object_id', ''),
+                row.get('vehicle_name', ''),
+                row.get('vehicle_make', ''),
+                row.get('vehicle_model', ''),
+                row.get('plate_number', ''),
+                self._drivers_text(row.get('drivers', [])),
+                self._format_dt(row.get('first_start')),
+                self._format_dt(row.get('last_end')),
+                row.get('first_km', 0),
+                row.get('last_km', 0),
+                row.get('total_km', 0),
+                row.get('total_hours_display') or row.get('total_hours', ''),
+                row.get('overtime_display') or row.get('overtime_hours', ''),
+                row.get('trip_count', 0),
+            ])
+        return response
+
+    def _export_xlsx(self, rows):
+        import io
+        from django.http import HttpResponse
+        from openpyxl import Workbook
+        from openpyxl.styles import Font
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Tachograaf Archief'
+
+        headers = [
+            'Datum', 'Object ID', 'Voertuig', 'Merk', 'Model', 'Kenteken',
+            'Chauffeurs', 'Eerste start', 'Laatste einde',
+            'Start KM', 'Eind KM', 'Totaal KM', 'Totale uren', 'Overuren', 'Aantal ritten',
+        ]
+        ws.append(headers)
+        for col in ws[1]:
+            col.font = Font(bold=True)
+
+        for row in rows:
+            ws.append([
+                row.get('date', ''),
+                row.get('object_id', ''),
+                row.get('vehicle_name', ''),
+                row.get('vehicle_make', ''),
+                row.get('vehicle_model', ''),
+                row.get('plate_number', ''),
+                self._drivers_text(row.get('drivers', [])),
+                self._format_dt(row.get('first_start')),
+                self._format_dt(row.get('last_end')),
+                row.get('first_km', 0),
+                row.get('last_km', 0),
+                row.get('total_km', 0),
+                row.get('total_hours_display') or row.get('total_hours', ''),
+                row.get('overtime_display') or row.get('overtime_hours', ''),
+                row.get('trip_count', 0),
+            ])
+
+        for column_cells in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in column_cells)
+            ws.column_dimensions[column_cells[0].column_letter].width = min(max_len + 2, 50)
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        response = HttpResponse(
+            output.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        filename = timezone.now().strftime('tachograaf_archief_%Y%m%d.xlsx')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    def _export_pdf(self, rows):
+        import io
+        from django.http import HttpResponse
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
+        styles = getSampleStyleSheet()
+
+        table_data = [[
+            'Datum', 'Voertuig', 'Kenteken', 'Chauffeur(s)', 'Start', 'Einde',
+            'Uren', 'Overuren', 'KM', 'Ritten',
+        ]]
+        for row in rows:
+            table_data.append([
+                row.get('date', ''),
+                row.get('vehicle_name', ''),
+                row.get('plate_number', ''),
+                self._drivers_text(row.get('drivers', [])),
+                self._format_dt(row.get('first_start')),
+                self._format_dt(row.get('last_end')),
+                row.get('total_hours_display') or row.get('total_hours', ''),
+                row.get('overtime_display') or row.get('overtime_hours', ''),
+                row.get('total_km', 0),
+                row.get('trip_count', 0),
+            ])
+
+        table = Table(table_data, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F4E79')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('ALIGN', (4, 1), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#D0D5DD')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#EBF1F8')]),
+        ]))
+
+        export_date = timezone.localtime().strftime('%d-%m-%Y %H:%M')
+        story = [
+            Paragraph('Tachograaf Archief', styles['Heading2']),
+            Paragraph(f'Exportdatum: {export_date}', styles['Normal']),
+            Spacer(1, 10),
+            table,
+        ]
+        doc.build(story)
+        pdf = buffer.getvalue()
+        buffer.close()
+
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = timezone.now().strftime('tachograaf_archief_%Y%m%d.pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    def get(self, request):
+        result = self._build_rows(request)
+        if isinstance(result, Response):
+            return result
+        rows, date_str = result
+
+        fmt = request.query_params.get('format') or request.query_params.get('export')
+        if fmt == 'csv':
+            return self._export_csv(rows)
+        if fmt == 'xlsx':
+            return self._export_xlsx(rows)
+        if fmt == 'pdf':
+            return self._export_pdf(rows)
+
         return Response({
             'date': date_str,
             'vehicles': rows,

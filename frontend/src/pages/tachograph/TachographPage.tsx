@@ -18,7 +18,7 @@ import {
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast from 'react-hot-toast'
-import { getTachographOverview, getTachographArchive, syncTachographArchiveDay, writeOvertime, triggerTachographSync, getTachographSyncInfo, TachographVehicle, TachographTrip } from '@/api/tachograph'
+import { getTachographOverview, getTachographArchive, syncTachographArchiveDay, writeOvertime, triggerTachographSync, getTachographSyncInfo, exportTachographArchiveCsv, exportTachographArchiveXlsx, exportTachographArchivePdf, TachographVehicle, TachographTrip } from '@/api/tachograph'
 import { getAllDrivers } from '@/api/drivers'
 import { Driver } from '@/types'
 import clsx from '@/utils/clsx'
@@ -54,6 +54,7 @@ export default function TachographPage() {
   const [showSyncConfirm, setShowSyncConfirm] = useState(false)
   const [showArchiveSyncConfirm, setShowArchiveSyncConfirm] = useState(false)
   const [isArchiveSyncing, setIsArchiveSyncing] = useState(false)
+  const [archiveExporting, setArchiveExporting] = useState<null | 'csv' | 'xlsx' | 'pdf'>(null)
 
   // Date navigation helpers
   const addDays = (dateStr: string, days: number) => {
@@ -209,6 +210,37 @@ export default function TachographPage() {
     }
   }
 
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const handleArchiveExport = async (format: 'csv' | 'xlsx' | 'pdf') => {
+    setArchiveExporting(format)
+    setError(null)
+    try {
+      const blob = format === 'csv'
+        ? await exportTachographArchiveCsv(date)
+        : format === 'xlsx'
+          ? await exportTachographArchiveXlsx(date)
+          : await exportTachographArchivePdf(date)
+      const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+      downloadBlob(blob, `tachograaf_archief_${stamp}.${format}`)
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || t('tachograph.archive.exportError')
+      setError(msg)
+      toast.error(msg)
+    } finally {
+      setArchiveExporting(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -267,14 +299,38 @@ export default function TachographPage() {
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <button
               onClick={() => setShowArchiveSyncConfirm(true)}
-              disabled={isArchiveSyncing}
+              disabled={isArchiveSyncing || archiveExporting !== null}
               className="btn-primary flex items-center gap-2 text-sm"
             >
               <ArrowPathIcon className={`w-4 h-4 ${isArchiveSyncing ? 'animate-spin' : ''}`} />
               {isArchiveSyncing ? t('tachograph.syncing') : t('tachograph.archive.syncDay')}
+            </button>
+            <button
+              onClick={() => handleArchiveExport('csv')}
+              disabled={isArchiveSyncing || archiveExporting !== null || vehicles.length === 0}
+              className="btn-outline flex items-center gap-2 text-sm"
+            >
+              <DocumentArrowDownIcon className="w-4 h-4" />
+              {archiveExporting === 'csv' ? t('tachograph.archive.exporting') : t('tachograph.archive.exportCsv')}
+            </button>
+            <button
+              onClick={() => handleArchiveExport('xlsx')}
+              disabled={isArchiveSyncing || archiveExporting !== null || vehicles.length === 0}
+              className="btn-outline flex items-center gap-2 text-sm"
+            >
+              <DocumentArrowDownIcon className="w-4 h-4" />
+              {archiveExporting === 'xlsx' ? t('tachograph.archive.exporting') : t('tachograph.archive.exportExcel')}
+            </button>
+            <button
+              onClick={() => handleArchiveExport('pdf')}
+              disabled={isArchiveSyncing || archiveExporting !== null || vehicles.length === 0}
+              className="btn-outline flex items-center gap-2 text-sm"
+            >
+              <DocumentArrowDownIcon className="w-4 h-4" />
+              {archiveExporting === 'pdf' ? t('tachograph.archive.exporting') : t('tachograph.archive.exportPdf')}
             </button>
           </div>
         )}

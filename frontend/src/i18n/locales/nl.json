@@ -2015,6 +2015,11 @@
       "syncConfirm": "Tachograafgegevens voor {{date}} ophalen en opslaan? Bestaande regels voor deze dag worden overschreven.",
       "syncComplete": "{{created}} regels bijgewerkt",
       "syncError": "Fout bij synchroniseren van archiefgegevens",
+      "exportCsv": "Exporteer als CSV",
+      "exportExcel": "Exporteer als Excel",
+      "exportPdf": "Exporteer als PDF",
+      "exporting": "Bezig...",
+      "exportError": "Exporteren van archiefgegevens is mislukt",
       "noData": "Geen opgeslagen archiefgegevens",
       "noDataHint": "Voor deze dag zijn nog geen tachograafgegevens opgeslagen."
     },

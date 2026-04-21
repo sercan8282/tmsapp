@@ -93,6 +93,30 @@ export async function syncTachographArchiveDay(date: string): Promise<{
   return response.data
 }
 
+export async function exportTachographArchiveCsv(date: string): Promise<Blob> {
+  const response = await api.get(
+    `/tracking/tachograph/archive/?date=${encodeURIComponent(date)}&format=csv`,
+    { responseType: 'blob' },
+  )
+  return response.data
+}
+
+export async function exportTachographArchiveXlsx(date: string): Promise<Blob> {
+  const response = await api.get(
+    `/tracking/tachograph/archive/?date=${encodeURIComponent(date)}&format=xlsx`,
+    { responseType: 'blob' },
+  )
+  return response.data
+}
+
+export async function exportTachographArchivePdf(date: string): Promise<Blob> {
+  const response = await api.get(
+    `/tracking/tachograph/archive/?date=${encodeURIComponent(date)}&format=pdf`,
+    { responseType: 'blob' },
+  )
+  return response.data
+}
+
 export async function writeOvertime(data: {
   driver_id: string
   date: string

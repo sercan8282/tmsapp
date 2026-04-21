@@ -162,6 +162,7 @@ def get_tachograph_archive(date_str=None, date_from=None, date_till=None):
     rows = []
     for item in qs:
         rows.append({
+            'date': item.date.isoformat(),
             'object_id': item.object_id,
             'vehicle_name': item.vehicle_name,
             'vehicle_make': item.vehicle_make,
