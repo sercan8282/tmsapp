@@ -257,6 +257,12 @@ export default function DocumentsPage() {
                         <span>{doc.uploaded_by_name}</span>
                         <span>•</span>
                         <span>{formatDate(doc.created_at)}</span>
+                        {doc.signed_at && (
+                          <>
+                            <span>•</span>
+                            <span>{t('documents.signed')}: {formatDate(doc.signed_at)}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </Link>

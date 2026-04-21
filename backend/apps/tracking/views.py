@@ -640,7 +640,10 @@ class FMTrackPositionsView(APIView):
         except FMTrackError as e:
             logger.warning('FM-Track positions unavailable: %s', e)
             return Response(
-                {'error': str(e), 'code': 'fm_track_unavailable'},
+                {
+                    'error': 'De FM-Track-service is tijdelijk niet beschikbaar. Probeer het later opnieuw.',
+                    'code': 'fm_track_unavailable',
+                },
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         except Exception:
