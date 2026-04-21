@@ -2015,6 +2015,11 @@
       "syncConfirm": "Fetch and store tachograph data for {{date}}? Existing rows for this day will be overwritten.",
       "syncComplete": "{{created}} rows updated",
       "syncError": "Error synchronizing archive data",
+      "exportCsv": "Export as CSV",
+      "exportExcel": "Export as Excel",
+      "exportPdf": "Export as PDF",
+      "exporting": "Exporting...",
+      "exportError": "Failed to export archive data",
       "noData": "No archived data stored",
       "noDataHint": "No tachograph data has been stored for this day yet."
     },

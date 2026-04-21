@@ -136,3 +136,52 @@ class TachographArchiveTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['count'], 1)
         self.assertEqual(response.data['vehicles'][0]['object_id'], 'veh-1')
+
+    def test_export_csv_returns_attachment(self):
+        TachographArchiveEntry.objects.create(
+            date=date(2026, 4, 20),
+            object_id='veh-1',
+            vehicle_name='Truck 1',
+            plate_number='11-AA-11',
+            total_hours_display='08:30',
+            drivers=[{'id': 'd1', 'name': 'Jan'}],
+            trip_count=2,
+        )
+        response = self.client.get('/api/tracking/tachograph/archive/?date=2026-04-20&format=csv')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response['Content-Type'].startswith('text/csv'))
+        self.assertIn('attachment; filename=', response['Content-Disposition'])
+        self.assertRegex(response['Content-Disposition'], r'tachograaf_archief_\d{8}\.csv')
+        self.assertGreater(len(response.content), 0)
+        self.assertIn('Truck 1', response.content.decode('utf-8'))
+
+    def test_export_xlsx_returns_attachment(self):
+        TachographArchiveEntry.objects.create(
+            date=date(2026, 4, 20),
+            object_id='veh-1',
+            vehicle_name='Truck 1',
+            plate_number='11-AA-11',
+        )
+        response = self.client.get('/api/tracking/tachograph/archive/?date=2026-04-20&format=xlsx')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response['Content-Type'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        self.assertRegex(response['Content-Disposition'], r'tachograaf_archief_\d{8}\.xlsx')
+        self.assertGreater(len(response.content), 0)
+        self.assertTrue(response.content.startswith(b'PK'))
+
+    def test_export_pdf_returns_attachment(self):
+        TachographArchiveEntry.objects.create(
+            date=date(2026, 4, 20),
+            object_id='veh-1',
+            vehicle_name='Truck 1',
+            plate_number='11-AA-11',
+        )
+        response = self.client.get('/api/tracking/tachograph/archive/?date=2026-04-20&format=pdf')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertRegex(response['Content-Disposition'], r'tachograaf_archief_\d{8}\.pdf')
+        self.assertGreater(len(response.content), 0)
+        self.assertTrue(response.content.startswith(b'%PDF'))
