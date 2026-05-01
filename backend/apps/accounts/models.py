@@ -35,6 +35,7 @@ AVAILABLE_MODULE_PERMISSIONS = [
     ('view_maintenance', 'Onderhoud'),
     ('view_notifications', 'Notificaties'),
     ('view_reports', 'Rapport Agent'),
+    ('view_leave_balances', 'Verlofsaldo'),
 ]
 
 # Dependencies: enabling a permission also requires these permissions

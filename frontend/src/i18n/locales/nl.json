@@ -173,7 +173,8 @@
     "urenImport": "Uren Import",
     "users": "Gebruikers",
     "settings": "Instellingen",
-    "profile": "Profiel"
+    "profile": "Profiel",
+    "leaveBalance": "Verlofsaldo"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -225,7 +226,6 @@
     "noOnlineUsers": "Geen gebruikers online",
     "recentLogins": "Recente logins",
     "noRecentLogins": "Geen recente logins",
-    "recentActivity": "Recente activiteit",
     "pageOf": "Pagina {{page}} van {{total}}",
     "totalEntries": "totaal",
     "financialOverview": "Financieel overzicht",
@@ -1667,7 +1667,7 @@
     "totalHours": "Totaal uren",
     "startKm": "Begin KM",
     "endKm": "Eind KM",
-    "totalKm": "Totaal KM",
+    "totalKm": "Totaal km",
     "rateHour": "Tarief uur",
     "rateKm": "Tarief km",
     "subtotal": "Subtotaal",
@@ -1699,12 +1699,9 @@
     "entriesFound": "registraties gevonden",
     "selectWeek": "Selecteer week",
     "noWeeksAvailable": "Geen weken met urenregistraties gevonden",
-    "week": "Week",
     "period": "Periode",
     "drivers": "Chauffeurs",
     "entries": "Registraties",
-    "totalHours": "Totaal uren",
-    "totalKm": "Totaal km",
     "backToWeeks": "Terug naar weken",
     "loadingWeeks": "Weken ophalen..."
   },

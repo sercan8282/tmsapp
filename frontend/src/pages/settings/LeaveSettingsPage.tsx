@@ -10,18 +10,11 @@ import { useTranslation } from 'react-i18next'
 import {
   ArrowLeftIcon,
   Cog6ToothIcon,
-  UserGroupIcon,
-  PencilIcon,
-  CheckIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import {
   getGlobalSettings,
   updateGlobalSettings,
-  getAllBalances,
-  updateLeaveBalance,
   GlobalLeaveSettings,
-  LeaveBalance,
 } from '@/api/leave'
 
 export default function LeaveSettingsPage({ embedded = false }: { embedded?: boolean }) {
@@ -37,14 +30,6 @@ export default function LeaveSettingsPage({ embedded = false }: { embedded?: boo
     free_special_leave_hours: 1,
   })
   
-  // Balances state
-  const [balances, setBalances] = useState<LeaveBalance[]>([])
-  const [editingBalance, setEditingBalance] = useState<string | null>(null)
-  const [balanceForm, setBalanceForm] = useState({
-    vacation_hours: 0,
-    overtime_hours: 0,
-  })
-  
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,10 +43,7 @@ export default function LeaveSettingsPage({ embedded = false }: { embedded?: boo
     setIsLoading(true)
     setError(null)
     try {
-      const [settings, balanceList] = await Promise.all([
-        getGlobalSettings(),
-        getAllBalances(),
-      ])
+      const settings = await getGlobalSettings()
       setGlobalSettings(settings)
       setGlobalForm({
         default_vacation_hours: settings.default_vacation_hours,
@@ -69,7 +51,6 @@ export default function LeaveSettingsPage({ embedded = false }: { embedded?: boo
         overtime_leave_percentage: settings.overtime_leave_percentage,
         free_special_leave_hours: settings.free_special_leave_hours,
       })
-      setBalances(balanceList)
     } catch (err: any) {
       setError(err.message || t('common.error'))
     } finally {
@@ -97,34 +78,6 @@ export default function LeaveSettingsPage({ embedded = false }: { embedded?: boo
       setGlobalSettings(updated)
       setEditingGlobal(false)
       showSuccess(t('settings.saved'))
-    } catch (err: any) {
-      setError(err.message || t('errors.saveFailed'))
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const startEditBalance = (balance: LeaveBalance) => {
-    setEditingBalance(balance.id)
-    setBalanceForm({
-      vacation_hours: balance.vacation_hours,
-      overtime_hours: balance.overtime_hours,
-    })
-  }
-
-  const cancelEditBalance = () => {
-    setEditingBalance(null)
-    setBalanceForm({ vacation_hours: 0, overtime_hours: 0 })
-  }
-
-  const handleSaveBalance = async (balanceId: string) => {
-    setIsSaving(true)
-    setError(null)
-    try {
-      const updated = await updateLeaveBalance(balanceId, balanceForm)
-      setBalances(balances.map(b => b.id === balanceId ? updated : b))
-      setEditingBalance(null)
-      showSuccess(t('common.success'))
     } catch (err: any) {
       setError(err.message || t('errors.saveFailed'))
     } finally {
@@ -299,216 +252,6 @@ export default function LeaveSettingsPage({ embedded = false }: { embedded?: boo
                 </p>
               </div>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* User Balances */}
-      <div className="card">
-        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b flex items-center gap-2 sm:gap-3">
-          <UserGroupIcon className="w-5 h-5 text-gray-400" />
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900">{t('leave.balance')}</h2>
-        </div>
-
-        {/* Desktop Table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">
-                  {t('leave.employee')}
-                </th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">
-                  {t('leave.vacationHours')}
-                </th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">
-                  {t('leave.overtimeHours')}
-                </th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">
-                  {t('leave.overtimeAvailable')}
-                </th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">
-                  {t('common.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {balances.map((balance) => {
-                const isEditing = editingBalance === balance.id
-                const usableOvertime = (Number(balance.overtime_hours) || 0) * (globalSettings?.overtime_leave_percentage || 50) / 100
-                
-                return (
-                  <tr key={balance.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5 whitespace-nowrap">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{balance.user_naam}</p>
-                        <p className="text-xs text-gray-500">{balance.user_email}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 whitespace-nowrap text-right">
-                      {isEditing ? (
-                        <input
-                          type="number"
-                          value={balanceForm.vacation_hours}
-                          onChange={(e) => setBalanceForm({ ...balanceForm, vacation_hours: Number(e.target.value) })}
-                          className="input w-24 text-right"
-                          min="0"
-                          step="0.5"
-                        />
-                      ) : (
-                        <span className="text-sm font-medium">{balance.vacation_hours} uur</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 whitespace-nowrap text-right">
-                      {isEditing ? (
-                        <input
-                          type="number"
-                          value={balanceForm.overtime_hours}
-                          onChange={(e) => setBalanceForm({ ...balanceForm, overtime_hours: Number(e.target.value) })}
-                          className="input w-24 text-right"
-                          step="0.01"
-                        />
-                      ) : (
-                        <span className={`text-sm ${(Number(balance.overtime_hours) || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {(Number(balance.overtime_hours) || 0) >= 0 ? '+' : ''}{Number(balance.overtime_hours) || 0} uur
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 whitespace-nowrap text-right">
-                      <span className="text-sm text-gray-600">
-                        {usableOvertime.toFixed(1)} uur
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 whitespace-nowrap text-right">
-                      {isEditing ? (
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={cancelEditBalance}
-                            className="p-1 text-gray-400 hover:text-gray-600"
-                            disabled={isSaving}
-                          >
-                            <XMarkIcon className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleSaveBalance(balance.id)}
-                            className="p-1 text-green-600 hover:text-green-700"
-                            disabled={isSaving}
-                          >
-                            <CheckIcon className="w-5 h-5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => startEditBalance(balance)}
-                          className="p-1 text-gray-400 hover:text-gray-600"
-                        >
-                          <PencilIcon className="w-5 h-5" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-              {balances.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                    {t('common.noResults')}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Card View */}
-        <div className="sm:hidden divide-y divide-gray-200">
-          {balances.length === 0 ? (
-            <div className="px-4 py-8 text-center text-gray-500">
-              {t('common.noResults')}
-            </div>
-          ) : (
-            balances.map((balance) => {
-              const isEditing = editingBalance === balance.id
-              const usableOvertime = (Number(balance.overtime_hours) || 0) * (globalSettings?.overtime_leave_percentage || 50) / 100
-
-              return (
-                <div key={balance.id} className="p-3">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{balance.user_naam}</p>
-                      <p className="text-xs text-gray-500 truncate">{balance.user_email}</p>
-                    </div>
-                    {isEditing ? (
-                      <div className="flex gap-1 shrink-0">
-                        <button
-                          onClick={cancelEditBalance}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
-                          disabled={isSaving}
-                        >
-                          <XMarkIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleSaveBalance(balance.id)}
-                          className="p-1.5 text-green-600 hover:text-green-700 rounded"
-                          disabled={isSaving}
-                        >
-                          <CheckIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => startEditBalance(balance)}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 shrink-0"
-                      >
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  {isEditing ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">{t('leave.vacationHours')}</label>
-                        <input
-                          type="number"
-                          value={balanceForm.vacation_hours}
-                          onChange={(e) => setBalanceForm({ ...balanceForm, vacation_hours: Number(e.target.value) })}
-                          className="input text-sm w-full"
-                          min="0"
-                          step="0.5"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">{t('leave.overtimeHours')}</label>
-                        <input
-                          type="number"
-                          value={balanceForm.overtime_hours}
-                          onChange={(e) => setBalanceForm({ ...balanceForm, overtime_hours: Number(e.target.value) })}
-                          className="input text-sm w-full"
-                          step="0.01"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <span className="text-gray-500 block">Vakantie</span>
-                        <span className="font-medium">{balance.vacation_hours} uur</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 block">Overwerk</span>
-                        <span className={`font-medium ${(Number(balance.overtime_hours) || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {(Number(balance.overtime_hours) || 0) >= 0 ? '+' : ''}{Number(balance.overtime_hours) || 0} uur
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 block">Beschikbaar</span>
-                        <span className="font-medium text-gray-600">{usableOvertime.toFixed(1)} uur</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })
           )}
         </div>
       </div>
