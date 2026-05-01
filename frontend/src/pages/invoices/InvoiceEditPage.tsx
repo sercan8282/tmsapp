@@ -132,6 +132,7 @@ export default function InvoiceEditPage() {
         omschrijving: t('invoices.newLine'),
         aantal: 1,
         prijs_per_eenheid: 0,
+        volgorde: lines.length,
       })
       setLines([...lines, newLine])
       toast.success(t('invoices.lineAdded'))

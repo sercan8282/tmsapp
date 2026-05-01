@@ -186,7 +186,7 @@ class InvoiceLine(models.Model):
     class Meta:
         verbose_name = 'Factuur Regel'
         verbose_name_plural = 'Factuur Regels'
-        ordering = ['volgorde']
+        ordering = ['volgorde', 'created_at']
     
     def __str__(self):
         return f"{self.invoice.factuurnummer} - {self.omschrijving[:50]}"
