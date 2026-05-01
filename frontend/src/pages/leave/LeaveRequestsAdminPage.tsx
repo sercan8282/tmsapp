@@ -15,12 +15,10 @@ import {
   PencilIcon,
   PlusIcon,
   UserIcon,
-  CalendarDaysIcon,
   MagnifyingGlassIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
 } from '@heroicons/react/24/outline'
-import LeaveBalanceTab from './LeaveBalanceTab'
 import {
   getAllLeaveRequests,
   adminLeaveAction,
@@ -82,7 +80,6 @@ const getStatusBadges = (t: (key: string) => string) => ({
 
 export default function LeaveRequestsAdminPage() {
   const { t } = useTranslation()
-  const [activeTab, setActiveTab] = useState<'requests' | 'balances'>('requests')
   const [requests, setRequests] = useState<LeaveRequest[]>([])
   const [filteredRequests, setFilteredRequests] = useState<LeaveRequest[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending')
@@ -301,50 +298,14 @@ export default function LeaveRequestsAdminPage() {
             )}
           </p>
         </div>
-        {activeTab === 'requests' && (
-          <button
-            onClick={openCreateModal}
-            className="btn btn-primary flex items-center gap-2"
-          >
-            <PlusIcon className="w-5 h-5" />
-            {t('leave.createRequest', 'Verlof aanmaken')}
-          </button>
-        )}
+        <button
+          onClick={openCreateModal}
+          className="btn btn-primary flex items-center gap-2"
+        >
+          <PlusIcon className="w-5 h-5" />
+          {t('leave.createRequest', 'Verlof aanmaken')}
+        </button>
       </div>
-
-      {/* Tab navigation */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex gap-6" aria-label="Tabs">
-          <button
-            onClick={() => setActiveTab('requests')}
-            className={`flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
-              activeTab === 'requests'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <ClockIcon className="h-5 w-5" />
-            Verlofaanvragen
-          </button>
-          <button
-            onClick={() => setActiveTab('balances')}
-            className={`flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
-              activeTab === 'balances'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <CalendarDaysIcon className="h-5 w-5" />
-            Resterend Verlof
-          </button>
-        </nav>
-      </div>
-
-      {/* Balances Tab */}
-      {activeTab === 'balances' && <LeaveBalanceTab />}
-
-      {/* Requests Tab */}
-      {activeTab === 'requests' && <>
 
       {/* Alerts */}
       {error && (
@@ -853,7 +814,6 @@ export default function LeaveRequestsAdminPage() {
           </div>
         </div>
       )}
-      </>}
     </div>
   )
 }

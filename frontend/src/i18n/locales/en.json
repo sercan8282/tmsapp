@@ -173,7 +173,8 @@
     "urenImport": "Hours Import",
     "users": "Users",
     "settings": "Settings",
-    "profile": "Profile"
+    "profile": "Profile",
+    "leaveBalance": "Leave Balance"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -225,7 +226,6 @@
     "noOnlineUsers": "No users online",
     "recentLogins": "Recent logins",
     "noRecentLogins": "No recent logins",
-    "recentActivity": "Recent activity",
     "pageOf": "Page {{page}} of {{total}}",
     "totalEntries": "total",
     "financialOverview": "Financial overview",
@@ -1667,7 +1667,7 @@
     "totalHours": "Total hours",
     "startKm": "Start KM",
     "endKm": "End KM",
-    "totalKm": "Total KM",
+    "totalKm": "Total km",
     "rateHour": "Rate hour",
     "rateKm": "Rate km",
     "subtotal": "Subtotal",
@@ -1699,12 +1699,9 @@
     "entriesFound": "entries found",
     "selectWeek": "Select week",
     "noWeeksAvailable": "No weeks with time entries found",
-    "week": "Week",
     "period": "Period",
     "drivers": "Drivers",
     "entries": "Entries",
-    "totalHours": "Total hours",
-    "totalKm": "Total km",
     "backToWeeks": "Back to weeks",
     "loadingWeeks": "Loading weeks..."
   },
