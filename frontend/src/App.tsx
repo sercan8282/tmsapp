@@ -349,7 +349,7 @@ function App() {
         <Route path="/leave/request" element={<LeaveRequestPage />} />
         <Route path="/leave/calendar" element={<LeaveCalendarPage />} />
         <Route path="/leave/admin" element={<PermissionRoute permission="can_manage_leave_for_all"><LeaveRequestsAdminPage /></PermissionRoute>} />
-        <Route path="/leave/balances" element={<PermissionRoute permission="view_leave_balances"><LeaveBalancePage /></PermissionRoute>} />
+        <Route path="/leave/balances" element={<LeaveBalancePage />} />
         <Route path="/settings/leave" element={<AdminRoute><LeaveSettingsPage /></AdminRoute>} />
 
         {/* Spreadsheets (Ritregistratie) */}

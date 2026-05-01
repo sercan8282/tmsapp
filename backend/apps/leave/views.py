@@ -107,11 +107,18 @@ class GlobalLeaveSettingsViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+def _can_view_all_leave_balances(user) -> bool:
+    """Return True if the user may view leave balances of all employees."""
+    if user.is_superuser or user.rol == 'admin':
+        return True
+    return 'view_leave_balances' in (user.module_permissions or [])
+
+
 class LeaveBalanceViewSet(viewsets.ModelViewSet):
     """
     ViewSet for leave balances.
     - Users can view their own balance
-    - Admins can view/edit all balances
+    - Admins and users with view_leave_balances permission can view/edit all balances
     """
     permission_classes = [IsAuthenticated]
     
@@ -122,20 +129,20 @@ class LeaveBalanceViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser or user.rol == 'admin':
+        if _can_view_all_leave_balances(user):
             return LeaveBalance.objects.select_related('user').all()
         return LeaveBalance.objects.filter(user=user)
     
     def list(self, request):
-        """List all balances (admin) or own balance (user)."""
+        """List all balances (admin/view_leave_balances) or own balance (user)."""
         queryset = self.get_queryset()
         serializer = LeaveBalanceSerializer(queryset, many=True)
         return Response(serializer.data)
     
     def retrieve(self, request, *args, **kwargs):
-        """Get a balance - users can only see their own."""
+        """Get a balance - users can only see their own unless they have view_leave_balances."""
         balance = self.get_object()
-        if balance.user != request.user and not (request.user.is_superuser or request.user.rol == 'admin'):
+        if balance.user != request.user and not _can_view_all_leave_balances(request.user):
             return Response(
                 {'error': 'Je hebt geen toegang tot dit verlofsaldo.'},
                 status=status.HTTP_403_FORBIDDEN
