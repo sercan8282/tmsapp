@@ -1863,7 +1863,8 @@ export default function InvoiceCreatePage() {
       // Create invoice lines
       const totaalColumn = columns.find(c => c.type === 'berekend') || columns[columns.length - 1]
       
-      for (const line of lines) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
         // Find omschrijving column
         const omschrijvingCol = columns.find(c => c.type === 'text' || c.id === 'omschrijving')
         const aantalCol = columns.find(c => c.type === 'aantal' || c.id === 'aantal')
@@ -1881,6 +1882,7 @@ export default function InvoiceCreatePage() {
             : totaalColumn 
               ? Number(line.values[totaalColumn.id]) || 0 
               : 0),
+          volgorde: i,
         }
         
         // Only add time_entry if it exists

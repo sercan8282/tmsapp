@@ -30,6 +30,7 @@ export interface InvoiceLineCreate {
   eenheid?: string
   prijs_per_eenheid: number
   time_entry?: string | null
+  volgorde?: number
 }
 
 export interface InvoiceLineUpdate {

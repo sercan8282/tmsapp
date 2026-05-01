@@ -565,7 +565,7 @@ class InvoicePDFGenerator:
         # Tabel data
         data = [headers]
         
-        for line in self.invoice.lines.all():
+        for line in self.invoice.lines.order_by('volgorde', 'created_at'):
             row = []
             for col in (self.columns or [{'id': 'omschrijving'}, {'id': 'aantal'}, {'id': 'prijs'}, {'id': 'totaal'}]):
                 col_id = col.get('id', '')
