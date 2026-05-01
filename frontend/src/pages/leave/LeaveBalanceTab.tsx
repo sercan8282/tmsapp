@@ -1,6 +1,7 @@
 /**
  * Leave Balance Tab
- * Shows remaining leave hours for all employees (admin view).
+ * Shows remaining leave hours for all employees (admin/view_leave_balances) or
+ * only the current user's own balance (users without that permission).
  */
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,9 +12,16 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 import { getAllLeaveBalances, LeaveBalance } from '@/api/leave'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function LeaveBalanceTab() {
   const { t } = useTranslation()
+  const { user } = useAuthStore()
+
+  // Determine whether this user may see all employees' balances
+  const canViewAll =
+    user?.rol === 'admin' ||
+    (user?.module_permissions?.includes('view_leave_balances') ?? false)
 
   const [loading, setLoading] = useState(true)
   const [balances, setBalances] = useState<LeaveBalance[]>([])
@@ -30,7 +38,7 @@ export default function LeaveBalanceTab() {
   }, [])
 
   useEffect(() => {
-    if (!searchTerm.trim()) {
+    if (!canViewAll || !searchTerm.trim()) {
       setFilteredBalances(balances)
     } else {
       const term = searchTerm.toLowerCase()
@@ -43,7 +51,7 @@ export default function LeaveBalanceTab() {
       )
     }
     setCurrentPage(1)
-  }, [balances, searchTerm])
+  }, [balances, searchTerm, canViewAll])
 
   const fetchBalances = async () => {
     setLoading(true)
@@ -66,16 +74,19 @@ export default function LeaveBalanceTab() {
     currentPage * pageSize
   )
 
-  // Summary stats
+  // Summary stats — for restricted users show own values, for admins show averages
   const totalEmployees = balances.length
-  const avgVacation =
-    totalEmployees > 0
+  const ownBalance = balances.find((b) => b.user === user?.id) ?? balances[0] ?? null
+  const avgVacation = canViewAll
+    ? totalEmployees > 0
       ? balances.reduce((sum, b) => sum + Number(b.vacation_hours), 0) / totalEmployees
       : 0
-  const avgOvertime =
-    totalEmployees > 0
+    : Number(ownBalance?.vacation_hours ?? 0)
+  const avgOvertime = canViewAll
+    ? totalEmployees > 0
       ? balances.reduce((sum, b) => sum + Number(b.overtime_hours), 0) / totalEmployees
       : 0
+    : Number(ownBalance?.overtime_hours ?? 0)
 
   if (loading) {
     return (
@@ -101,7 +112,7 @@ export default function LeaveBalanceTab() {
               <SunIcon className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Gem. verlofuren</p>
+              <p className="text-xs text-gray-500">{canViewAll ? 'Gem. verlofuren' : 'Verlofuren'}</p>
               <p className="text-lg font-bold text-gray-900">{avgVacation.toFixed(1)}u</p>
             </div>
           </div>
@@ -112,7 +123,7 @@ export default function LeaveBalanceTab() {
               <ClockIcon className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Gem. overuren</p>
+              <p className="text-xs text-gray-500">{canViewAll ? 'Gem. overuren' : 'Overuren'}</p>
               <p className="text-lg font-bold text-gray-900">{avgOvertime.toFixed(1)}u</p>
             </div>
           </div>
@@ -130,19 +141,21 @@ export default function LeaveBalanceTab() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="card p-4">
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Zoek op naam of e-mail..."
-            className="form-input pl-10 w-full"
-          />
+      {/* Search — only shown when the user can view all balances */}
+      {canViewAll && (
+        <div className="card p-4">
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Zoek op naam of e-mail..."
+              className="form-input pl-10 w-full"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Table */}
       <div className="card overflow-hidden">
