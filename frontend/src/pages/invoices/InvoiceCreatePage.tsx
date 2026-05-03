@@ -19,12 +19,14 @@ import {
   XCircleIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  ReceiptPercentIcon,
 } from '@heroicons/react/24/outline'
 import { getTemplates, createInvoice, createInvoiceLine, getNextInvoiceNumber } from '@/api/invoices'
 import { getCompanies } from '@/api/companies'
 import { getTimeEntries } from '@/api/timetracking'
 import { getSpreadsheets } from '@/api/spreadsheets'
 import { getImportedEntries, ImportedTimeEntry } from '@/api/urenImport'
+import { getTolRegistraties, markTolGefactureerd, TolRegistratie } from '@/api/tolregistratie'
 import { 
   InvoiceTemplate, 
   Company, 
@@ -1308,6 +1310,197 @@ function SpreadsheetImportModal({
 }
 
 // ============================================
+// Tol Import Modal
+// ============================================
+
+function TolImportModal({
+  isOpen,
+  onClose,
+  onImport,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  onImport: (registraties: TolRegistratie[]) => void
+}) {
+  const [allRegistraties, setAllRegistraties] = useState<TolRegistratie[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isLoading, setIsLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+
+  useEffect(() => {
+    if (isOpen) {
+      loadData()
+      setSelectedIds(new Set())
+      setSearchTerm('')
+    }
+  }, [isOpen])
+
+  const loadData = async () => {
+    setIsLoading(true)
+    try {
+      const response = await getTolRegistraties({ gefactureerd: false, page_size: 500, ordering: '-datum' })
+      setAllRegistraties(response.results)
+    } catch {
+      console.error('Failed to load toll registrations')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const filtered = allRegistraties.filter(r => {
+    if (!searchTerm) return true
+    const q = searchTerm.toLowerCase()
+    return (r.user_naam || '').toLowerCase().includes(q) || r.kenteken.toLowerCase().includes(q)
+  })
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filtered.map(r => r.id)))
+    }
+  }
+
+  const handleImport = () => {
+    const toImport = allRegistraties.filter(r => selectedIds.has(r.id))
+    onImport(toImport)
+    onClose()
+  }
+
+  const formatBedrag = (value: string | number) => {
+    const num = typeof value === 'string' ? parseFloat(value) : value
+    return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(isNaN(num) ? 0 : num)
+  }
+
+  const totalSelected = selectedIds.size
+  const totalBedrag = allRegistraties
+    .filter(r => selectedIds.has(r.id))
+    .reduce((sum, r) => sum + parseFloat(r.totaal_bedrag), 0)
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="fixed inset-0 bg-gray-500/75" onClick={onClose} />
+        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+          {/* Header */}
+          <div className="px-6 py-4 border-b flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Tol importeren</h3>
+            <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+              <XCircleIcon className="h-5 w-5 text-gray-400" />
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="px-6 py-2 border-b bg-gray-50">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Zoek op chauffeur of kenteken..."
+              className="w-full text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-primary-500 focus:border-primary-500"
+            />
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto">
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+              </div>
+            ) : allRegistraties.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <p>Geen openstaande tolregistraties gevonden</p>
+                <p className="text-sm mt-1">Alleen niet-gefactureerde registraties worden getoond</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <p>Geen resultaten gevonden</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3 w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size === filtered.length && filtered.length > 0}
+                        onChange={toggleAll}
+                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Chauffeur</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Wagen</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Bedrag</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {filtered.map(reg => (
+                    <tr
+                      key={reg.id}
+                      className={`hover:bg-gray-50 cursor-pointer ${selectedIds.has(reg.id) ? 'bg-primary-50' : ''}`}
+                      onClick={() => toggleSelection(reg.id)}
+                    >
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(reg.id)}
+                          onChange={() => toggleSelection(reg.id)}
+                          onClick={e => e.stopPropagation()}
+                          className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {new Date(reg.datum).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="px-4 py-3 text-sm">{reg.user_naam || '—'}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{reg.kenteken}</td>
+                      <td className="px-4 py-3 text-right font-medium text-sm">{formatBedrag(reg.totaal_bedrag)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
+            <span className="text-sm text-gray-600">
+              {totalSelected > 0
+                ? `${totalSelected} geselecteerd — totaal ${formatBedrag(totalBedrag)}`
+                : 'Selecteer tolregistraties om te importeren'}
+            </span>
+            <div className="flex gap-3">
+              <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                Annuleren
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={totalSelected === 0}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Importeer {totalSelected > 0 ? `(${totalSelected})` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
 // Main Component
 // ============================================
 
@@ -1344,6 +1537,7 @@ export default function InvoiceCreatePage() {
   const [error, setError] = useState<string | null>(null)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showSpreadsheetImportModal, setShowSpreadsheetImportModal] = useState(false)
+  const [showTolImportModal, setShowTolImportModal] = useState(false)
   
   // Get template layout
   const templateLayout = useMemo(() => {
@@ -1801,6 +1995,47 @@ export default function InvoiceCreatePage() {
     setLines(prev => [...prev, ...entryLines, ...summaryLines])
   }
 
+  // Import toll registrations as invoice lines
+  const handleImportTol = async (registraties: TolRegistratie[]) => {
+    if (registraties.length === 0) return
+
+    const tolLines: InvoiceLineData[] = registraties.map(reg => {
+      const values: Record<string, number | string> = {}
+      const bedrag = parseFloat(reg.totaal_bedrag) || 0
+
+      columns.forEach(col => {
+        if (col.type === 'text' || col.id === 'omschrijving' || col.id.includes('omschrijving')) {
+          values[col.id] = `Tol - ${reg.kenteken} - ${new Date(reg.datum).toLocaleDateString('nl-NL')}`
+        } else if (col.type === 'aantal' || col.id === 'aantal' || col.id.includes('aantal')) {
+          values[col.id] = 1
+        } else if (col.type === 'prijs' || col.id === 'prijs' || col.id.includes('prijs') || col.id.includes('tarief')) {
+          values[col.id] = bedrag
+        } else if (col.type === 'berekend') {
+          values[col.id] = 0
+        } else {
+          values[col.id] = 0
+        }
+      })
+
+      // Calculate computed columns
+      columns.forEach(col => {
+        if (col.type === 'berekend' && col.formule) {
+          values[col.id] = evaluateFormula(col.formule, values, defaults)
+        }
+      })
+
+      return { id: generateId(), values }
+    })
+
+    setLines(prev => [...prev, ...tolLines])
+
+    try {
+      await markTolGefactureerd(registraties.map(r => r.id))
+    } catch {
+      console.error('Failed to mark toll registrations as gefactureerd')
+    }
+  }
+
   // Calculate totals
   const calculateTotals = useMemo(() => {
     // Find the totaal/berekend column
@@ -2090,6 +2325,13 @@ export default function InvoiceCreatePage() {
                 {t('invoices.importSpreadsheet')}
               </button>
               <button
+                onClick={() => setShowTolImportModal(true)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
+              >
+                <ReceiptPercentIcon className="h-4 w-4" />
+                Tol importeren
+              </button>
+              <button
                 onClick={addLine}
                 className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 flex items-center justify-center gap-2"
               >
@@ -2257,6 +2499,13 @@ export default function InvoiceCreatePage() {
         isOpen={showSpreadsheetImportModal}
         onClose={() => setShowSpreadsheetImportModal(false)}
         onImport={handleImportSpreadsheet}
+      />
+
+      {/* Tol Import Modal */}
+      <TolImportModal
+        isOpen={showTolImportModal}
+        onClose={() => setShowTolImportModal(false)}
+        onImport={handleImportTol}
       />
     </div>
   )
