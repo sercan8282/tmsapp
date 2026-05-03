@@ -174,7 +174,9 @@
     "users": "Users",
     "settings": "Settings",
     "profile": "Profile",
-    "leaveBalance": "Leave Balance"
+    "leaveBalance": "Leave Balance",
+    "tolRegistratie": "Toll Registration",
+    "adminTolRegistratie": "Toll Registration"
   },
   "dashboard": {
     "title": "Dashboard",

@@ -1,15 +1,18 @@
 import logging
+import os
 from datetime import timedelta
 from decimal import Decimal
+from django.http import FileResponse
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Sum, Count, Q, Max
 from django.db.models.functions import ExtractWeek
 
-from .models import TimeEntry, TimeEntryStatus, WeeklyMinimumHours, ImportedTimeEntry
-from .serializers import TimeEntrySerializer, WeeklyMinimumHoursSerializer
+from .models import TimeEntry, TimeEntryStatus, WeeklyMinimumHours, ImportedTimeEntry, TolRegistratie, TolRegistratieStatus as TolStatus
+from .serializers import TimeEntrySerializer, WeeklyMinimumHoursSerializer, TolRegistratieSerializer
 from .import_service import _normalize_kenteken
 
 logger = logging.getLogger('accounts.security')
@@ -1775,4 +1778,88 @@ class ImportBatchViewSet(viewsets.ReadOnlyModelViewSet):
 
         results.sort(key=lambda x: (-x['jaar'], -x['weeknummer'], x['user_naam']))
         return Response(results)
+
+
+class TolRegistratieViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for TolRegistratie CRUD operations.
+    - Users can only see/edit their own entries
+    - Admins can see all entries
+    """
+    serializer_class = TolRegistratieSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    ordering = ['-datum', '-created_at']
+
+    def _can_view_all(self):
+        user = self.request.user
+        return user.is_superuser or user.rol == 'admin'
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = TolRegistratie.objects.select_related('user')
+
+        if self._can_view_all():
+            user_filter = self.request.query_params.get('user')
+            if user_filter:
+                queryset = queryset.filter(user_id=user_filter)
+        else:
+            queryset = queryset.filter(user=user)
+
+        datum_gte = self.request.query_params.get('datum__gte')
+        datum_lte = self.request.query_params.get('datum__lte')
+        if datum_gte:
+            queryset = queryset.filter(datum__gte=datum_gte)
+        if datum_lte:
+            queryset = queryset.filter(datum__lte=datum_lte)
+
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        gefactureerd = self.request.query_params.get('gefactureerd')
+        if gefactureerd is not None:
+            queryset = queryset.filter(gefactureerd=gefactureerd.lower() in ('true', '1'))
+
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._can_view_all() and instance.user != request.user:
+            return Response({'detail': 'Geen toegang.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._can_view_all() and instance.user != request.user:
+            return Response({'detail': 'Geen toegang.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=['get'])
+    def download(self, request, pk=None):
+        """Download the bijlage file."""
+        instance = self.get_object()
+        if not instance.bijlage:
+            return Response({'detail': 'Geen bijlage.'}, status=status.HTTP_404_NOT_FOUND)
+
+        response = FileResponse(
+            instance.bijlage.open('rb'),
+            as_attachment=True,
+            filename=os.path.basename(instance.bijlage.name)
+        )
+        return response
+
+    @action(detail=True, methods=['post'])
+    def mark_gefactureerd(self, request, pk=None):
+        """Mark as invoiced."""
+        if not self._can_view_all():
+            return Response({'detail': 'Geen toegang.'}, status=status.HTTP_403_FORBIDDEN)
+        instance = self.get_object()
+        instance.gefactureerd = True
+        instance.status = TolStatus.GEFACTUREERD
+        instance.save()
+        return Response({'success': True})
 

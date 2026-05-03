@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import TimeEntry, WeeklyMinimumHours, ImportBatch, ImportedTimeEntry
+import os
+from .models import TimeEntry, WeeklyMinimumHours, ImportBatch, ImportedTimeEntry, TolRegistratie
 
 
 class TimeEntrySerializer(serializers.ModelSerializer):
@@ -176,3 +177,34 @@ class ImportBatchSerializer(serializers.ModelSerializer):
             'totaal_rijen', 'gekoppeld', 'niet_gekoppeld', 'created_at',
         ]
         read_only_fields = fields
+
+
+class TolRegistratieSerializer(serializers.ModelSerializer):
+    user_naam = serializers.CharField(source='user.full_name', read_only=True)
+    bijlage_url = serializers.SerializerMethodField()
+    bijlage_naam = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TolRegistratie
+        fields = [
+            'id', 'user', 'user_naam', 'datum', 'kenteken',
+            'totaal_bedrag', 'bijlage', 'bijlage_url', 'bijlage_naam',
+            'status', 'gefactureerd', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'bijlage': {'write_only': True},
+        }
+
+    def get_bijlage_url(self, obj):
+        if obj.bijlage:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.bijlage.url)
+            return obj.bijlage.url
+        return None
+
+    def get_bijlage_naam(self, obj):
+        if obj.bijlage:
+            return os.path.basename(obj.bijlage.name)
+        return None

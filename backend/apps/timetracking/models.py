@@ -1,4 +1,5 @@
 """Timetracking models - To be fully implemented in Fase 3."""
+import os
 import uuid
 from datetime import timedelta
 from django.db import models
@@ -197,3 +198,46 @@ class ImportedTimeEntry(models.Model):
 
     def __str__(self):
         return f"{self.kenteken_import} - {self.datum} - {self.uren_factuur}u"
+
+
+def tol_bijlage_upload_path(instance, filename):
+    """Generate upload path for toll attachments."""
+    ext = filename.split('.')[-1]
+    new_filename = f"{uuid.uuid4().hex}.{ext}"
+    return os.path.join('tolregistraties', new_filename)
+
+
+class TolRegistratieStatus(models.TextChoices):
+    INGEDIEND = 'ingediend', 'Ingediend'
+    GEFACTUREERD = 'gefactureerd', 'Gefactureerd'
+
+
+class TolRegistratie(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='tol_registraties',
+        verbose_name='Gebruiker'
+    )
+    datum = models.DateField(verbose_name='Datum')
+    kenteken = models.CharField(max_length=20, verbose_name='Kenteken')
+    totaal_bedrag = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Totaal bedrag')
+    bijlage = models.FileField(upload_to=tol_bijlage_upload_path, verbose_name='Bijlage')
+    status = models.CharField(
+        max_length=20,
+        choices=TolRegistratieStatus.choices,
+        default=TolRegistratieStatus.INGEDIEND,
+        verbose_name='Status'
+    )
+    gefactureerd = models.BooleanField(default=False, verbose_name='Gefactureerd')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Tolregistratie'
+        verbose_name_plural = 'Tolregistraties'
+        ordering = ['-datum', '-created_at']
+
+    def __str__(self):
+        return f"{self.user} - {self.datum} - €{self.totaal_bedrag}"

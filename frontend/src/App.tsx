@@ -99,6 +99,10 @@ import MaintenanceSettingsPage from '@/pages/maintenance/MaintenanceSettingsPage
 import TachographPage from '@/pages/tachograph/TachographPage'
 import TachographComparisonPage from '@/pages/tachograph/TachographComparisonPage'
 
+// Toll Registration
+import TolRegistratiePage from '@/pages/toll/TolRegistratiePage'
+import AdminTolRegistratiePage from '@/pages/toll/AdminTolRegistratiePage'
+
 // Reports
 import ReportsPage from '@/pages/reports/ReportsPage'
 
@@ -312,6 +316,10 @@ function App() {
         <Route path="/my-hours" element={<MyHoursPage />} />
         <Route path="/submitted-hours" element={<SubmittedHoursPage />} />
         <Route path="/uren-import" element={<AdminRoute><UrenImportPage /></AdminRoute>} />
+
+        {/* Toll Registration */}
+        <Route path="/tol-registratie" element={<TolRegistratiePage />} />
+        <Route path="/tol-registratie/admin" element={<AdminRoute><AdminTolRegistratiePage /></AdminRoute>} />
         
         {/* Planning */}
         <Route path="/planning" element={<PlanningPage />} />
