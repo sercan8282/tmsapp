@@ -1,15 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import {
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
   EyeIcon,
   PaperClipIcon,
+  TrashIcon,
+  XMarkIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
-import { TolRegistratie, getTolRegistraties, getTolDownloadUrl } from '@/api/tolregistratie'
+import { TolRegistratie, getTolRegistraties, getTolDownloadUrl, deleteTolRegistratie } from '@/api/tolregistratie'
 import toast from 'react-hot-toast'
 import api from '@/api/client'
 import Pagination, { PageSize } from '@/components/common/Pagination'
 import { formatBedrag, formatDate } from './utils'
+import { Dialog, Transition } from '@headlessui/react'
 
 export default function AdminTolRegistratiePage() {
   const [registraties, setRegistraties] = useState<TolRegistratie[]>([])
@@ -21,9 +25,26 @@ export default function AdminTolRegistratiePage() {
   const [totalCount, setTotalCount] = useState(0)
   const [pageSize, setPageSize] = useState<PageSize>(30)
 
+  // Delete state
+  const [deleteTarget, setDeleteTarget] = useState<TolRegistratie | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  // PDF viewer modal state
+  const [pdfModalReg, setPdfModalReg] = useState<TolRegistratie | null>(null)
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null)
+  const [pdfLoading, setPdfLoading] = useState(false)
+
   useEffect(() => {
     loadRegistraties()
   }, [currentPage, pageSize, datumVan, datumTot, searchTerm])
+
+  // Cleanup blob URL when modal closes
+  useEffect(() => {
+    if (!pdfModalReg && pdfBlobUrl) {
+      URL.revokeObjectURL(pdfBlobUrl)
+      setPdfBlobUrl(null)
+    }
+  }, [pdfModalReg])
 
   const loadRegistraties = async () => {
     try {
@@ -49,8 +70,25 @@ export default function AdminTolRegistratiePage() {
 
   const filtered = registraties
 
-  const handleViewBijlage = (reg: TolRegistratie) => {
-    if (reg.bijlage_url) window.open(reg.bijlage_url, '_blank')
+  const handleViewBijlage = async (reg: TolRegistratie) => {
+    if (!reg.bijlage_url) return
+    setPdfModalReg(reg)
+    setPdfLoading(true)
+    try {
+      const response = await api.get(getTolDownloadUrl(reg.id), { responseType: 'blob' })
+      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      setPdfBlobUrl(url)
+    } catch {
+      toast.error('Fout bij laden van bijlage')
+      setPdfModalReg(null)
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
+  const handleClosePdfModal = () => {
+    setPdfModalReg(null)
   }
 
   const handleDownload = async (reg: TolRegistratie) => {
@@ -68,12 +106,27 @@ export default function AdminTolRegistratiePage() {
     }
   }
 
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteTolRegistratie(deleteTarget.id)
+      toast.success('Tolregistratie verwijderd')
+      setDeleteTarget(null)
+      loadRegistraties()
+    } catch {
+      toast.error('Fout bij verwijderen')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const totalPages = Math.ceil(totalCount / pageSize)
 
   return (
     <div className="p-4 max-w-7xl mx-auto">
       <div className="mb-4">
-        <h1 className="text-xl font-semibold text-gray-900">Tolregistratie — Overzicht</h1>
+        <h1 className="text-xl font-semibold text-gray-900">Ingediende Tol</h1>
         <p className="text-sm text-gray-500">Alle tolregistraties van chauffeurs</p>
       </div>
 
@@ -131,6 +184,7 @@ export default function AdminTolRegistratiePage() {
                   <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Bedrag</th>
                   <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Bijlage</th>
                   <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Acties</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -171,6 +225,17 @@ export default function AdminTolRegistratiePage() {
                         {reg.gefactureerd ? 'Gefactureerd' : 'Ingediend'}
                       </span>
                     </td>
+                    <td className="px-4 py-2 text-center">
+                      {!reg.gefactureerd && (
+                        <button
+                          onClick={() => setDeleteTarget(reg)}
+                          className="p-1 text-gray-400 hover:text-red-600"
+                          title="Verwijderen"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -192,6 +257,139 @@ export default function AdminTolRegistratiePage() {
           </div>
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      <Transition appear show={!!deleteTarget} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => !deleting && setDeleteTarget(null)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-150"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/30" />
+          </Transition.Child>
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-200"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-150"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
+                    </div>
+                    <Dialog.Title className="text-lg font-semibold text-gray-900">
+                      Tolregistratie verwijderen
+                    </Dialog.Title>
+                  </div>
+                  <p className="text-gray-600 mb-2">
+                    Weet je zeker dat je deze tolregistratie wilt verwijderen?
+                  </p>
+                  {deleteTarget && (
+                    <p className="text-sm font-medium text-gray-700 mb-6">
+                      {formatDate(deleteTarget.datum)} — {deleteTarget.kenteken} — {formatBedrag(deleteTarget.totaal_bedrag)}
+                    </p>
+                  )}
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => setDeleteTarget(null)}
+                      disabled={deleting}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Annuleren
+                    </button>
+                    <button
+                      onClick={handleDeleteConfirm}
+                      disabled={deleting}
+                      className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {deleting ? 'Bezig...' : 'Verwijderen'}
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* PDF viewer modal */}
+      <Transition appear show={!!pdfModalReg} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={handleClosePdfModal}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-150"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/50" />
+          </Transition.Child>
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-200"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-150"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="bg-white rounded-xl shadow-xl w-full max-w-4xl flex flex-col" style={{ maxHeight: '90vh' }}>
+                  <div className="flex items-center justify-between px-4 py-3 border-b">
+                    <Dialog.Title className="text-base font-semibold text-gray-900">
+                      Bijlage — {pdfModalReg && `${formatDate(pdfModalReg.datum)} · ${pdfModalReg.kenteken}`}
+                    </Dialog.Title>
+                    <div className="flex items-center gap-2">
+                      {pdfModalReg && (
+                        <button
+                          onClick={() => handleDownload(pdfModalReg)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                        >
+                          <ArrowDownTrayIcon className="w-4 h-4" /> Download
+                        </button>
+                      )}
+                      <button
+                        onClick={handleClosePdfModal}
+                        className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                      >
+                        <XMarkIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-hidden" style={{ minHeight: '60vh' }}>
+                    {pdfLoading ? (
+                      <div className="flex items-center justify-center h-full py-16">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+                      </div>
+                    ) : pdfBlobUrl ? (
+                      <iframe
+                        src={pdfBlobUrl}
+                        className="w-full h-full border-0"
+                        style={{ minHeight: '60vh' }}
+                        title="Tolfactuur bijlage"
+                      />
+                    ) : null}
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
     </div>
   )
 }
