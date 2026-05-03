@@ -28,6 +28,7 @@ export interface TolRegistratieFilters {
   gefactureerd?: boolean
   datum__gte?: string
   datum__lte?: string
+  search?: string
   page?: number
   page_size?: number
   ordering?: string

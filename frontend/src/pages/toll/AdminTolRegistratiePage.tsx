@@ -9,16 +9,7 @@ import { TolRegistratie, getTolRegistraties, getTolDownloadUrl } from '@/api/tol
 import toast from 'react-hot-toast'
 import api from '@/api/client'
 import Pagination, { PageSize } from '@/components/common/Pagination'
-
-function formatBedrag(value: string | number): string {
-  const num = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value
-  if (isNaN(num)) return '€0,00'
-  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(num)
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
-}
+import { formatBedrag, formatDate } from './utils'
 
 export default function AdminTolRegistratiePage() {
   const [registraties, setRegistraties] = useState<TolRegistratie[]>([])
@@ -32,7 +23,7 @@ export default function AdminTolRegistratiePage() {
 
   useEffect(() => {
     loadRegistraties()
-  }, [currentPage, pageSize, datumVan, datumTot])
+  }, [currentPage, pageSize, datumVan, datumTot, searchTerm])
 
   const loadRegistraties = async () => {
     try {
@@ -44,6 +35,7 @@ export default function AdminTolRegistratiePage() {
       }
       if (datumVan) filters['datum__gte'] = datumVan
       if (datumTot) filters['datum__lte'] = datumTot
+      if (searchTerm) filters['search'] = searchTerm
 
       const response = await getTolRegistraties(filters)
       setRegistraties(response.results)
@@ -55,14 +47,7 @@ export default function AdminTolRegistratiePage() {
     }
   }
 
-  const filtered = registraties.filter(r => {
-    if (!searchTerm) return true
-    const q = searchTerm.toLowerCase()
-    return (
-      (r.user_naam || '').toLowerCase().includes(q) ||
-      r.kenteken.toLowerCase().includes(q)
-    )
-  })
+  const filtered = registraties
 
   const handleViewBijlage = (reg: TolRegistratie) => {
     if (reg.bijlage_url) window.open(reg.bijlage_url, '_blank')
@@ -99,7 +84,7 @@ export default function AdminTolRegistratiePage() {
           <input
             type="text"
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1) }}
             placeholder="Zoek op chauffeur of kenteken..."
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
           />

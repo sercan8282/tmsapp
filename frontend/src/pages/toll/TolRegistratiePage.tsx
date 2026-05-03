@@ -11,16 +11,7 @@ import { getVehiclesForDropdown } from '@/api/fleet'
 import { Vehicle } from '@/types'
 import toast from 'react-hot-toast'
 import api from '@/api/client'
-
-function formatBedrag(value: string | number): string {
-  const num = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value
-  if (isNaN(num)) return '€0,00'
-  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(num)
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
-}
+import { formatBedrag, formatDate } from './utils'
 
 export default function TolRegistratiePage() {
   const [datum, setDatum] = useState(new Date().toISOString().split('T')[0])
