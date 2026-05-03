@@ -174,7 +174,9 @@
     "users": "Gebruikers",
     "settings": "Instellingen",
     "profile": "Profiel",
-    "leaveBalance": "Verlofsaldo"
+    "leaveBalance": "Verlofsaldo",
+    "tolRegistratie": "Tolregistratie",
+    "adminTolRegistratie": "Tolregistratie"
   },
   "dashboard": {
     "title": "Dashboard",

@@ -31,6 +31,7 @@ import {
   MapPinIcon,
   DocumentChartBarIcon,
   ScaleIcon,
+  ReceiptPercentIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppStore } from '@/stores/appStore'
@@ -61,6 +62,8 @@ const navigation: NavItem[] = [
   { name: 'nav.myHours', href: '/my-hours', icon: ClipboardDocumentListIcon, roles: ['chauffeur'] },
   { name: 'nav.submittedHours', href: '/submitted-hours', icon: ClipboardDocumentListIcon, roles: ['admin', 'gebruiker'], permission: 'view_submitted_hours' },
   { name: 'nav.urenImport', href: '/uren-import', icon: ArrowUpTrayIcon, roles: ['admin'], permission: 'view_uren_import' },
+  { name: 'nav.tolRegistratie', href: '/tol-registratie', icon: ReceiptPercentIcon, roles: ['chauffeur'] },
+  { name: 'nav.adminTolRegistratie', href: '/tol-registratie/admin', icon: ReceiptPercentIcon, roles: ['admin'] },
   { name: 'nav.planning', href: '/planning', icon: CalendarIcon },  // All roles (filtered by backend)
   { name: 'nav.leave', href: '/leave', icon: CalendarDaysIcon },  // All roles
   { name: 'nav.leaveRequests', href: '/leave/admin', icon: ClipboardDocumentCheckIcon, roles: ['admin'], permission: 'can_manage_leave_for_all' },
