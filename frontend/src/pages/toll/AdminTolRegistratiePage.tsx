@@ -44,7 +44,7 @@ export default function AdminTolRegistratiePage() {
       URL.revokeObjectURL(pdfBlobUrl)
       setPdfBlobUrl(null)
     }
-  }, [pdfModalReg])
+  }, [pdfModalReg, pdfBlobUrl])
 
   const loadRegistraties = async () => {
     try {
@@ -76,7 +76,7 @@ export default function AdminTolRegistratiePage() {
     setPdfLoading(true)
     try {
       const response = await api.get(getTolDownloadUrl(reg.id), { responseType: 'blob' })
-      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' })
+      const blob = new Blob([response.data], { type: response.headers['Content-Type'] || response.headers['content-type'] || 'application/pdf' })
       const url = URL.createObjectURL(blob)
       setPdfBlobUrl(url)
     } catch {
