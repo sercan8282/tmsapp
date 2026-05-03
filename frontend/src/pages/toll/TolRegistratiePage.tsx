@@ -351,15 +351,13 @@ export default function TolRegistratiePage() {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-center">
-                      {!reg.gefactureerd && (
-                        <button
-                          onClick={() => handleDelete(reg.id)}
-                          className="p-1 text-gray-400 hover:text-red-600"
-                          title="Verwijderen"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleDelete(reg.id)}
+                        className="p-1 text-gray-400 hover:text-red-600"
+                        title="Verwijderen"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
