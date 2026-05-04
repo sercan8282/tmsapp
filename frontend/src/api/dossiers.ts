@@ -1,4 +1,5 @@
 import api from './client'
+import type { Contactpersoon } from './organisaties'
 
 export interface DossierType {
   id: string
@@ -28,6 +29,15 @@ export interface DossierReactie {
   bijlagen: DossierBijlage[]
 }
 
+export interface DossierMailLog {
+  id: string
+  ontvangers: string
+  onderwerp: string
+  verzonden_door: string | null
+  verzonden_door_naam: string | null
+  verzonden_op: string
+}
+
 export interface DossierListItem {
   id: string
   onderwerp: string
@@ -38,6 +48,8 @@ export interface DossierListItem {
   betreft_user: string | null
   betreft_chauffeur: string | null
   betreft_naam: string | null
+  organisatie: string | null
+  organisatie_naam: string | null
   heeft_bijlage: boolean
   reactie_count: number
   created_at: string
@@ -48,6 +60,8 @@ export interface DossierDetail extends DossierListItem {
   inhoud: string
   bijlagen: DossierBijlage[]
   reacties: DossierReactie[]
+  organisatie_contactpersonen: Contactpersoon[]
+  maillogs: DossierMailLog[]
 }
 
 export interface DossierListResponse {
@@ -64,11 +78,13 @@ export interface CreateDossierData {
   type: string
   betreft_user?: string | null
   betreft_chauffeur?: string | null
+  organisatie?: string | null
 }
 
 export async function getDossierTypes(): Promise<DossierType[]> {
   const res = await api.get('/dossiers/types/')
-  return res.data
+  // Defensive: handle both array and paginated {results: [...]} responses
+  return Array.isArray(res.data) ? res.data : (res.data?.results ?? [])
 }
 
 export async function createDossierType(naam: string): Promise<DossierType> {

@@ -87,6 +87,9 @@ import {
   DossierTypesPage,
 } from '@/pages/dossiers'
 
+// Organisaties (leveranciersbeheer)
+import { OrganisatiesPage, OrganisatieDetailPage } from '@/pages/organisaties'
+
 // Spreadsheets (Ritregistratie)
 import SpreadsheetListPage from '@/pages/spreadsheets/SpreadsheetListPage'
 import SpreadsheetEditorPage from '@/pages/spreadsheets/SpreadsheetEditorPage'
@@ -397,6 +400,8 @@ function App() {
         <Route path="/dossiers" element={<DossierRoute><DossierListPage /></DossierRoute>} />
         <Route path="/dossiers/new" element={<PermissionRoute permission="manage_dossiers"><DossierCreatePage /></PermissionRoute>} />
         <Route path="/dossiers/types" element={<PermissionRoute permission="manage_dossiers"><DossierTypesPage /></PermissionRoute>} />
+        <Route path="/dossiers/organisaties" element={<PermissionRoute permission="manage_dossiers"><OrganisatiesPage /></PermissionRoute>} />
+        <Route path="/dossiers/organisaties/:id" element={<PermissionRoute permission="manage_dossiers"><OrganisatieDetailPage /></PermissionRoute>} />
         <Route path="/dossiers/:id" element={<DossierRoute><DossierDetailPage /></DossierRoute>} />
       </Route>
       

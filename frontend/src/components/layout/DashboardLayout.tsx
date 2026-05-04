@@ -83,6 +83,7 @@ const navigation: NavItem[] = [
   { name: 'nav.tachographComparison', href: '/tachograph/comparison', icon: ChartBarSquareIcon, roles: ['admin'] },
   { name: 'nav.reports', href: '/reports', icon: DocumentChartBarIcon, roles: ['admin', 'gebruiker', 'chauffeur'], permission: 'view_reports' },
   { name: 'nav.dossiers', href: '/dossiers', icon: FolderOpenIcon, roles: ['admin', 'gebruiker'], permission: 'manage_dossiers' },
+  { name: 'nav.dossierOrganisaties', href: '/dossiers/organisaties', icon: BuildingOfficeIcon, roles: ['admin', 'gebruiker'], permission: 'manage_dossiers' },
   { name: 'nav.dossiersMijn', href: '/dossiers', icon: FolderOpenIcon, roles: ['chauffeur'] },
 ]
 
