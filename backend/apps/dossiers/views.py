@@ -1,12 +1,14 @@
 """Views voor dossiers."""
 import logging
+from django.core.mail import send_mail
+from django.conf import settings as django_settings
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
-from .models import DossierType, Dossier, DossierReactie, DossierBijlage
+from .models import DossierType, Dossier, DossierReactie, DossierBijlage, Organisatie, Contactpersoon, DossierMailLog
 from .serializers import (
     DossierTypeSerializer,
     DossierListSerializer,
@@ -14,6 +16,9 @@ from .serializers import (
     DossierCreateSerializer,
     DossierReactieSerializer,
     DossierBijlageSerializer,
+    OrganisatieSerializer,
+    OrganisatieListSerializer,
+    ContactpersoonSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,6 +35,7 @@ class DossierTypeViewSet(viewsets.ModelViewSet):
     """CRUD voor dossiertypen (alleen beheerders)."""
     serializer_class = DossierTypeSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Altijd volledige lijst teruggeven (geen paginering)
 
     def get_queryset(self):
         return DossierType.objects.all()
@@ -225,3 +231,135 @@ class DossierViewSet(viewsets.ModelViewSet):
             )
             created.append(bijlage)
         return Response(DossierBijlageSerializer(created, many=True, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='stuur-mail', parser_classes=[JSONParser])
+    def stuur_mail(self, request, pk=None):
+        """Stuur een e-mail vanuit het dossier."""
+        self._check_manager(request)
+        dossier = self.get_object()
+
+        ontvangers = request.data.get('ontvangers', [])
+        handmatig = request.data.get('handmatig', [])
+        onderwerp = request.data.get('onderwerp', dossier.onderwerp)
+        inhoud = request.data.get('inhoud', dossier.inhoud)
+
+        # Combine contactpersoon IDs with manual addresses
+        email_adressen = list(handmatig) if isinstance(handmatig, list) else []
+
+        if ontvangers:
+            contacten = Contactpersoon.objects.filter(id__in=ontvangers)
+            email_adressen += [c.email for c in contacten]
+
+        # Deduplicate and validate
+        email_adressen = list(dict.fromkeys(e.strip() for e in email_adressen if e.strip()))
+
+        if not email_adressen:
+            return Response({'error': 'Geen ontvangers opgegeven.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not onderwerp.strip():
+            return Response({'error': 'Onderwerp is verplicht.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from_email = getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@example.com')
+            send_mail(
+                subject=onderwerp,
+                message=inhoud,
+                from_email=from_email,
+                recipient_list=email_adressen,
+                fail_silently=False,
+            )
+        except Exception as exc:
+            logger.error("Fout bij verzenden dossiermail: %s", exc)
+            return Response({'error': 'Mail kon niet worden verzonden. Controleer de mailconfiguratie.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Log the mail
+        DossierMailLog.objects.create(
+            dossier=dossier,
+            verzonden_door=request.user,
+            ontvangers=', '.join(email_adressen),
+            onderwerp=onderwerp,
+        )
+
+        return Response({'detail': f'Mail verzonden naar {len(email_adressen)} ontvanger(s).'}, status=status.HTTP_200_OK)
+
+
+class OrganisatieViewSet(viewsets.ModelViewSet):
+    """CRUD voor organisaties / leveranciers."""
+    permission_classes = [IsAuthenticated]
+    pagination_class = None  # Altijd volledige lijst teruggeven
+
+    def get_queryset(self):
+        return Organisatie.objects.prefetch_related('contactpersonen').all()
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return OrganisatieListSerializer
+        return OrganisatieSerializer
+
+    def _check_manager(self, request):
+        if not _is_dossier_manager(request.user):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Geen toegang.")
+
+    def create(self, request, *args, **kwargs):
+        self._check_manager(request)
+        serializer = OrganisatieSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        organisatie = serializer.save()
+
+        # Optionally create contactpersonen in one call
+        contactpersonen_data = request.data.get('contactpersonen', [])
+        if isinstance(contactpersonen_data, list):
+            for cp_data in contactpersonen_data:
+                cp_ser = ContactpersoonSerializer(data={**cp_data, 'organisatie': str(organisatie.id)})
+                if cp_ser.is_valid():
+                    cp_ser.save()
+
+        return Response(OrganisatieSerializer(organisatie).data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        self._check_manager(request)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        self._check_manager(request)
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        self._check_manager(request)
+        return super().destroy(request, *args, **kwargs)
+
+
+class ContactpersoonViewSet(viewsets.ModelViewSet):
+    """CRUD voor contactpersonen."""
+    serializer_class = ContactpersoonSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None  # Altijd volledige lijst teruggeven
+
+    def get_queryset(self):
+        qs = Contactpersoon.objects.select_related('organisatie').all()
+        organisatie_id = self.request.query_params.get('organisatie')
+        if organisatie_id:
+            qs = qs.filter(organisatie_id=organisatie_id)
+        return qs
+
+    def _check_manager(self, request):
+        if not _is_dossier_manager(request.user):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Geen toegang.")
+
+    def create(self, request, *args, **kwargs):
+        self._check_manager(request)
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        self._check_manager(request)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        self._check_manager(request)
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        self._check_manager(request)
+        return super().destroy(request, *args, **kwargs)

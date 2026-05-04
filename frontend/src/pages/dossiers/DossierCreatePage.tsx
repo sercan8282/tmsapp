@@ -4,7 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { ArrowLeftIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { createDossier, getDossierTypes, DossierType } from '@/api/dossiers'
 import { getUsers } from '@/api/users'
+import { getOrganisaties, createOrganisatie, OrganisatieListItem } from '@/api/organisaties'
 import { User } from '@/types'
+
+interface NewOrgForm {
+  naam: string
+  email: string
+  telefoon: string
+}
 
 export default function DossierCreatePage() {
   const { t } = useTranslation()
@@ -13,9 +20,16 @@ export default function DossierCreatePage() {
   const [types, setTypes] = useState<DossierType[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [chauffeurs, setChauffeurs] = useState<User[]>([])
+  const [organisaties, setOrganisaties] = useState<OrganisatieListItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [files, setFiles] = useState<File[]>([])
+
+  // New organisatie modal
+  const [showNewOrg, setShowNewOrg] = useState(false)
+  const [newOrgForm, setNewOrgForm] = useState<NewOrgForm>({ naam: '', email: '', telefoon: '' })
+  const [savingOrg, setSavingOrg] = useState(false)
+  const [newOrgError, setNewOrgError] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     onderwerp: '',
@@ -23,6 +37,7 @@ export default function DossierCreatePage() {
     type: '',
     betreft_user: '',
     betreft_chauffeur: '',
+    organisatie: '',
   })
 
   useEffect(() => {
@@ -30,10 +45,12 @@ export default function DossierCreatePage() {
       getDossierTypes(),
       getUsers({ is_active: 'true', rol: 'gebruiker', page_size: 200 }),
       getUsers({ is_active: 'true', rol: 'chauffeur', page_size: 200 }),
-    ]).then(([t, u, c]) => {
-      setTypes(t)
+      getOrganisaties(),
+    ]).then(([tp, u, c, orgs]) => {
+      setTypes(tp)
       setUsers(u.results)
       setChauffeurs(c.results)
+      setOrganisaties(orgs)
     }).catch(() => setError(t('errors.loadError', 'Kon gegevens niet laden')))
   }, [t])
 
@@ -58,6 +75,25 @@ export default function DossierCreatePage() {
     setFiles(prev => prev.filter((_, i) => i !== idx))
   }
 
+  const handleCreateOrg = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newOrgForm.naam.trim()) return setNewOrgError('Naam is verplicht')
+    try {
+      setSavingOrg(true)
+      setNewOrgError(null)
+      const org = await createOrganisatie(newOrgForm)
+      setOrganisaties(prev => [...prev, org].sort((a, b) => a.naam.localeCompare(b.naam)))
+      setForm(prev => ({ ...prev, organisatie: org.id }))
+      setShowNewOrg(false)
+      setNewOrgForm({ naam: '', email: '', telefoon: '' })
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { naam?: string[] } } })?.response?.data?.naam?.[0]
+      setNewOrgError(msg || 'Kon organisatie niet aanmaken')
+    } finally {
+      setSavingOrg(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.onderwerp.trim()) return setError(t('dossiers.onderwerpRequired', 'Onderwerp is verplicht'))
@@ -74,6 +110,7 @@ export default function DossierCreatePage() {
           type: form.type,
           betreft_user: form.betreft_user || null,
           betreft_chauffeur: form.betreft_chauffeur || null,
+          organisatie: form.organisatie || null,
         },
         files.length > 0 ? files : undefined,
       )
@@ -135,6 +172,35 @@ export default function DossierCreatePage() {
               <option key={tp.id} value={tp.id}>{tp.naam}</option>
             ))}
           </select>
+        </div>
+
+        {/* Organisatie */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Organisatie / leverancier
+          </label>
+          <div className="flex gap-2">
+            <select
+              name="organisatie"
+              value={form.organisatie}
+              onChange={handleChange}
+              className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">-- Geen organisatie --</option>
+              {organisaties.map(org => (
+                <option key={org.id} value={org.id}>{org.naam}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setShowNewOrg(true)}
+              className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+              title="Nieuwe organisatie aanmaken"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Nieuw
+            </button>
+          </div>
         </div>
 
         {/* Betreft: user or chauffeur */}
@@ -232,6 +298,72 @@ export default function DossierCreatePage() {
           </button>
         </div>
       </form>
+
+      {/* New organisatie modal */}
+      {showNewOrg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Nieuwe organisatie</h2>
+              <button onClick={() => setShowNewOrg(false)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {newOrgError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">{newOrgError}</div>
+            )}
+
+            <form onSubmit={handleCreateOrg} className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Naam <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={newOrgForm.naam}
+                  onChange={e => setNewOrgForm(p => ({ ...p, naam: e.target.value }))}
+                  required
+                  autoFocus
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                <input
+                  type="email"
+                  value={newOrgForm.email}
+                  onChange={e => setNewOrgForm(p => ({ ...p, email: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telefoon</label>
+                <input
+                  type="text"
+                  value={newOrgForm.telefoon}
+                  onChange={e => setNewOrgForm(p => ({ ...p, telefoon: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewOrg(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Annuleren
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingOrg}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {savingOrg ? 'Aanmaken...' : 'Aanmaken'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

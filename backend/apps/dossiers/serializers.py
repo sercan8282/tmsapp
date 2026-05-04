@@ -1,6 +1,48 @@
 """Serializers voor dossiers."""
 from rest_framework import serializers
-from .models import DossierType, Dossier, DossierReactie, DossierBijlage
+from .models import DossierType, Dossier, DossierReactie, DossierBijlage, Organisatie, Contactpersoon, DossierMailLog
+
+
+class ContactpersoonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contactpersoon
+        fields = ['id', 'organisatie', 'naam', 'email', 'telefoon', 'functie', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class OrganisatieSerializer(serializers.ModelSerializer):
+    contactpersonen = ContactpersoonSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Organisatie
+        fields = ['id', 'naam', 'email', 'telefoon', 'opmerkingen', 'contactpersonen', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class OrganisatieListSerializer(serializers.ModelSerializer):
+    contactpersoon_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Organisatie
+        fields = ['id', 'naam', 'email', 'telefoon', 'contactpersoon_count', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def get_contactpersoon_count(self, obj):
+        return obj.contactpersonen.count()
+
+
+class DossierMailLogSerializer(serializers.ModelSerializer):
+    verzonden_door_naam = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DossierMailLog
+        fields = ['id', 'ontvangers', 'onderwerp', 'verzonden_door', 'verzonden_door_naam', 'verzonden_op']
+        read_only_fields = ['id', 'verzonden_op']
+
+    def get_verzonden_door_naam(self, obj):
+        if obj.verzonden_door:
+            return obj.verzonden_door.full_name or obj.verzonden_door.email
+        return None
 
 
 class DossierTypeSerializer(serializers.ModelSerializer):
@@ -51,6 +93,7 @@ class DossierListSerializer(serializers.ModelSerializer):
     betreft_naam = serializers.SerializerMethodField()
     heeft_bijlage = serializers.SerializerMethodField()
     reactie_count = serializers.SerializerMethodField()
+    organisatie_naam = serializers.CharField(source='organisatie.naam', read_only=True, allow_null=True)
 
     class Meta:
         model = Dossier
@@ -58,6 +101,7 @@ class DossierListSerializer(serializers.ModelSerializer):
             'id', 'onderwerp', 'type', 'type_naam',
             'instuurder', 'instuurder_naam',
             'betreft_user', 'betreft_chauffeur', 'betreft_naam',
+            'organisatie', 'organisatie_naam',
             'heeft_bijlage', 'reactie_count', 'created_at', 'updated_at',
         ]
 
@@ -91,6 +135,9 @@ class DossierDetailSerializer(serializers.ModelSerializer):
     betreft_naam = serializers.SerializerMethodField()
     bijlagen = DossierBijlageSerializer(many=True, read_only=True)
     reacties = serializers.SerializerMethodField()
+    organisatie_naam = serializers.CharField(source='organisatie.naam', read_only=True, allow_null=True)
+    organisatie_contactpersonen = serializers.SerializerMethodField()
+    maillogs = DossierMailLogSerializer(many=True, read_only=True)
 
     class Meta:
         model = Dossier
@@ -98,7 +145,8 @@ class DossierDetailSerializer(serializers.ModelSerializer):
             'id', 'onderwerp', 'inhoud', 'type', 'type_naam',
             'instuurder', 'instuurder_naam',
             'betreft_user', 'betreft_chauffeur', 'betreft_naam',
-            'bijlagen', 'reacties', 'created_at', 'updated_at',
+            'organisatie', 'organisatie_naam', 'organisatie_contactpersonen',
+            'bijlagen', 'reacties', 'maillogs', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'instuurder', 'created_at', 'updated_at']
 
@@ -113,6 +161,11 @@ class DossierDetailSerializer(serializers.ModelSerializer):
             return person.full_name or person.email
         return None
 
+    def get_organisatie_contactpersonen(self, obj):
+        if obj.organisatie:
+            return ContactpersoonSerializer(obj.organisatie.contactpersonen.all(), many=True).data
+        return []
+
     def get_reacties(self, obj):
         user = self.context.get('request').user if self.context.get('request') else None
         qs = obj.reacties.all()
@@ -124,7 +177,7 @@ class DossierDetailSerializer(serializers.ModelSerializer):
 class DossierCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dossier
-        fields = ['id', 'onderwerp', 'inhoud', 'type', 'betreft_user', 'betreft_chauffeur', 'created_at']
+        fields = ['id', 'onderwerp', 'inhoud', 'type', 'betreft_user', 'betreft_chauffeur', 'organisatie', 'created_at']
         read_only_fields = ['id', 'created_at']
 
     def validate(self, data):

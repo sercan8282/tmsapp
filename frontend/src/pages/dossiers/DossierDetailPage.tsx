@@ -7,9 +7,13 @@ import {
   PlusIcon,
   XMarkIcon,
   LockClosedIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
 import { getDossier, addReactie, DossierDetail, DossierReactie } from '@/api/dossiers'
+import { stuurDossierMail } from '@/api/organisaties'
+import type { Contactpersoon } from '@/api/organisaties'
+import { parseEmailInput } from '@/utils/email'
 
 export default function DossierDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -30,6 +34,17 @@ export default function DossierDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [reactieError, setReactieError] = useState<string | null>(null)
 
+  // Mail dialog
+  const [showMailDialog, setShowMailDialog] = useState(false)
+  const [mailOnderwerp, setMailOnderwerp] = useState('')
+  const [mailInhoud, setMailInhoud] = useState('')
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([])
+  const [handmatigInput, setHandmatigInput] = useState('')
+  const [handmatigAdressen, setHandmatigAdressen] = useState<string[]>([])
+  const [sendingMail, setSendingMail] = useState(false)
+  const [mailError, setMailError] = useState<string | null>(null)
+  const [mailSuccess, setMailSuccess] = useState<string | null>(null)
+
   useEffect(() => {
     if (id) loadDossier()
   }, [id])
@@ -44,6 +59,65 @@ export default function DossierDetailPage() {
       setError(t('errors.loadError', 'Kon dossier niet laden'))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const openMailDialog = () => {
+    if (!dossier) return
+    setMailOnderwerp(dossier.onderwerp)
+    setMailInhoud(dossier.inhoud)
+    setSelectedContacts([])
+    setHandmatigInput('')
+    setHandmatigAdressen([])
+    setMailError(null)
+    setMailSuccess(null)
+    setShowMailDialog(true)
+  }
+
+  const toggleContact = (cpId: string) => {
+    setSelectedContacts(prev =>
+      prev.includes(cpId) ? prev.filter(id => id !== cpId) : [...prev, cpId],
+    )
+  }
+
+  const addHandmatigAdres = () => {
+    const { valid, invalid } = parseEmailInput(handmatigInput)
+    if (invalid.length > 0) {
+      setMailError(`Ongeldig e-mailadres: ${invalid.join(', ')}`)
+      return
+    }
+    setHandmatigAdressen(prev => [...new Set([...prev, ...valid])])
+    setHandmatigInput('')
+    setMailError(null)
+  }
+
+  const handleSendMail = async () => {
+    if (!dossier) return
+    if (!mailOnderwerp.trim()) return setMailError('Onderwerp is verplicht')
+    const totalRecipients = selectedContacts.length + handmatigAdressen.length
+    if (totalRecipients === 0) return setMailError('Voeg minimaal één ontvanger toe')
+
+    try {
+      setSendingMail(true)
+      setMailError(null)
+      const result = await stuurDossierMail(dossier.id, {
+        ontvangers: selectedContacts,
+        handmatig: handmatigAdressen,
+        onderwerp: mailOnderwerp,
+        inhoud: mailInhoud,
+      })
+      setMailSuccess(result.detail)
+      // Reload to show maillog
+      await loadDossier()
+      setTimeout(() => {
+        setShowMailDialog(false)
+        setMailSuccess(null)
+      }, 2000)
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+      setMailError(msg || 'Mail kon niet worden verzonden')
+    } finally {
+      setSendingMail(false)
     }
   }
 
@@ -100,9 +174,20 @@ export default function DossierDetailPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-4">
       {/* Back */}
-      <button onClick={() => navigate('/dossiers')} className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900">
-        <ArrowLeftIcon className="h-4 w-4" /> {t('common.back', 'Terug')}
-      </button>
+      <div className="flex items-center justify-between">
+        <button onClick={() => navigate('/dossiers')} className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900">
+          <ArrowLeftIcon className="h-4 w-4" /> {t('common.back', 'Terug')}
+        </button>
+        {isManager && (
+          <button
+            onClick={openMailDialog}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+          >
+            <EnvelopeIcon className="h-4 w-4" />
+            Mailen
+          </button>
+        )}
+      </div>
 
       {/* Dossier info */}
       <div className="card p-4 sm:p-6 space-y-4">
@@ -112,6 +197,9 @@ export default function DossierDetailPage() {
             <span><span className="font-medium text-gray-700">{t('dossiers.type', 'Type')}:</span> {dossier.type_naam}</span>
             {dossier.betreft_naam && (
               <span><span className="font-medium text-gray-700">{t('dossiers.regarding', 'Betreft')}:</span> {dossier.betreft_naam}</span>
+            )}
+            {dossier.organisatie_naam && (
+              <span><span className="font-medium text-gray-700">Organisatie:</span> {dossier.organisatie_naam}</span>
             )}
             {isManager && dossier.instuurder_naam && (
               <span><span className="font-medium text-gray-700">{t('dossiers.submittedBy', 'Instuurder')}:</span> {dossier.instuurder_naam}</span>
@@ -149,6 +237,20 @@ export default function DossierDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Mail log */}
+      {isManager && dossier.maillogs && dossier.maillogs.length > 0 && (
+        <div className="card p-4 sm:p-6 space-y-2">
+          <h2 className="text-base font-semibold text-gray-900">Verzonden mails</h2>
+          {dossier.maillogs.map(log => (
+            <div key={log.id} className="text-sm text-gray-600 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+              <span className="font-medium text-gray-700">{formatDate(log.verzonden_op)}</span>
+              {' · '}{log.onderwerp}
+              {' · '}Aan: {log.ontvangers}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Reacties */}
       <div className="card p-4 sm:p-6 space-y-4">
@@ -259,6 +361,134 @@ export default function DossierDetailPage() {
           )}
         </form>
       </div>
+
+      {/* Mail dialog */}
+      {showMailDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg space-y-4 p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Dossier mailen</h2>
+              <button onClick={() => setShowMailDialog(false)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {mailError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">{mailError}</div>
+            )}
+            {mailSuccess && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded text-sm">{mailSuccess}</div>
+            )}
+
+            {/* Contactpersonen selectie */}
+            {dossier.organisatie_contactpersonen && dossier.organisatie_contactpersonen.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contactpersonen van {dossier.organisatie_naam}
+                </label>
+                <div className="space-y-1 max-h-36 overflow-y-auto border border-gray-200 rounded-md p-2">
+                  {dossier.organisatie_contactpersonen.map((cp: Contactpersoon) => (
+                    <label key={cp.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded px-2 py-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedContacts.includes(cp.id)}
+                        onChange={() => toggleContact(cp.id)}
+                        className="rounded border-gray-300 text-blue-600"
+                      />
+                      <span className="text-sm text-gray-700">{cp.naam}</span>
+                      <span className="text-sm text-gray-500">({cp.email})</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Handmatige e-mailadressen */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Extra e-mailadressen (komma- of enter-gescheiden)
+              </label>
+              <div className="flex gap-2">
+                <textarea
+                  value={handmatigInput}
+                  onChange={e => setHandmatigInput(e.target.value)}
+                  rows={2}
+                  placeholder="bijv. jan@bedrijf.nl, piet@bedrijf.nl"
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addHandmatigAdres() } }}
+                />
+                <button
+                  type="button"
+                  onClick={addHandmatigAdres}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-50 self-start"
+                >
+                  Toevoegen
+                </button>
+              </div>
+              {handmatigAdressen.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {handmatigAdressen.map((email, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs">
+                      {email}
+                      <button type="button" onClick={() => setHandmatigAdressen(prev => prev.filter((_, idx) => idx !== i))}>
+                        <XMarkIcon className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Onderwerp */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Onderwerp <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={mailOnderwerp}
+                onChange={e => setMailOnderwerp(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Inhoud */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Inhoud</label>
+              <textarea
+                value={mailInhoud}
+                onChange={e => setMailInhoud(e.target.value)}
+                rows={6}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
+              />
+            </div>
+
+            {/* Totale ontvangers samenvatting */}
+            {(selectedContacts.length > 0 || handmatigAdressen.length > 0) && (
+              <p className="text-xs text-gray-500">
+                {selectedContacts.length + handmatigAdressen.length} ontvanger(s) geselecteerd
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowMailDialog(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Annuleren
+              </button>
+              <button
+                type="button"
+                onClick={handleSendMail}
+                disabled={sendingMail}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+              >
+                <EnvelopeIcon className="h-4 w-4" />
+                {sendingMail ? 'Verzenden...' : 'Verzenden'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

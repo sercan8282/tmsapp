@@ -1,8 +1,9 @@
 """Tests voor de dossiers module."""
 from django.test import TestCase
+from django.core import mail
 from rest_framework.test import APIClient
 from apps.accounts.models import User
-from .models import DossierType, Dossier, DossierReactie
+from .models import DossierType, Dossier, DossierReactie, Organisatie, Contactpersoon, DossierMailLog
 
 
 def _make_user(email, rol='gebruiker', module_permissions=None):
@@ -78,3 +79,212 @@ class DossierPermissionTests(TestCase):
         self.client.force_authenticate(self.manager)
         resp = self.client.post('/api/dossiers/types/', {'naam': 'Nieuw'})
         self.assertEqual(resp.status_code, 201)
+
+    def test_dossiertype_list_returns_array(self):
+        """DossierType list mag nooit gepagineerd zijn (anders breekt frontend .map())."""
+        self.client.force_authenticate(self.manager)
+        resp = self.client.get('/api/dossiers/types/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsInstance(resp.data, list, 'DossierType list moet een array teruggeven, niet gepagineerd')
+
+
+class OrganisatieTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.manager = _make_user('manager@test.com', module_permissions=['manage_dossiers'])
+        self.gewone_user = _make_user('user@test.com')
+
+    def test_create_organisatie(self):
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post('/api/dossiers/organisaties/', {
+            'naam': 'Nationale Nederlanden',
+            'email': 'info@nn.nl',
+            'telefoon': '010-1234567',
+        }, format='json')
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.data['naam'], 'Nationale Nederlanden')
+
+    def test_create_organisatie_with_contactpersonen(self):
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post('/api/dossiers/organisaties/', {
+            'naam': 'Testbedrijf BV',
+            'contactpersonen': [
+                {'naam': 'Jan Jansen', 'email': 'jan@testbedrijf.nl', 'telefoon': '', 'functie': 'Manager'},
+                {'naam': 'Piet Pietersen', 'email': 'piet@testbedrijf.nl', 'telefoon': '06-12345678', 'functie': ''},
+            ],
+        }, format='json')
+        self.assertEqual(resp.status_code, 201)
+        org = Organisatie.objects.get(naam='Testbedrijf BV')
+        self.assertEqual(org.contactpersonen.count(), 2)
+
+    def test_non_manager_cannot_create_organisatie(self):
+        self.client.force_authenticate(self.gewone_user)
+        resp = self.client.post('/api/dossiers/organisaties/', {'naam': 'Test'}, format='json')
+        self.assertIn(resp.status_code, [403, 401])
+
+    def test_organisatie_list_returns_array(self):
+        """Organisatie list mag nooit gepagineerd zijn."""
+        self.client.force_authenticate(self.manager)
+        Organisatie.objects.create(naam='Test Org')
+        resp = self.client.get('/api/dossiers/organisaties/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsInstance(resp.data, list, 'Organisatie list moet een array teruggeven')
+
+    def test_unique_naam(self):
+        Organisatie.objects.create(naam='Duplicate')
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post('/api/dossiers/organisaties/', {'naam': 'Duplicate'}, format='json')
+        self.assertEqual(resp.status_code, 400)
+
+
+class ContactpersoonTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.manager = _make_user('manager@test.com', module_permissions=['manage_dossiers'])
+        self.org = Organisatie.objects.create(naam='Test Org')
+
+    def test_create_contactpersoon(self):
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post('/api/dossiers/contactpersonen/', {
+            'organisatie': str(self.org.id),
+            'naam': 'Klaas Klaassen',
+            'email': 'klaas@test.nl',
+            'functie': 'Directeur',
+        }, format='json')
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.data['naam'], 'Klaas Klaassen')
+
+    def test_filter_by_organisatie(self):
+        cp = Contactpersoon.objects.create(organisatie=self.org, naam='A', email='a@test.nl')
+        other_org = Organisatie.objects.create(naam='Other')
+        Contactpersoon.objects.create(organisatie=other_org, naam='B', email='b@test.nl')
+        self.client.force_authenticate(self.manager)
+        resp = self.client.get(f'/api/dossiers/contactpersonen/?organisatie={self.org.id}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]['naam'], 'A')
+
+
+class DossierMailTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.manager = _make_user('manager@test.com', module_permissions=['manage_dossiers'])
+        self.chauffeur = _make_user('chauffeur@test.com', rol='chauffeur')
+        self.dtype = DossierType.objects.create(naam='Test')
+        self.org = Organisatie.objects.create(naam='Test Org')
+        self.cp1 = Contactpersoon.objects.create(
+            organisatie=self.org, naam='Jan', email='jan@test.nl',
+        )
+        self.cp2 = Contactpersoon.objects.create(
+            organisatie=self.org, naam='Piet', email='piet@test.nl',
+        )
+        self.dossier = Dossier.objects.create(
+            onderwerp='Schademelding',
+            inhoud='Er is schade opgetreden aan voertuig X.',
+            type=self.dtype,
+            instuurder=self.manager,
+            betreft_chauffeur=self.chauffeur,
+            organisatie=self.org,
+        )
+
+    def test_mail_uses_dossier_subject_and_content(self):
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post(
+            f'/api/dossiers/{self.dossier.id}/stuur-mail/',
+            {
+                'ontvangers': [],
+                'handmatig': ['extern@test.nl'],
+                'onderwerp': self.dossier.onderwerp,
+                'inhoud': self.dossier.inhoud,
+            },
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.subject, 'Schademelding')
+        self.assertIn('schade opgetreden', sent.body)
+        self.assertIn('extern@test.nl', sent.to)
+
+    def test_mail_to_contactpersonen(self):
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post(
+            f'/api/dossiers/{self.dossier.id}/stuur-mail/',
+            {
+                'ontvangers': [str(self.cp1.id), str(self.cp2.id)],
+                'handmatig': [],
+                'onderwerp': 'Test',
+                'inhoud': 'Inhoud',
+            },
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        recipients = mail.outbox[0].to
+        self.assertIn('jan@test.nl', recipients)
+        self.assertIn('piet@test.nl', recipients)
+
+    def test_mail_combined_contacts_and_manual(self):
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post(
+            f'/api/dossiers/{self.dossier.id}/stuur-mail/',
+            {
+                'ontvangers': [str(self.cp1.id)],
+                'handmatig': ['extra@extern.nl'],
+                'onderwerp': 'Gecombineerd',
+                'inhoud': 'Test',
+            },
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        recipients = mail.outbox[0].to
+        self.assertIn('jan@test.nl', recipients)
+        self.assertIn('extra@extern.nl', recipients)
+
+    def test_mail_logs_verzending(self):
+        self.client.force_authenticate(self.manager)
+        self.client.post(
+            f'/api/dossiers/{self.dossier.id}/stuur-mail/',
+            {
+                'ontvangers': [],
+                'handmatig': ['log@test.nl'],
+                'onderwerp': 'Log test',
+                'inhoud': 'Test',
+            },
+            format='json',
+        )
+        log = DossierMailLog.objects.filter(dossier=self.dossier).first()
+        self.assertIsNotNone(log)
+        self.assertIn('log@test.nl', log.ontvangers)
+        self.assertEqual(log.onderwerp, 'Log test')
+
+    def test_mail_no_recipients_returns_400(self):
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post(
+            f'/api/dossiers/{self.dossier.id}/stuur-mail/',
+            {'ontvangers': [], 'handmatig': [], 'onderwerp': 'Test', 'inhoud': 'Test'},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_dossier_detail_includes_contactpersonen(self):
+        self.client.force_authenticate(self.manager)
+        resp = self.client.get(f'/api/dossiers/{self.dossier.id}/')
+        self.assertEqual(resp.status_code, 200)
+        contacten = resp.data.get('organisatie_contactpersonen', [])
+        self.assertEqual(len(contacten), 2)
+        emails = [c['email'] for c in contacten]
+        self.assertIn('jan@test.nl', emails)
+
+    def test_dossier_with_organisatie(self):
+        """Dossier create serializer accepteert organisatie field."""
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post('/api/dossiers/', {
+            'onderwerp': 'Nieuw met org',
+            'inhoud': 'Test',
+            'type': str(self.dtype.id),
+            'betreft_chauffeur': str(self.chauffeur.id),
+            'organisatie': str(self.org.id),
+        }, format='json')
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.data.get('organisatie'), str(self.org.id))
