@@ -288,3 +288,94 @@ class DossierMailTests(TestCase):
         }, format='json')
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.data.get('organisatie'), str(self.org.id))
+
+    def test_mail_with_type_saves_to_log(self):
+        """stuur-mail accepts and saves a type on the mail log."""
+        self.client.force_authenticate(self.manager)
+        mail_type = DossierType.objects.create(naam='Informatiemail')
+        resp = self.client.post(
+            f'/api/dossiers/{self.dossier.id}/stuur-mail/',
+            {
+                'ontvangers': [],
+                'handmatig': ['type@test.nl'],
+                'onderwerp': 'Type test',
+                'inhoud': 'Test',
+                'type': str(mail_type.id),
+            },
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        log = DossierMailLog.objects.filter(dossier=self.dossier, onderwerp='Type test').first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.type, mail_type)
+
+    def test_mail_without_type_saves_null(self):
+        """stuur-mail without type saves null on the mail log."""
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post(
+            f'/api/dossiers/{self.dossier.id}/stuur-mail/',
+            {
+                'ontvangers': [],
+                'handmatig': ['notype@test.nl'],
+                'onderwerp': 'No type test',
+                'inhoud': 'Test',
+            },
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        log = DossierMailLog.objects.filter(dossier=self.dossier, onderwerp='No type test').first()
+        self.assertIsNotNone(log)
+        self.assertIsNone(log.type)
+
+    def test_mail_with_invalid_type_returns_400(self):
+        """stuur-mail with non-existent type ID returns 400."""
+        self.client.force_authenticate(self.manager)
+        import uuid as _uuid
+        resp = self.client.post(
+            f'/api/dossiers/{self.dossier.id}/stuur-mail/',
+            {
+                'ontvangers': [],
+                'handmatig': ['type@test.nl'],
+                'onderwerp': 'Bad type',
+                'inhoud': 'Test',
+                'type': str(_uuid.uuid4()),
+            },
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_dossier_detail_maillog_includes_type(self):
+        """Maillog in dossier detail response includes type fields."""
+        self.client.force_authenticate(self.manager)
+        mail_type = DossierType.objects.create(naam='Statusupdate')
+        DossierMailLog.objects.create(
+            dossier=self.dossier,
+            verzonden_door=self.manager,
+            ontvangers='a@b.nl',
+            onderwerp='Check',
+            type=mail_type,
+        )
+        resp = self.client.get(f'/api/dossiers/{self.dossier.id}/')
+        self.assertEqual(resp.status_code, 200)
+        logs = resp.data.get('maillogs', [])
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0]['type'], str(mail_type.id))
+        self.assertEqual(logs[0]['type_naam'], 'Statusupdate')
+
+
+class DossierTypeCreateTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.manager = _make_user('manager@test.com', module_permissions=['manage_dossiers'])
+        self.regular = _make_user('user@test.com')
+
+    def test_manager_can_create_type(self):
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post('/api/dossiers/types/', {'naam': 'Nieuw type'}, format='json')
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.data['naam'], 'Nieuw type')
+
+    def test_regular_user_cannot_create_type(self):
+        self.client.force_authenticate(self.regular)
+        resp = self.client.post('/api/dossiers/types/', {'naam': 'Verboden type'}, format='json')
+        self.assertEqual(resp.status_code, 403)

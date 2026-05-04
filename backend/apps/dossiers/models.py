@@ -136,6 +136,10 @@ class DossierMailLog(models.Model):
     verzonden_door = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='dossier_mails', verbose_name='Verzonden door')
     ontvangers = models.TextField(verbose_name='Ontvangers')  # comma-separated email addresses
     onderwerp = models.CharField(max_length=255, verbose_name='Onderwerp')
+    type = models.ForeignKey(
+        DossierType, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='maillogs', verbose_name='Type',
+    )
     verzonden_op = models.DateTimeField(auto_now_add=True)
 
     class Meta:

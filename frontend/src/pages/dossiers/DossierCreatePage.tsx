@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeftIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline'
-import { createDossier, getDossierTypes, DossierType } from '@/api/dossiers'
+import { createDossier, getDossierTypes, createDossierType, DossierType } from '@/api/dossiers'
 import { getUsers } from '@/api/users'
 import { getOrganisaties, createOrganisatie, OrganisatieListItem } from '@/api/organisaties'
 import { User } from '@/types'
@@ -30,6 +30,12 @@ export default function DossierCreatePage() {
   const [newOrgForm, setNewOrgForm] = useState<NewOrgForm>({ naam: '', email: '', telefoon: '' })
   const [savingOrg, setSavingOrg] = useState(false)
   const [newOrgError, setNewOrgError] = useState<string | null>(null)
+
+  // New type modal
+  const [showNewType, setShowNewType] = useState(false)
+  const [newTypeName, setNewTypeName] = useState('')
+  const [savingType, setSavingType] = useState(false)
+  const [newTypeError, setNewTypeError] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     onderwerp: '',
@@ -91,6 +97,25 @@ export default function DossierCreatePage() {
       setNewOrgError(msg || 'Kon organisatie niet aanmaken')
     } finally {
       setSavingOrg(false)
+    }
+  }
+
+  const handleCreateType = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTypeName.trim()) return setNewTypeError('Naam is verplicht')
+    try {
+      setSavingType(true)
+      setNewTypeError(null)
+      const tp = await createDossierType(newTypeName.trim())
+      setTypes(prev => [...prev, tp].sort((a, b) => a.naam.localeCompare(b.naam)))
+      setForm(prev => ({ ...prev, type: tp.id }))
+      setShowNewType(false)
+      setNewTypeName('')
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { naam?: string[] } } })?.response?.data?.naam?.[0]
+      setNewTypeError(msg || 'Kon type niet aanmaken')
+    } finally {
+      setSavingType(false)
     }
   }
 
@@ -160,18 +185,29 @@ export default function DossierCreatePage() {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {t('dossiers.type', 'Type')} <span className="text-red-500">*</span>
           </label>
-          <select
-            name="type"
-            value={form.type}
-            onChange={handleChange}
-            required
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">{t('common.choose', '-- Kies type --')}</option>
-            {types.filter(tp => tp.actief).map(tp => (
-              <option key={tp.id} value={tp.id}>{tp.naam}</option>
-            ))}
-          </select>
+          <div className="flex gap-2">
+            <select
+              name="type"
+              value={form.type}
+              onChange={handleChange}
+              required
+              className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">{t('common.choose', '-- Kies type --')}</option>
+              {types.filter(tp => tp.actief).map(tp => (
+                <option key={tp.id} value={tp.id}>{tp.naam}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setShowNewType(true)}
+              className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+              title="Nieuw type aanmaken"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Nieuw
+            </button>
+          </div>
         </div>
 
         {/* Organisatie */}
@@ -358,6 +394,54 @@ export default function DossierCreatePage() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
                 >
                   {savingOrg ? 'Aanmaken...' : 'Aanmaken'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* New type modal */}
+      {showNewType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Nieuw dossiertype</h2>
+              <button onClick={() => setShowNewType(false)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {newTypeError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">{newTypeError}</div>
+            )}
+
+            <form onSubmit={handleCreateType} className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Naam <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={newTypeName}
+                  onChange={e => setNewTypeName(e.target.value)}
+                  required
+                  autoFocus
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewType(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Annuleren
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingType}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {savingType ? 'Aanmaken...' : 'Aanmaken'}
                 </button>
               </div>
             </form>
