@@ -44,6 +44,8 @@ export default function DossierDetailPage() {
   const [sendingMail, setSendingMail] = useState(false)
   const [mailError, setMailError] = useState<string | null>(null)
   const [mailSuccess, setMailSuccess] = useState<string | null>(null)
+  const [selectedBijlageIds, setSelectedBijlageIds] = useState<string[]>([])
+  const [extraMailBijlagen, setExtraMailBijlagen] = useState<File[]>([])
 
   // Mail type
   const [mailTypes, setMailTypes] = useState<DossierType[]>([])
@@ -80,6 +82,8 @@ export default function DossierDetailPage() {
     setMailType('')
     setMailError(null)
     setMailSuccess(null)
+    setSelectedBijlageIds(dossier.bijlagen.map(b => b.id))
+    setExtraMailBijlagen([])
     setShowMailDialog(true)
     getDossierTypes().then(setMailTypes).catch(() => setMailError('Kon types niet laden'))
   }
@@ -135,6 +139,8 @@ export default function DossierDetailPage() {
         onderwerp: mailOnderwerp,
         inhoud: mailInhoud,
         type: mailType || null,
+        bijlage_ids: selectedBijlageIds,
+        extra_bijlagen: extraMailBijlagen,
       })
       setMailSuccess(result.detail)
       // Reload to show maillog
@@ -515,6 +521,63 @@ export default function DossierDetailPage() {
                 rows={6}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
               />
+            </div>
+
+            {/* Bijlagen */}
+            {dossier.bijlagen.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Bijlagen meesturen</label>
+                <div className="space-y-1 max-h-36 overflow-y-auto border border-gray-200 rounded-md p-2">
+                  {dossier.bijlagen.map(b => (
+                    <label key={b.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded px-2 py-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedBijlageIds.includes(b.id)}
+                        onChange={() => setSelectedBijlageIds(prev =>
+                          prev.includes(b.id) ? prev.filter(id => id !== b.id) : [...prev, b.id],
+                        )}
+                        className="rounded border-gray-300 text-blue-600"
+                      />
+                      <PaperClipIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-sm text-gray-700 truncate flex-1">{b.bestandsnaam}</span>
+                      <span className="text-xs text-gray-400 flex-shrink-0">{formatSize(b.grootte)}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Extra bijlagen uploaden */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Extra bijlagen toevoegen</label>
+              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-gray-300 rounded text-xs text-gray-600 cursor-pointer hover:bg-gray-50">
+                <PlusIcon className="h-3.5 w-3.5" />
+                Bestanden kiezen
+                <input
+                  type="file"
+                  multiple
+                  className="sr-only"
+                  onChange={e => {
+                    if (e.target.files) {
+                      setExtraMailBijlagen(prev => [...prev, ...Array.from(e.target.files)])
+                      e.target.value = ''
+                    }
+                  }}
+                />
+              </label>
+              {extraMailBijlagen.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {extraMailBijlagen.map((f, i) => (
+                    <li key={i} className="flex items-center gap-2 text-xs text-gray-600">
+                      <PaperClipIcon className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                      <span className="truncate flex-1">{f.name}</span>
+                      <button type="button" onClick={() => setExtraMailBijlagen(prev => prev.filter((_, idx) => idx !== i))}>
+                        <XMarkIcon className="h-3.5 w-3.5 text-gray-400 hover:text-red-500" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {/* Totale ontvangers samenvatting */}

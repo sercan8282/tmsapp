@@ -77,9 +77,20 @@ export interface StuurMailData {
   onderwerp: string
   inhoud: string
   type?: string | null
+  bijlage_ids?: string[]   // bestaande dossier-bijlage IDs
+  extra_bijlagen?: File[]  // nieuw te uploaden bestanden
 }
 
 export async function stuurDossierMail(dossierId: string, data: StuurMailData): Promise<{ detail: string }> {
-  const res = await api.post(`/dossiers/${dossierId}/stuur-mail/`, data)
+  const formData = new FormData()
+  data.ontvangers.forEach(id => formData.append('ontvangers', id))
+  data.handmatig.forEach(email => formData.append('handmatig', email))
+  formData.append('onderwerp', data.onderwerp)
+  formData.append('inhoud', data.inhoud)
+  if (data.type) formData.append('type', data.type)
+  data.bijlage_ids?.forEach(id => formData.append('bijlage_ids', id))
+  data.extra_bijlagen?.forEach(f => formData.append('extra_bijlagen', f, f.name))
+
+  const res = await api.post(`/dossiers/${dossierId}/stuur-mail/`, formData)
   return res.data
 }

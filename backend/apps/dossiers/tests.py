@@ -1,10 +1,11 @@
 """Tests voor de dossiers module."""
-from django.test import TestCase
+import io
+from django.test import TestCase, override_settings
 from django.core import mail
 from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.core.models import AppSettings
-from .models import DossierType, Dossier, DossierReactie, Organisatie, Contactpersoon, DossierMailLog
+from .models import DossierType, Dossier, DossierReactie, DossierBijlage, Organisatie, Contactpersoon, DossierMailLog
 
 
 def _make_user(email, rol='gebruiker', module_permissions=None):
@@ -352,6 +353,87 @@ class DossierMailTests(TestCase):
             format='json',
         )
         self.assertEqual(resp.status_code, 400)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_mail_with_existing_bijlage_attached(self):
+        """stuur-mail stuurt geselecteerde dossier-bijlage mee als e-mailbijlage."""
+        # Maak een dossier-bijlage aan in de database
+        bijlage = DossierBijlage.objects.create(
+            dossier=self.dossier,
+            bestandsnaam='test.txt',
+            mimetype='text/plain',
+            grootte=11,
+            geupload_door=self.manager,
+        )
+        # Schrijf testinhoud naar het bestand
+        bijlage.bestand.save('test.txt', io.BytesIO(b'hello world'), save=True)
+
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post(
+            f'/api/dossiers/{self.dossier.id}/stuur-mail/',
+            {
+                'ontvangers': [],
+                'handmatig': ['bijlage@test.nl'],
+                'onderwerp': 'Met bijlage',
+                'inhoud': 'Zie bijlage',
+                'bijlage_ids': [str(bijlage.id)],
+            },
+            format='multipart',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(len(sent.attachments), 1)
+        name, content, mimetype = sent.attachments[0]
+        self.assertEqual(name, 'test.txt')
+        self.assertEqual(content, b'hello world')
+        self.assertEqual(mimetype, 'text/plain')
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_mail_with_extra_bijlage_uploaded(self):
+        """stuur-mail stuurt extra geüploade bestanden mee als e-mailbijlage."""
+        self.client.force_authenticate(self.manager)
+        extra_file = io.BytesIO(b'extra content')
+        extra_file.name = 'extra.txt'
+        resp = self.client.post(
+            f'/api/dossiers/{self.dossier.id}/stuur-mail/',
+            {
+                'ontvangers': [],
+                'handmatig': ['extra@test.nl'],
+                'onderwerp': 'Extra bijlage',
+                'inhoud': 'Met extra bestand',
+                'extra_bijlagen': extra_file,
+            },
+            format='multipart',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(len(sent.attachments), 1)
+        name, content, _mime = sent.attachments[0]
+        self.assertEqual(name, 'extra.txt')
+        self.assertEqual(content, b'extra content')
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_mail_invalid_bijlage_id_silently_skipped(self):
+        """stuur-mail negeert bijlage-IDs die niet tot het dossier behoren."""
+        import uuid as _uuid
+        self.client.force_authenticate(self.manager)
+        resp = self.client.post(
+            f'/api/dossiers/{self.dossier.id}/stuur-mail/',
+            {
+                'ontvangers': [],
+                'handmatig': ['skip@test.nl'],
+                'onderwerp': 'Skip bijlage',
+                'inhoud': 'Test',
+                'bijlage_ids': [str(_uuid.uuid4())],
+            },
+            format='multipart',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        # Geen bijlagen meegestuurd want ID bestaat niet
+        self.assertEqual(len(mail.outbox[0].attachments), 0)
 
     def test_dossier_detail_maillog_includes_type(self):
         """Maillog in dossier detail response includes type fields."""
