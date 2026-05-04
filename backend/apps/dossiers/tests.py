@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.core import mail
 from rest_framework.test import APIClient
 from apps.accounts.models import User
+from apps.core.models import AppSettings
 from .models import DossierType, Dossier, DossierReactie, Organisatie, Contactpersoon, DossierMailLog
 
 
@@ -171,6 +172,14 @@ class DossierMailTests(TestCase):
         self.manager = _make_user('manager@test.com', module_permissions=['manage_dossiers'])
         self.chauffeur = _make_user('chauffeur@test.com', rol='chauffeur')
         self.dtype = DossierType.objects.create(naam='Test')
+        # Configure SMTP in AppSettings so the mail view passes its config check
+        app_settings = AppSettings.get_settings()
+        app_settings.smtp_host = 'smtp.test.local'
+        app_settings.smtp_port = 25
+        app_settings.smtp_username = 'noreply@test.local'
+        app_settings.smtp_from_email = 'noreply@test.local'
+        app_settings.smtp_use_tls = False
+        app_settings.save()
         self.org = Organisatie.objects.create(naam='Test Org')
         self.cp1 = Contactpersoon.objects.create(
             organisatie=self.org, naam='Jan', email='jan@test.nl',

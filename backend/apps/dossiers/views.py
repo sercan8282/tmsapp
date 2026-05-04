@@ -1,7 +1,8 @@
 """Views voor dossiers."""
 import logging
-from django.core.mail import send_mail
-from django.conf import settings as django_settings
+from django.core.mail import EmailMessage, get_connection
+
+from apps.core.models import AppSettings
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -269,14 +270,34 @@ class DossierViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'Opgegeven type bestaat niet.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            from_email = getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@example.com')
-            send_mail(
-                subject=onderwerp,
-                message=inhoud,
-                from_email=from_email,
-                recipient_list=email_adressen,
+            app_settings = AppSettings.get_settings()
+
+            if not app_settings.smtp_host:
+                return Response(
+                    {'error': 'SMTP instellingen zijn niet geconfigureerd. Ga naar Instellingen om e-mail te configureren.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            smtp_username = (app_settings.smtp_username or '').strip()
+            from_email = (app_settings.smtp_from_email or app_settings.smtp_username or '').strip()
+
+            connection = get_connection(
+                host=app_settings.smtp_host,
+                port=app_settings.smtp_port,
+                username=smtp_username,
+                password=app_settings.smtp_password or '',
+                use_tls=app_settings.smtp_use_tls,
                 fail_silently=False,
             )
+
+            email = EmailMessage(
+                subject=onderwerp,
+                body=inhoud,
+                from_email=from_email,
+                to=email_adressen,
+                connection=connection,
+            )
+            email.send(fail_silently=False)
         except Exception as exc:
             logger.error("Fout bij verzenden dossiermail: %s", exc)
             return Response({'error': 'Mail kon niet worden verzonden. Controleer de mailconfiguratie.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
