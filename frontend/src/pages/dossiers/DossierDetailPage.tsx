@@ -559,7 +559,7 @@ export default function DossierDetailPage() {
                   className="sr-only"
                   onChange={e => {
                     if (e.target.files) {
-                      setExtraMailBijlagen(prev => [...prev, ...Array.from(e.target.files)])
+                      setExtraMailBijlagen(prev => [...prev, ...Array.from(e.target.files!)])
                       e.target.value = ''
                     }
                   }}
