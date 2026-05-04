@@ -81,7 +81,7 @@ export default function DossierDetailPage() {
     setMailError(null)
     setMailSuccess(null)
     setShowMailDialog(true)
-    getDossierTypes().then(setMailTypes).catch(() => {/* ignore */ })
+    getDossierTypes().then(setMailTypes).catch(() => setMailError('Kon types niet laden'))
   }
 
   const toggleContact = (cpId: string) => {
@@ -551,7 +551,7 @@ export default function DossierDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Nieuw type</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Nieuw dossiertype</h2>
               <button onClick={() => setShowNewMailType(false)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
