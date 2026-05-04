@@ -176,7 +176,9 @@
     "profile": "Profiel",
     "leaveBalance": "Verlofsaldo",
     "tolRegistratie": "Tolregistratie",
-    "ingediendeTol": "Ingediende Tol"
+    "ingediendeTol": "Ingediende Tol",
+    "dossiers": "Dossiers",
+    "dossiersMijn": "Mijn Dossiers"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -2163,5 +2165,39 @@
         "step3": "Stel in op 'Toestaan' en herlaad de pagina"
       }
     }
+  },
+  "dossiers": {
+    "title": "Dossiers",
+    "newDossier": "Nieuw dossier",
+    "manageTypes": "Types beheren",
+    "allTypes": "Alle types",
+    "subject": "Onderwerp",
+    "type": "Type",
+    "regarding": "Betreft",
+    "regardingUser": "Betreft gebruiker",
+    "regardingDriver": "Betreft chauffeur",
+    "submittedBy": "Instuurder",
+    "attachment": "Bijlage",
+    "reactions": "Reacties",
+    "content": "Inhoud",
+    "attachments": "Bijlagen",
+    "addFiles": "Bestanden toevoegen",
+    "addReaction": "Reactie toevoegen",
+    "reactionPlaceholder": "Typ uw reactie...",
+    "internal": "Intern",
+    "internalReaction": "Interne reactie",
+    "noReactions": "Geen reacties",
+    "empty": "Geen dossiers gevonden",
+    "totalItems": "dossiers",
+    "addType": "Nieuw type toevoegen",
+    "typeName": "Naam",
+    "noTypes": "Geen types gevonden",
+    "inUse": "In gebruik",
+    "betreftHint": "Vul één veld in: gebruiker of chauffeur.",
+    "onderwerpRequired": "Onderwerp is verplicht",
+    "typeRequired": "Type is verplicht",
+    "betreftRequired": "Kies een gebruiker of chauffeur",
+    "deleteTypeConfirm": "Dit type verwijderen?",
+    "typeInUseHint": "Type is in gebruik, wordt gedeactiveerd"
   }
 }

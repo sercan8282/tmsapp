@@ -176,7 +176,9 @@
     "profile": "Profile",
     "leaveBalance": "Leave Balance",
     "tolRegistratie": "Toll Registration",
-    "ingediendeTol": "Submitted Toll"
+    "ingediendeTol": "Submitted Toll",
+    "dossiers": "Dossiers",
+    "dossiersMijn": "My Dossiers"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -2163,5 +2165,39 @@
         "step3": "Set to 'Allow' and reload the page"
       }
     }
+  },
+  "dossiers": {
+    "title": "Dossiers",
+    "newDossier": "New dossier",
+    "manageTypes": "Manage types",
+    "allTypes": "All types",
+    "subject": "Subject",
+    "type": "Type",
+    "regarding": "Regarding",
+    "regardingUser": "Regarding user",
+    "regardingDriver": "Regarding driver",
+    "submittedBy": "Submitted by",
+    "attachment": "Attachment",
+    "reactions": "Reactions",
+    "content": "Content",
+    "attachments": "Attachments",
+    "addFiles": "Add files",
+    "addReaction": "Add reaction",
+    "reactionPlaceholder": "Type your reaction...",
+    "internal": "Internal",
+    "internalReaction": "Internal reaction",
+    "noReactions": "No reactions",
+    "empty": "No dossiers found",
+    "totalItems": "dossiers",
+    "addType": "Add new type",
+    "typeName": "Name",
+    "noTypes": "No types found",
+    "inUse": "In use",
+    "betreftHint": "Fill in one field: user or driver.",
+    "onderwerpRequired": "Subject is required",
+    "typeRequired": "Type is required",
+    "betreftRequired": "Choose a user or driver",
+    "deleteTypeConfirm": "Delete this type?",
+    "typeInUseHint": "Type is in use, will be deactivated"
   }
 }

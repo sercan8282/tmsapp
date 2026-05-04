@@ -89,6 +89,28 @@ tmsapp/
 
 ---
 
+## 🗂️ Modules & Permissies
+
+De TMS applicatie heeft een rolgebaseerd permissiesysteem. Hieronder een overzicht van de modules en vereiste permissies.
+
+### Dossierbeheer (`manage_dossiers`)
+
+Het **Dossierbeheer** module biedt een compleet dossier/case management systeem:
+
+- **Dossiertypen** beheren (bijv. Verzekeringen, Contracten)
+- **Dossiers** aanmaken, bekijken en beheren gekoppeld aan gebruikers of chauffeurs
+- **Reacties** plaatsen inclusief interne notities (alleen zichtbaar voor beheerders)
+- **Bijlagen** uploaden bij dossiers en reacties
+- **Chauffeurs** kunnen hun eigen dossiers inzien (alleen-lezen)
+
+| Rol | Toegang |
+|-----|---------|
+| `admin` | Volledige toegang |
+| `gebruiker` met `manage_dossiers` | Alle dossiers beheren |
+| `chauffeur` | Alleen eigen dossiers (read-only) |
+
+---
+
 ## 📄 Licentie
 
 MIT License
