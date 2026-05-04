@@ -79,6 +79,14 @@ import {
   DocumentSignPage,
 } from '@/pages/documents'
 
+// Dossiers (case management)
+import {
+  DossierListPage,
+  DossierCreatePage,
+  DossierDetailPage,
+  DossierTypesPage,
+} from '@/pages/dossiers'
+
 // Spreadsheets (Ritregistratie)
 import SpreadsheetListPage from '@/pages/spreadsheets/SpreadsheetListPage'
 import SpreadsheetEditorPage from '@/pages/spreadsheets/SpreadsheetEditorPage'
@@ -199,6 +207,14 @@ function PermissionRoute({ children, permission }: { children: React.ReactNode; 
   if (user?.rol === 'admin') return <>{children}</>
   if (user?.module_permissions?.includes(permission)) return <>{children}</>
   
+  return <Navigate to="/" replace />
+}
+
+function DossierRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuthStore()
+  if (user?.rol === 'admin') return <>{children}</>
+  if (user?.module_permissions?.includes('manage_dossiers')) return <>{children}</>
+  if (user?.rol === 'chauffeur') return <>{children}</>
   return <Navigate to="/" replace />
 }
 
@@ -376,6 +392,12 @@ function App() {
         <Route path="/documents/upload" element={<DocumentUploadPage />} />
         <Route path="/documents/:id" element={<DocumentDetailPage />} />
         <Route path="/documents/:id/sign" element={<DocumentSignPage />} />
+
+        {/* Dossiers (case management) */}
+        <Route path="/dossiers" element={<DossierRoute><DossierListPage /></DossierRoute>} />
+        <Route path="/dossiers/new" element={<PermissionRoute permission="manage_dossiers"><DossierCreatePage /></PermissionRoute>} />
+        <Route path="/dossiers/types" element={<PermissionRoute permission="manage_dossiers"><DossierTypesPage /></PermissionRoute>} />
+        <Route path="/dossiers/:id" element={<DossierRoute><DossierDetailPage /></DossierRoute>} />
       </Route>
       
       {/* Catch all - redirect to home */}

@@ -36,6 +36,7 @@ AVAILABLE_MODULE_PERMISSIONS = [
     ('view_notifications', 'Notificaties'),
     ('view_reports', 'Rapport Agent'),
     ('view_leave_balances', 'Verlofsaldo'),
+    ('manage_dossiers', 'Dossiers beheren'),
 ]
 
 # Dependencies: enabling a permission also requires these permissions
