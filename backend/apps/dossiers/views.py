@@ -233,20 +233,28 @@ class DossierViewSet(viewsets.ModelViewSet):
             created.append(bijlage)
         return Response(DossierBijlageSerializer(created, many=True, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post'], url_path='stuur-mail', parser_classes=[JSONParser])
+    @action(detail=True, methods=['post'], url_path='stuur-mail', parser_classes=[MultiPartParser, FormParser, JSONParser])
     def stuur_mail(self, request, pk=None):
         """Stuur een e-mail vanuit het dossier."""
         self._check_manager(request)
         dossier = self.get_object()
 
-        ontvangers = request.data.get('ontvangers', [])
-        handmatig = request.data.get('handmatig', [])
+        def _getlist(data, key):
+            if hasattr(data, 'getlist'):
+                return data.getlist(key)
+            val = data.get(key, [])
+            return val if isinstance(val, list) else [val] if val else []
+
+        ontvangers = _getlist(request.data, 'ontvangers')
+        handmatig = _getlist(request.data, 'handmatig')
         onderwerp = request.data.get('onderwerp', dossier.onderwerp)
         inhoud = request.data.get('inhoud', dossier.inhoud)
         type_id = request.data.get('type') or None
+        bijlage_ids = _getlist(request.data, 'bijlage_ids')
+        extra_bijlagen = request.FILES.getlist('extra_bijlagen')
 
         # Combine contactpersoon IDs with manual addresses
-        email_adressen = list(handmatig) if isinstance(handmatig, list) else []
+        email_adressen = list(handmatig)
 
         if ontvangers:
             contacten = Contactpersoon.objects.filter(id__in=ontvangers)
@@ -297,6 +305,21 @@ class DossierViewSet(viewsets.ModelViewSet):
                 to=email_adressen,
                 connection=connection,
             )
+
+            # Bestaande dossier-bijlagen
+            for bijlage_id in bijlage_ids:
+                try:
+                    bijlage = DossierBijlage.objects.get(pk=bijlage_id, dossier=dossier)
+                    with bijlage.bestand.open('rb') as fh:
+                        content = fh.read()
+                    email.attach(bijlage.bestandsnaam, content, bijlage.mimetype or 'application/octet-stream')
+                except DossierBijlage.DoesNotExist:
+                    pass  # skip ongeldige ID's
+
+            # Extra geüploade bijlagen
+            for f in extra_bijlagen:
+                email.attach(f.name, f.read(), f.content_type or 'application/octet-stream')
+
             email.send(fail_silently=False)
         except Exception as exc:
             logger.error("Fout bij verzenden dossiermail: %s", exc)
