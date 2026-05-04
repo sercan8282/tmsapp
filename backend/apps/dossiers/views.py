@@ -242,6 +242,7 @@ class DossierViewSet(viewsets.ModelViewSet):
         handmatig = request.data.get('handmatig', [])
         onderwerp = request.data.get('onderwerp', dossier.onderwerp)
         inhoud = request.data.get('inhoud', dossier.inhoud)
+        type_id = request.data.get('type') or None
 
         # Combine contactpersoon IDs with manual addresses
         email_adressen = list(handmatig) if isinstance(handmatig, list) else []
@@ -258,6 +259,14 @@ class DossierViewSet(viewsets.ModelViewSet):
 
         if not onderwerp.strip():
             return Response({'error': 'Onderwerp is verplicht.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Resolve type
+        mail_type = None
+        if type_id:
+            try:
+                mail_type = DossierType.objects.get(pk=type_id)
+            except DossierType.DoesNotExist:
+                return Response({'error': 'Opgegeven type bestaat niet.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             from_email = getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@example.com')
@@ -278,6 +287,7 @@ class DossierViewSet(viewsets.ModelViewSet):
             verzonden_door=request.user,
             ontvangers=', '.join(email_adressen),
             onderwerp=onderwerp,
+            type=mail_type,
         )
 
         return Response({'detail': f'Mail verzonden naar {len(email_adressen)} ontvanger(s).'}, status=status.HTTP_200_OK)

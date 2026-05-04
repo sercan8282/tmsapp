@@ -76,6 +76,7 @@ export interface StuurMailData {
   handmatig: string[]   // manual email addresses
   onderwerp: string
   inhoud: string
+  type?: string | null
 }
 
 export async function stuurDossierMail(dossierId: string, data: StuurMailData): Promise<{ detail: string }> {

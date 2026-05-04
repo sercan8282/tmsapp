@@ -33,10 +33,11 @@ class OrganisatieListSerializer(serializers.ModelSerializer):
 
 class DossierMailLogSerializer(serializers.ModelSerializer):
     verzonden_door_naam = serializers.SerializerMethodField()
+    type_naam = serializers.CharField(source='type.naam', read_only=True, allow_null=True)
 
     class Meta:
         model = DossierMailLog
-        fields = ['id', 'ontvangers', 'onderwerp', 'verzonden_door', 'verzonden_door_naam', 'verzonden_op']
+        fields = ['id', 'ontvangers', 'onderwerp', 'type', 'type_naam', 'verzonden_door', 'verzonden_door_naam', 'verzonden_op']
         read_only_fields = ['id', 'verzonden_op']
 
     def get_verzonden_door_naam(self, obj):

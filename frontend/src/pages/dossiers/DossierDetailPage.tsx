@@ -10,7 +10,7 @@ import {
   EnvelopeIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
-import { getDossier, addReactie, DossierDetail, DossierReactie } from '@/api/dossiers'
+import { getDossier, addReactie, getDossierTypes, createDossierType, DossierDetail, DossierReactie, DossierType } from '@/api/dossiers'
 import { stuurDossierMail } from '@/api/organisaties'
 import type { Contactpersoon } from '@/api/organisaties'
 import { parseEmailInput } from '@/utils/email'
@@ -45,6 +45,14 @@ export default function DossierDetailPage() {
   const [mailError, setMailError] = useState<string | null>(null)
   const [mailSuccess, setMailSuccess] = useState<string | null>(null)
 
+  // Mail type
+  const [mailTypes, setMailTypes] = useState<DossierType[]>([])
+  const [mailType, setMailType] = useState<string>('')
+  const [showNewMailType, setShowNewMailType] = useState(false)
+  const [newMailTypeName, setNewMailTypeName] = useState('')
+  const [savingMailType, setSavingMailType] = useState(false)
+  const [newMailTypeError, setNewMailTypeError] = useState<string | null>(null)
+
   useEffect(() => {
     if (id) loadDossier()
   }, [id])
@@ -69,9 +77,11 @@ export default function DossierDetailPage() {
     setSelectedContacts([])
     setHandmatigInput('')
     setHandmatigAdressen([])
+    setMailType('')
     setMailError(null)
     setMailSuccess(null)
     setShowMailDialog(true)
+    getDossierTypes().then(setMailTypes).catch(() => setMailError('Kon types niet laden'))
   }
 
   const toggleContact = (cpId: string) => {
@@ -91,6 +101,25 @@ export default function DossierDetailPage() {
     setMailError(null)
   }
 
+  const handleCreateMailType = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newMailTypeName.trim()) return setNewMailTypeError('Naam is verplicht')
+    try {
+      setSavingMailType(true)
+      setNewMailTypeError(null)
+      const tp = await createDossierType(newMailTypeName.trim())
+      setMailTypes(prev => [...prev, tp].sort((a, b) => a.naam.localeCompare(b.naam)))
+      setMailType(tp.id)
+      setShowNewMailType(false)
+      setNewMailTypeName('')
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { naam?: string[] } } })?.response?.data?.naam?.[0]
+      setNewMailTypeError(msg || 'Kon type niet aanmaken')
+    } finally {
+      setSavingMailType(false)
+    }
+  }
+
   const handleSendMail = async () => {
     if (!dossier) return
     if (!mailOnderwerp.trim()) return setMailError('Onderwerp is verplicht')
@@ -105,6 +134,7 @@ export default function DossierDetailPage() {
         handmatig: handmatigAdressen,
         onderwerp: mailOnderwerp,
         inhoud: mailInhoud,
+        type: mailType || null,
       })
       setMailSuccess(result.detail)
       // Reload to show maillog
@@ -439,6 +469,32 @@ export default function DossierDetailPage() {
               )}
             </div>
 
+            {/* Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+              <div className="flex gap-2">
+                <select
+                  value={mailType}
+                  onChange={e => setMailType(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Geen type --</option>
+                  {mailTypes.filter(tp => tp.actief).map(tp => (
+                    <option key={tp.id} value={tp.id}>{tp.naam}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowNewMailType(true)}
+                  className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+                  title="Nieuw type aanmaken"
+                >
+                  <PlusIcon className="h-4 w-4" />
+                  Nieuw
+                </button>
+              </div>
+            </div>
+
             {/* Onderwerp */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Onderwerp <span className="text-red-500">*</span></label>
@@ -486,6 +542,54 @@ export default function DossierDetailPage() {
                 {sendingMail ? 'Verzenden...' : 'Verzenden'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* New mail type modal */}
+      {showNewMailType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Nieuw dossiertype</h2>
+              <button onClick={() => setShowNewMailType(false)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {newMailTypeError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">{newMailTypeError}</div>
+            )}
+
+            <form onSubmit={handleCreateMailType} className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Naam <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={newMailTypeName}
+                  onChange={e => setNewMailTypeName(e.target.value)}
+                  required
+                  autoFocus
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewMailType(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Annuleren
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingMailType}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {savingMailType ? 'Aanmaken...' : 'Aanmaken'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
