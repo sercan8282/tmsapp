@@ -2,13 +2,14 @@ import { useState, useEffect, Fragment } from 'react'
 import {
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
+  ArrowPathIcon,
   EyeIcon,
   PaperClipIcon,
   TrashIcon,
   XMarkIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
-import { TolRegistratie, getTolRegistraties, getTolDownloadUrl, deleteTolRegistratie } from '@/api/tolregistratie'
+import { TolRegistratie, getTolRegistraties, getTolDownloadUrl, deleteTolRegistratie, markTolIngediend, markTolGefactureerd } from '@/api/tolregistratie'
 import toast from 'react-hot-toast'
 import api from '@/api/client'
 import Pagination, { PageSize } from '@/components/common/Pagination'
@@ -28,6 +29,9 @@ export default function AdminTolRegistratiePage() {
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<TolRegistratie | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Status toggle state
+  const [togglingStatus, setTogglingStatus] = useState<string | null>(null)
 
   // PDF viewer modal state
   const [pdfModalReg, setPdfModalReg] = useState<TolRegistratie | null>(null)
@@ -118,6 +122,24 @@ export default function AdminTolRegistratiePage() {
       toast.error('Fout bij verwijderen')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleToggleStatus = async (reg: TolRegistratie) => {
+    setTogglingStatus(reg.id)
+    try {
+      if (reg.gefactureerd) {
+        await markTolIngediend([reg.id])
+        toast.success('Status gewijzigd naar Ingediend')
+      } else {
+        await markTolGefactureerd([reg.id])
+        toast.success('Status gewijzigd naar Gefactureerd')
+      }
+      loadRegistraties()
+    } catch {
+      toast.error('Fout bij wijzigen status')
+    } finally {
+      setTogglingStatus(null)
     }
   }
 
@@ -217,13 +239,23 @@ export default function AdminTolRegistratiePage() {
                       )}
                     </td>
                     <td className="px-4 py-2 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        reg.gefactureerd
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
+                      <button
+                        onClick={() => handleToggleStatus(reg)}
+                        disabled={togglingStatus === reg.id}
+                        title={reg.gefactureerd ? 'Klik om terug te zetten naar Ingediend' : 'Klik om te markeren als Gefactureerd'}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-opacity hover:opacity-75 disabled:opacity-50 ${
+                          reg.gefactureerd
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
+                        {togglingStatus === reg.id ? (
+                          <span aria-label="Status wordt gewijzigd" className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <ArrowPathIcon aria-hidden="true" className="w-3 h-3" />
+                        )}
                         {reg.gefactureerd ? 'Gefactureerd' : 'Ingediend'}
-                      </span>
+                      </button>
                     </td>
                     <td className="px-4 py-2 text-center">
                       <button
