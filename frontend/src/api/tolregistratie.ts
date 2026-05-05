@@ -75,6 +75,10 @@ export async function markTolGefactureerd(ids: string[]): Promise<void> {
   await Promise.all(ids.map(id => api.post(`/time-entries/tol/${id}/mark_gefactureerd/`)))
 }
 
+export async function markTolIngediend(ids: string[]): Promise<void> {
+  await Promise.all(ids.map(id => api.post(`/time-entries/tol/${id}/mark_ingediend/`)))
+}
+
 export function getTolDownloadUrl(id: string): string {
   return `/time-entries/tol/${id}/download/`
 }

@@ -1863,3 +1863,14 @@ class TolRegistratieViewSet(viewsets.ModelViewSet):
         instance.save()
         return Response({'success': True})
 
+    @action(detail=True, methods=['post'])
+    def mark_ingediend(self, request, pk=None):
+        """Mark as submitted (revert from invoiced)."""
+        if not self._can_view_all():
+            return Response({'detail': 'Geen toegang.'}, status=status.HTTP_403_FORBIDDEN)
+        instance = self.get_object()
+        instance.gefactureerd = False
+        instance.status = TolStatus.INGEDIEND
+        instance.save()
+        return Response({'success': True})
+
