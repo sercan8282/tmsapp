@@ -76,5 +76,5 @@ export async function markTolGefactureerd(ids: string[]): Promise<void> {
 }
 
 export function getTolDownloadUrl(id: string): string {
-  return `/api/time-entries/tol/${id}/download/`
+  return `/time-entries/tol/${id}/download/`
 }
