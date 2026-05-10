@@ -191,6 +191,29 @@ services:
       - tms_internal
 
   # =========================================
+  # Maintenance pagina
+  # Altijd actief — NPM valt hier op terug bij 502/503/504
+  # (frontend container down tijdens update)
+  # NOOIT herbouwen tijdens app-updates!
+  # =========================================
+  maintenance:
+    image: nginx:alpine
+    container_name: tms_maintenance
+    restart: always
+    volumes:
+      - ./frontend/public/maintenance.html:/usr/share/nginx/html/index.html:ro
+      - ./docker/maintenance-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - tms_internal
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # =========================================
   # Nginx Proxy Manager
   # UI: http://server-ip:81
   # Beheert SSL en reverse proxy
