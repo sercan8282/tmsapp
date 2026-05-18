@@ -82,6 +82,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'opmerkingen', 'pdf_file', 'bijlage',
             'created_by', 'created_by_naam', 'sent_at',
             'week_number', 'week_year', 'chauffeur', 'chauffeur_naam',
+            'dot_percentage',
             'lines', 'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -103,7 +104,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
 class InvoiceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invoice
-        fields = ['template', 'bedrijf', 'type', 'factuurdatum', 'vervaldatum', 'btw_percentage', 'opmerkingen', 'week_number', 'week_year', 'chauffeur']
+        fields = ['template', 'bedrijf', 'type', 'factuurdatum', 'vervaldatum', 'btw_percentage', 'opmerkingen', 'week_number', 'week_year', 'chauffeur', 'dot_percentage']
     
     def validate_factuurdatum(self, value):
         from datetime import date, timedelta

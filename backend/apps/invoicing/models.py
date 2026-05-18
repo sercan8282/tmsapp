@@ -88,6 +88,13 @@ class Invoice(models.Model):
     btw_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=21, verbose_name='BTW %')
     btw_bedrag = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='BTW Bedrag')
     totaal = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Totaal')
+
+    # DOT percentage for time entry imports
+    dot_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        verbose_name='DOT Percentage',
+        help_text='DOT percentage gebruikt bij importeren van uren (bijv. 21 voor 21%)'
+    )
     
     # Notes
     opmerkingen = models.TextField(blank=True, verbose_name='Opmerkingen')
