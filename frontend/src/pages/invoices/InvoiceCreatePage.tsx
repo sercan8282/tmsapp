@@ -1525,7 +1525,8 @@ export default function InvoiceCreatePage() {
   })
   const [opmerkingen, setOpmerkingen] = useState('')
   const [lines, setLines] = useState<InvoiceLineData[]>([])
-  
+  const [dotPercentage, setDotPercentage] = useState<number | null>(null)
+
   // Week/Chauffeur tracking (from imported time entries)
   const [weekNumber, setWeekNumber] = useState<number | null>(null)
   const [weekYear, setWeekYear] = useState<number | null>(null)
@@ -1741,14 +1742,16 @@ export default function InvoiceCreatePage() {
     }
     
     const summaryLines: InvoiceLineData[] = []
-    
+
     // Check if KM should be percentage or fixed
     if (defaults.dotIsPercentage) {
       // DOT is percentage mode: only add DOT line (no KM line)
       // DOT = percentage of subtotal of uren
-      const dotBedrag = entriesSubtotaal * (defaults.dotPrijs / 100)
+      // Use dotPercentage from form if available, otherwise use defaults.dotPrijs
+      const percentageToUse = dotPercentage !== null ? dotPercentage : defaults.dotPrijs
+      const dotBedrag = entriesSubtotaal * (percentageToUse / 100)
       summaryLines.push(createSummaryLine(
-        `Totaal DOT (${defaults.dotPrijs}%)`,
+        `Totaal DOT (${percentageToUse}%)`,
         1,
         dotBedrag
       ))
@@ -1869,8 +1872,10 @@ export default function InvoiceCreatePage() {
     const summaryLines: InvoiceLineData[] = []
 
     if (defaults.dotIsPercentage) {
-      const dotBedrag = entriesSubtotaal * (defaults.dotPrijs / 100)
-      summaryLines.push(createSummaryLine(`Totaal DOT (${defaults.dotPrijs}%)`, 1, dotBedrag))
+      // Use dotPercentage from form if available, otherwise use defaults.dotPrijs
+      const percentageToUse = dotPercentage !== null ? dotPercentage : defaults.dotPrijs
+      const dotBedrag = entriesSubtotaal * (percentageToUse / 100)
+      summaryLines.push(createSummaryLine(`Totaal DOT (${percentageToUse}%)`, 1, dotBedrag))
     } else {
       if (totalKm > 0 && defaults.kmTarief > 0) {
         summaryLines.push(createSummaryLine('Totaal KM', totalKm, defaults.kmTarief))
@@ -2081,7 +2086,12 @@ export default function InvoiceCreatePage() {
         btw_percentage: totalsConfig.btwPercentage,
         opmerkingen,
       }
-      
+
+      // Add DOT percentage if set
+      if (dotPercentage !== null) {
+        invoiceData.dot_percentage = dotPercentage
+      }
+
       // Add week/chauffeur if available (from imported time entries)
       if (weekNumber !== null) {
         invoiceData.week_number = weekNumber
@@ -2221,6 +2231,11 @@ export default function InvoiceCreatePage() {
                 onSelect={() => {
                   setSelectedTemplate(template)
                   setLines([]) // Reset lines when changing template
+                  // Initialize DOT percentage from template defaults
+                  const layout = template.layout as TemplateLayout
+                  if (layout?.defaults?.dotIsPercentage && layout?.defaults?.dotPrijs) {
+                    setDotPercentage(layout.defaults.dotPrijs)
+                  }
                 }}
               />
             ))}
@@ -2301,6 +2316,27 @@ export default function InvoiceCreatePage() {
               placeholder={t('invoices.optionalNotes')}
             />
           </div>
+          {defaults.dotIsPercentage && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="flex items-center gap-2">
+                  <ReceiptPercentIcon className="h-4 w-4" />
+                  DOT Percentage (%)
+                </div>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={dotPercentage !== null ? dotPercentage : ''}
+                onChange={(e) => setDotPercentage(e.target.value ? parseFloat(e.target.value) : null)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="Bijv. 21 voor 21%"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Dit percentage wordt gebruikt bij het berekenen van DOT bij het importeren van uren
+              </p>
+            </div>
+          )}
         </div>
       )}
 
